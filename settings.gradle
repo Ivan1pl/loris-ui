@@ -1,0 +1,8 @@
+rootProject.name = 'loris-ui'
+include 'api'
+project(":api").name = "loris-ui-api"
+include 'imgui'
+project(":imgui").name = "loris-ui-imgui"
+include 'jme3'
+project(":jme3").name = "loris-ui-jme3"
+include 'examples'

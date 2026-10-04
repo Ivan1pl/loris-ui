@@ -1,0 +1,21 @@
+plugins {
+    id 'java'
+}
+
+allprojects {
+    group = 'com.ivan1pl.loris-ui'
+    version = '1.0-SNAPSHOT'
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+}
+
+ext {
+    jmonkeyVersion = '3.10.0-SNAPSHOT'
+}

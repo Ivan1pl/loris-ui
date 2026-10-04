@@ -1,0 +1,13 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    implementation project(':loris-ui-jme3')
+    implementation "org.jmonkeyengine:jme3-core:$jmonkeyVersion"
+    implementation "org.jmonkeyengine:jme3-desktop:$jmonkeyVersion"
+    implementation "org.jmonkeyengine:jme3-lwjgl3:$jmonkeyVersion"
+    testImplementation platform('org.junit:junit-bom:6.0.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
