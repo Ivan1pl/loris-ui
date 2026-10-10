@@ -11,7 +11,15 @@ allprojects {
         mavenCentral()
     }
 
-    test {
+    plugins.withId('java') {
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(25)
+            }
+        }
+    }
+
+    tasks.withType(Test).configureEach {
         useJUnitPlatform()
     }
 }
@@ -19,4 +27,5 @@ allprojects {
 ext {
     jmonkeyVersion = '3.10.0-SNAPSHOT'
     lwjglVersion = '3.4.1'
+    mockitoVersion = '5.24.0'
 }

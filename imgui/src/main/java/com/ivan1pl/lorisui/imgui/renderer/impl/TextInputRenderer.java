@@ -9,12 +9,11 @@ import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
 import imgui.ImGui;
 import imgui.type.ImString;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 public class TextInputRenderer extends Renderer<TextInput> {
-    private final Map<TextInput, String> lastEditValue = new HashMap<>();
+    private final Map<TextInput, String> lastEditValue = new WeakHashMap<>();
 
     @Override
     public void render(TextInput component, int w, int h, RendererProvider rendererProvider,
@@ -34,23 +33,19 @@ public class TextInputRenderer extends Renderer<TextInput> {
 
     private void doRender(TextInput component) {
         ImGui.pushItemWidth(component.getWidth());
-        byte[] buffer = component.getBuffer();
-        ImString imString = new ImString(new String(buffer), buffer.length);
-        if (ImGui.inputText("##", imString, 0)) {
-            int firstZeroIndex = 0;
-            buffer = imString.getData();
-            for (byte b : buffer) {
-                if (b != 0) {
-                    firstZeroIndex++;
+        try {
+            ImString imString = new ImString(component.getValue());
+            imString.inputData.isResizable = true;
+            if (ImGui.inputText("##", imString, 0)) {
+                lastEditValue.put(component, imString.get());
+            } else {
+                String value = lastEditValue.remove(component);
+                if (value != null) {
+                    component.validateInput(value);
                 }
             }
-            lastEditValue.put(component, new String(buffer, 0, firstZeroIndex, StandardCharsets.UTF_8));
-        } else {
-            String value = lastEditValue.remove(component);
-            if (value != null) {
-                component.validateInput(value);
-            }
+        } finally {
+            ImGui.popItemWidth();
         }
-        ImGui.popItemWidth();
     }
 }

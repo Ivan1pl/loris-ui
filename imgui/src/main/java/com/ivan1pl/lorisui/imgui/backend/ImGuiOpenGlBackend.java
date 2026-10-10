@@ -2,6 +2,7 @@ package com.ivan1pl.lorisui.imgui.backend;
 
 import com.ivan1pl.lorisui.api.backend.TextureData;
 import com.ivan1pl.lorisui.api.core.Color;
+import com.ivan1pl.lorisui.imgui.backend.impl.TextureMasking;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL21;
 import org.lwjgl.stb.STBImage;
@@ -13,6 +14,7 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 public class ImGuiOpenGlBackend extends ImGuiBackend {
+    @Override
     public TextureData loadTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB)
             throws IOException {
         ByteBuffer encoded = null;
@@ -43,29 +45,8 @@ public class ImGuiOpenGlBackend extends ImGuiBackend {
                 int w = width.get(0);
                 int h = height.get(0);
 
-                // Apply your RGB mask here, if necessary.
                 if (maskedR != null || maskedG != null || maskedB != null) {
-                    for (int y = 0; y < h; y++) {
-                        for (int x = 0; x < w; x++) {
-                            int i = (y * w + x) * 4;
-
-                            int r = Byte.toUnsignedInt(pixels.get(i));
-                            int g = Byte.toUnsignedInt(pixels.get(i + 1));
-                            int b = Byte.toUnsignedInt(pixels.get(i + 2));
-                            int a = Byte.toUnsignedInt(pixels.get(i + 3));
-
-                            // Adapt this to your existing Color.mask() semantics.
-                            Color color = new Color(r, g, b, a);
-                            int rgba = color.mask(
-                                    maskedR, maskedG, maskedB
-                            ).getRGBA();
-
-                            pixels.put(i,     (byte) (rgba >>> 24));
-                            pixels.put(i + 1, (byte) (rgba >>> 16));
-                            pixels.put(i + 2, (byte) (rgba >>> 8));
-                            pixels.put(i + 3, (byte) rgba);
-                        }
-                    }
+                    TextureMasking.apply(pixels, w, h, maskedR, maskedG, maskedB);
                 }
 
                 int texture = GL11.glGenTextures();

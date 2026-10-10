@@ -1,3 +1,4 @@
+/.maister/tasks/
 .gradle
 /build/
 /*/build/

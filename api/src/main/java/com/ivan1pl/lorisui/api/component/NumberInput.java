@@ -3,13 +3,11 @@ package com.ivan1pl.lorisui.api.component;
 import com.ivan1pl.lorisui.api.component.style.TextInputStyle;
 import com.ivan1pl.lorisui.api.font.Font;
 
-import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public class NumberInput implements Component {
-    private final byte[] buffer;
-    private final byte[] emptyBuffer;
     private final Supplier<Integer> minValue;
     private final Supplier<Integer> maxValue;
     private final Supplier<Integer> valueGetter;
@@ -22,8 +20,6 @@ public class NumberInput implements Component {
                         Consumer<Integer> valueSetter, int width, Font font, TextInputStyle style) {
         this.minValue = minValue;
         this.maxValue = maxValue;
-        this.buffer = new byte[Integer.toString(Integer.MAX_VALUE/10).length()];
-        this.emptyBuffer = new byte[Integer.toString(Integer.MAX_VALUE/10).length()];
         this.valueGetter = valueGetter;
         this.valueSetter = valueSetter;
         this.width = width;
@@ -31,11 +27,14 @@ public class NumberInput implements Component {
         this.style = style;
     }
 
-    public byte[] getBuffer() {
-        byte[] value = Integer.toString(valueGetter.get()).getBytes(StandardCharsets.UTF_8);
-        System.arraycopy(emptyBuffer, 0, buffer, 0, emptyBuffer.length);
-        System.arraycopy(value, 0, buffer, 0, value.length);
-        return buffer;
+    /**
+     * Returns the bound value as text to display, evaluated on each call.
+     *
+     * @return the decimal representation of the bound value, or {@code ""} when the bound getter yields {@code null}
+     */
+    public String getValue() {
+        Integer value = valueGetter.get();
+        return value == null ? "" : Integer.toString(value);
     }
 
     public int getWidth() {
@@ -50,6 +49,12 @@ public class NumberInput implements Component {
         return style;
     }
 
+    /**
+     * Commits edited text to the bound setter. The text is parsed as a decimal integer and clamped to the current
+     * minimum and maximum values; text that is not a valid integer is ignored and the setter is not invoked.
+     *
+     * @param value the edited text; must not be {@code null}
+     */
     public void validateInput(String value) {
         try {
             int numericValue = Integer.parseInt(value);
@@ -68,9 +73,13 @@ public class NumberInput implements Component {
         return new Builder();
     }
 
+    /**
+     * Builder for {@link NumberInput}. Required arguments are checked eagerly; Supplier setters reject null; constant
+     * overloads of optional properties accept null meaning unset/toolkit default.
+     */
     public static class Builder {
-        private Supplier<Integer> minValue;
-        private Supplier<Integer> maxValue;
+        private Supplier<Integer> minValue = () -> 0;
+        private Supplier<Integer> maxValue = () -> Integer.MAX_VALUE;
         private Supplier<Integer> valueGetter;
         private Consumer<Integer> valueSetter;
         private int width;
@@ -80,28 +89,26 @@ public class NumberInput implements Component {
         private Builder() {}
 
         public Builder minValue(int minValue) {
-            this.minValue = () -> minValue;
-            return this;
+            return minValue(() -> minValue);
         }
 
         public Builder minValue(Supplier<Integer> minValue) {
-            this.minValue = minValue;
+            this.minValue = Objects.requireNonNull(minValue, "minValue");
             return this;
         }
 
         public Builder maxValue(int maxValue) {
-            this.maxValue = () -> maxValue;
-            return this;
+            return maxValue(() -> maxValue);
         }
 
         public Builder maxValue(Supplier<Integer> maxValue) {
-            this.maxValue = maxValue;
+            this.maxValue = Objects.requireNonNull(maxValue, "maxValue");
             return this;
         }
 
         public Builder value(Supplier<Integer> getter, Consumer<Integer> setter) {
-            this.valueGetter = getter;
-            this.valueSetter = setter;
+            this.valueGetter = Objects.requireNonNull(getter, "getter");
+            this.valueSetter = Objects.requireNonNull(setter, "setter");
             return this;
         }
 
@@ -116,12 +123,20 @@ public class NumberInput implements Component {
         }
 
         public Builder style(TextInputStyle style) {
-            this.style = style;
+            this.style = Objects.requireNonNull(style, "style");
             return this;
         }
 
+        /**
+         * Builds the number input. Unless set, the minimum value is 0 and the maximum value is
+         * {@link Integer#MAX_VALUE}.
+         *
+         * @return a new {@link NumberInput}
+         * @throws NullPointerException if {@code value(...)} was never called
+         */
         public NumberInput build() {
-            return new NumberInput(minValue, maxValue, valueGetter, valueSetter, width, font, style);
+            return new NumberInput(minValue, maxValue, Objects.requireNonNull(valueGetter, "valueGetter"),
+                    Objects.requireNonNull(valueSetter, "valueSetter"), width, font, style);
         }
     }
 }

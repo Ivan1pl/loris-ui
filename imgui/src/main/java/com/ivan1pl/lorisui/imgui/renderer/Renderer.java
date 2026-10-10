@@ -10,7 +10,17 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Draws one kind of {@link Component} through Dear ImGui.
+ * <p>
+ * Renderers, and the shared texture cache behind {@link #loadTexture(Backend, String)}, are used only on the render
+ * (GL) thread: ImGui renders on a single thread, a cache miss uploads the texture through GL calls, and the layout
+ * executor of {@code LorisScreen} never touches the cache.
+ *
+ * @param <ComponentType> the component type this renderer draws
+ */
 public abstract class Renderer<ComponentType extends Component> {
+    // Confined to the render (GL) thread, so a plain HashMap is enough.
     // Complex key represented as nested maps to prevent object allocation just to look up a key
     private static final Map<String, Map<Object, Map<Object, Map<Object, TextureData>>>> TEXTURES = new HashMap<>();
     private static final Object NO_COLOR_KEY = new Object();
@@ -18,10 +28,33 @@ public abstract class Renderer<ComponentType extends Component> {
     public abstract void render(ComponentType component, int w, int h, RendererProvider rendererProvider,
                                 BundleKeyResolver bundleKeyResolver, boolean topLevel, boolean enableInput);
 
+    /**
+     * Returns the unmasked texture for {@code path}, loading it through {@code backend} on the first request only.
+     * Must be called on the render (GL) thread, because the cache is not thread-safe and a cache miss makes GL calls.
+     *
+     * @param backend backend used to load the texture on a cache miss
+     * @param path    resource path of the texture
+     * @return the cached or newly loaded texture
+     * @throws IOException if the texture cannot be loaded
+     */
     protected static TextureData loadTexture(Backend backend, String path) throws IOException {
         return loadTexture(backend, path, null, null, null);
     }
 
+    /**
+     * Returns the texture for {@code path} with the given channel masks, loading it through {@code backend} on the
+     * first request for that path and mask combination only. Masks are compared with {@link Color#equals}; a
+     * {@code null} mask leaves its channel unchanged and is cached separately from any non-null mask. Must be called on
+     * the render (GL) thread, because the cache is not thread-safe and a cache miss makes GL calls.
+     *
+     * @param backend backend used to load the texture on a cache miss
+     * @param path    resource path of the texture
+     * @param maskedR colour replacing the red channel, or {@code null} to keep it
+     * @param maskedG colour replacing the green channel, or {@code null} to keep it
+     * @param maskedB colour replacing the blue channel, or {@code null} to keep it
+     * @return the cached or newly loaded texture
+     * @throws IOException if the texture cannot be loaded
+     */
     protected static TextureData loadTexture(Backend backend, String path, Color maskedR, Color maskedG, Color maskedB)
             throws IOException {
         TextureData textureData = getFromCache(path, maskedR, maskedG, maskedB);
@@ -50,8 +83,7 @@ public abstract class Renderer<ComponentType extends Component> {
         return innerG.get(maskedB == null ? NO_COLOR_KEY : maskedB);
     }
 
-    private static synchronized void putToCache(String path, Color maskedR, Color maskedG, Color maskedB,
-                                                TextureData textureData) {
+    private static void putToCache(String path, Color maskedR, Color maskedG, Color maskedB, TextureData textureData) {
         var map = TEXTURES.get(path);
         if (map == null) {
             TEXTURES.put(path, map = new HashMap<>());

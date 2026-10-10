@@ -10,7 +10,6 @@ import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImString;
 
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -35,23 +34,19 @@ public class NumberInputRenderer extends Renderer<NumberInput> {
 
     private void doRender(NumberInput component) {
         ImGui.pushItemWidth(component.getWidth());
-        byte[] buffer = component.getBuffer();
-        ImString imString = new ImString(new String(buffer), buffer.length);
-        if (ImGui.inputText("##", imString, ImGuiInputTextFlags.CharsDecimal)) {
-            int firstZeroIndex = 0;
-            buffer = imString.getData();
-            for (byte b : buffer) {
-                if (b != 0) {
-                    firstZeroIndex++;
+        try {
+            ImString imString = new ImString(component.getValue());
+            imString.inputData.isResizable = true;
+            if (ImGui.inputText("##", imString, ImGuiInputTextFlags.CharsDecimal)) {
+                lastEditValue.put(component, imString.get());
+            } else {
+                String value = lastEditValue.remove(component);
+                if (value != null) {
+                    component.validateInput(value);
                 }
             }
-            lastEditValue.put(component, new String(buffer, 0, firstZeroIndex, StandardCharsets.UTF_8));
-        } else {
-            String value = lastEditValue.remove(component);
-            if (value != null) {
-                component.validateInput(value);
-            }
+        } finally {
+            ImGui.popItemWidth();
         }
-        ImGui.popItemWidth();
     }
 }

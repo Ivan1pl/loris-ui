@@ -40,11 +40,12 @@ examples ──▶ loris-ui-jme3 ──▶ loris-ui-imgui ──▶ loris-ui-api
 - **Key Files** (`com.ivan1pl.lorisui.imgui.*`):
   - `backend/ImGuiBackend.java`: implements `Backend` and `RendererProvider`. It builds the registries `Map<Class<? extends Component>, Renderer<?>>` and `Map<Class<? extends Style>, StyleApplier<?>>`. Lookups walk up the superclass chain, so a subclass of a component falls back to its parent's renderer. A missing entry throws `IllegalStateException`. It also maps `ImageMode` variants to ImGui draw calls using an exhaustive pattern `switch`.
   - `backend/ImGuiOpenGlBackend.java`: concrete `loadTexture` (STB decode, RGB-channel colour masking, GL texture upload)
-  - `renderer/Renderer.java`: abstract per-component renderer base with a static texture cache (`TEXTURES`)
+  - `backend/impl/TextureMasking.java`: the pure pixel-masking loop used by `loadTexture` (internal, not exported)
+  - `renderer/Renderer.java`: abstract per-component renderer base with a static texture cache (`TEXTURES`), confined to the render (GL) thread
   - `renderer/RendererProvider.java`: renderer and style-applier lookup contract, used by container renderers to render their children
   - `renderer/impl/*Renderer.java`: one renderer per component type
   - `renderer/style/StyleApplier.java` and `renderer/style/impl/*StyleApplier.java`: one applier per style type, which push and pop ImGui style vars and colours
-  - `ImGuiOpenGlRenderer.java`: owns the ImGui context and the SDL3 + GL3 platform/renderer implementations, and runs the ImGui frame
+  - `ImGuiOpenGlRenderer.java`: owns the ImGui context and the SDL3 + GL3 platform/renderer implementations, and runs the ImGui frame (always closed in `finally`)
   - `ImGuiState.java`: global flags shared across renderers (for example `hoveringScrollableWindow`)
   - `font/ImGuiFont.java`: the ImGui implementation of `Font`
 
@@ -68,10 +69,11 @@ examples ──▶ loris-ui-jme3 ──▶ loris-ui-imgui ──▶ loris-ui-api
 **Per frame** (`ImGuiJmeDisplay.postQueue`):
 1. `ImGuiOpenGlRenderer.render(screen, w, h, resolver)` starts an ImGui frame.
 2. `LorisScreen.render(backend, w, h, resolver)`:
-   - If the layout was invalidated (`setLayoutNeedsUpdate(true)`), `layout()` is submitted to a static single-thread executor. The new `List<Component>` replaces `content` asynchronously, and in the meantime the previous content keeps rendering.
+   - If the previous `layout()` call threw or returned `null`, the failure is rethrown once as an `IllegalStateException` (cause = original failure) and nothing is rendered in that call; later frames render the last successful layout. Hosts should treat it as fatal.
+   - If the layout was invalidated (`setLayoutNeedsUpdate(true)`, callable from any thread; the update flag is an `AtomicBoolean`), `layout()` is scheduled on the shared single-thread daemon executor (`lorisui-layout`). The new `List<Component>` is published through a `volatile` field and replaces `content` asynchronously; in the meantime the previous content keeps rendering (an empty list before the first layout).
    - Calls `backend.render(w, h, content, resolver)`.
 3. `ImGuiBackend.render` looks up the `Renderer` for each component, and each renderer emits ImGui calls. Containers (Panel, TabbedPanel, Popup) recurse through `RendererProvider`. Styles are applied through `StyleApplier`s. Text keys are resolved through `BundleKeyResolver`. Images are loaded or fetched from the cache through `loadTexture` and drawn with `renderTexture` according to their `ImageMode`.
-4. ImGui draw data is rendered with OpenGL 3.
+4. ImGui draw data is rendered with OpenGL 3. `ImGuiOpenGlRenderer.render` ends the ImGui frame in a `finally` block, so the frame is closed even when `LorisScreen.render` throws.
 
 **Input**: jME raw input and SDL events go to `ImGuiInputSystem`, then to ImGui IO. Component callbacks (for example button actions) run during rendering on the render thread.
 
@@ -82,10 +84,11 @@ examples ──▶ loris-ui-jme3 ──▶ loris-ui-imgui ──▶ loris-ui-api
 - **New host**: wrap `ImGuiOpenGlRenderer` and `ImGuiOpenGlBackend` in the target engine's render hook, the same way `ImGuiJmeDisplay` does.
 
 ## Known Architectural Concerns
-- **Threading in `LorisScreen`**: the executor thread writes `content` and the render thread reads it, but `content` isn't `volatile`. Exceptions from `layout()` are swallowed by `submit()`. All screens share one static executor that is never shut down.
-- **Shared static state**: `Renderer.TEXTURES` is unbounded, never evicted, and read without synchronisation. `ImGuiState` holds global mutable flags.
+- **Threading in `LorisScreen`**: the content handoff (`volatile` content, atomic update flag), failure surfacing (rethrown once from `render()`) and the daemon layout thread are resolved. Remaining by design: all screens share one static executor that is never shut down; being a daemon thread, it does not keep the JVM alive.
+- **Shared static state**: `Renderer.TEXTURES` is render-thread-only by contract (a plain `HashMap`, documented in `Renderer`), but still unbounded and never evicted. `ImGuiState` holds global mutable flags.
 - **Resource lifecycle**: `Backend` has no texture-unload operation, so GL textures leak for the lifetime of the process.
-- **ImGui leaks into the public API**: `imgui-java-app` is an `api` dependency of `loris-ui-imgui`.
+- **ImGui leaks into the public API**: `imgui-java-app` is an `api` dependency of `loris-ui-imgui`. (Input components no longer expose ImGui buffers: `TextInput`/`NumberInput` work with plain values through `getValue()`.)
+- **Renderer robustness**: `ImGuiOpenGlRenderer` disables ImGui's error-recovery assert and tooltip, so state left open by a throwing renderer (windows, IDs, style stacks) is unwound when the frame closes and the original exception propagates to the host; the trade-off is that an imbalance that does not throw is recovered silently instead of failing fast. The input renderers pop their item width in `finally` and the combo box uses `setNextItemWidth`, but other push/pop pairs (combo style vars, per-item IDs, `beginChild`/`endChild` in the panel and combo renderers) are still not in `try/finally`. `TextInput` and `NumberInput` both use the bare `"##"` ImGui label without a per-component ID, so two inputs in the same window share an ImGui ID.
 - **jME module workaround**: the `--patch-module` compiler argument, and the lack of a `module-info` in `jme3`.
 
 ## External Integrations
@@ -105,4 +108,4 @@ Not applicable.
 LorisUI is a library, so it isn't deployed as a service. It's meant to be published as Maven artifacts (`loris-ui-api`, `loris-ui-imgui`, `loris-ui-jme3`) and consumed by desktop game applications. LWJGL natives for Windows, Linux and macOS are pulled in at runtime.
 
 ---
-*Based on codebase analysis performed 2026-10-10*
+*Based on codebase analysis performed 2026-10-10; updated 2026-10-10 after the toolchain, threading and null-handling work*

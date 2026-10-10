@@ -6,21 +6,25 @@ This roadmap lists the planned work for LorisUI. Priorities follow the maintaine
 - **Version**: `1.0-SNAPSHOT` (unpublished)
 - **Modules**: `api`, `imgui`, `jme3`, `examples`
 - **Components**: Panel, Button, Text, Image, TextInput, NumberInput, ComboBox, ProgressBar, TabbedPanel, Popup, ModalPopup, Spacer
-- **Recent work**: extracted into a standalone library, then refactored into `backend/`, `renderer/impl/` and `renderer/style/impl/` packages, with JPMS descriptors for `api` and `imgui`
-- **Gaps**: no tests, no README or Javadoc, no CI, no publishing configuration
+- **Recent work**: extracted into a standalone library, then refactored into `backend/`, `renderer/impl/` and `renderer/style/impl/` packages, with JPMS descriptors for `api` and `imgui`; then the Java 25 toolchain, unit tests, the `LorisScreen` threading fix and the unified null-handling convention (pre-1.0 breaking API changes)
+- **Gaps**: no README, Javadoc only on the API touched by the stabilisation work, no CI, no publishing configuration. Unit tests exist for `api` and `imgui` (JUnit 6 + Mockito), but not for `jme3` or `examples`
 
 ## Phase 1: Foundation & Build Hygiene
-- [ ] **Gradle toolchain** — add `java { toolchain { languageVersion = JavaLanguageVersion.of(25) } }` so builds don't depend on the JDK running Gradle (the local default is 21, which can't compile this code) `[Effort: S]`
+- [x] **Gradle toolchain** — Java 25 toolchain set for every Java module in root `allprojects`, so builds don't depend on the JDK running Gradle (JDK 25 must be installed; no auto-provisioning) `[Effort: S]`
 - [ ] **JME3 snapshot dependency** — document the `mavenLocal()` prerequisite for `3.10.0-SNAPSHOT`, or move to a published jME release or a snapshot repository `[Effort: S]`
 - [ ] **README** — purpose, module overview, build requirements, how to run `examples` `[Effort: S]`
 - [ ] **Minimal CI** — run `./gradlew build` on push (GitHub Actions or similar) `[Effort: S]`
 - [ ] **Formatter / `.editorconfig`** — lock in the existing 4-space style and import rules (Spotless or similar) `[Effort: S]`
 
 ## Phase 2: API Stabilisation
-- [ ] **Unit tests for pure logic** — `ImageMode` construction, `Color` packing and `mask`, builder defaults, `ImGuiBackend` renderer and style-applier lookup (superclass fallback, missing-renderer error), texture-cache keying `[Effort: M]`
-- [ ] **`LorisScreen` threading fix** — make the `content` handoff thread-safe (`volatile` or atomic reference), surface exceptions thrown by `layout()`, and give the layout executor a proper lifecycle (shutdown, daemon thread) `[Effort: S]`
-- [ ] **Texture lifecycle** — add texture unload/dispose to `Backend`, free GL textures in `ImGuiOpenGlBackend`, and make `Renderer.TEXTURES` safe for concurrent access and evictable `[Effort: M]`
-- [ ] **Null-handling convention** — apply the agreed convention (see `standards/java/error-handling.md`): `null` = unset for optional properties, `Objects.requireNonNull` for required builder arguments `[Effort: S]`
+- [x] **Unit tests for pure logic** — `ImageMode` construction, `Color` packing and `mask`, builder defaults, `LorisScreen` layout handoff, `ImGuiBackend` renderer and style-applier lookup (superclass fallback, missing-renderer error), texture-cache keying and masking `[Effort: M]`
+- [ ] **`LorisScreen` threading fix** — mostly done; one sub-item remains open `[Effort: S]`
+  - [x] Thread-safe `content` handoff (`volatile` content, atomic update flag)
+  - [x] Exceptions from `layout()` (and a `null` result) surface once as `IllegalStateException` from `render()`
+  - [x] Layout executor runs on a daemon thread (`lorisui-layout`), so it no longer keeps the JVM alive
+  - [ ] Executor shutdown: the shared static executor is still never shut down (no lifecycle hook yet)
+- [ ] **Texture lifecycle** — `Renderer.TEXTURES` is now documented as render-thread-confined (no synchronisation needed); still open: texture unload/dispose in `Backend`, freeing GL textures in `ImGuiOpenGlBackend`, and cache eviction `[Effort: M]`
+- [x] **Null-handling convention** — applied across components and styles (see `standards/java/error-handling.md`): optional `Supplier` properties default to `() -> null`, `Supplier` setters and required arguments use `Objects.requireNonNull`, constant overloads of optional properties accept `null` as unset `[Effort: S]`
 - [ ] **Javadoc for `loris-ui-api`** — every exported type and public method `[Effort: M]`
 - [ ] **JPMS cleanup** — rename `lorisui.api.main` / `lorisui.imgui.main` to `lorisui.api` / `lorisui.imgui` (decided: no `.main` suffix), and add a `module-info` for `jme3` (replacing the `--patch-module` workaround) if feasible `[Effort: M]`
 
@@ -39,7 +43,8 @@ This roadmap lists the planned work for LorisUI. Priorities follow the maintaine
 - [ ] More components as the author's games need them (sliders, checkboxes, lists/tables, tooltips)
 - [ ] Theming: a shared style/theme object instead of per-component styles
 - [ ] Performance: avoid per-pixel `Color` allocation in texture masking, and cache the superclass renderer lookup
-- [ ] Remove `System.exit(0)` from the example's `destroy()` and resolve the `PanelRenderer` TODO
+- [x] Remove `System.exit(0)` from the example's `destroy()`
+- [ ] Resolve the `PanelRenderer` TODO (check that the button released is the one that received the press)
 - [ ] Track new Java LTS releases as they ship (next expected: Java 29, Sept 2027)
 
 ---

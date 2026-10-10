@@ -55,19 +55,38 @@ public class Color {
         return new Color(this.r, this.g, this.b, a);
     }
 
+    /**
+     * Recolours this colour by replacing each of its red, green and blue channels with a mask colour.
+     * <p>
+     * The result's RGB is the average of the three mask colours, weighted by this colour's red, green and blue
+     * channels. A {@code null} mask leaves the contribution of its channel unchanged (it acts as this colour), so
+     * masking with three {@code null} masks returns an equivalent colour.
+     * <p>
+     * The result's alpha is this colour's alpha multiplied by the mask alphas weighted the same way, where a
+     * {@code null} mask counts as alpha 1. A transparent colour therefore stays transparent, and {@code null} masks
+     * never change the alpha.
+     *
+     * @param red   colour that replaces the red channel, or {@code null} to keep it
+     * @param green colour that replaces the green channel, or {@code null} to keep it
+     * @param blue  colour that replaces the blue channel, or {@code null} to keep it
+     * @return the masked colour, or this instance when its red, green and blue channels are all zero
+     */
     public Color mask(Color red, Color green, Color blue) {
+        float div = this.r + this.g + this.b;
+        if (div == 0f) {
+            return this;
+        }
+        float redAlpha = red == null ? 1f : red.a;
+        float greenAlpha = green == null ? 1f : green.a;
+        float blueAlpha = blue == null ? 1f : blue.a;
         red = red == null ? this : red;
         green = green == null ? this : green;
         blue = blue == null ? this : blue;
         float r = this.r * red.r + this.g * green.r + this.b * blue.r;
         float g = this.r * red.g + this.g * green.g + this.b * blue.g;
         float b = this.r * red.b + this.g * green.b + this.b * blue.b;
-        float a = this.r * red.a + this.g * green.a + this.b * blue.a;
-        float div = this.r + this.g + this.b;
-        if (div == 0f) {
-            return this;
-        }
-        return new Color(r / div, g / div, b / div, a / div);
+        float maskAlpha = this.r * redAlpha + this.g * greenAlpha + this.b * blueAlpha;
+        return new Color(r / div, g / div, b / div, this.a * maskAlpha / div);
     }
 
     @Override

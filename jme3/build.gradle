@@ -11,10 +11,10 @@ tasks.withType(JavaCompile).configureEach {
 
 dependencies {
     api project(':loris-ui-imgui')
-    implementation("org.jmonkeyengine:jme3-core:$jmonkeyVersion") {
+    implementation("org.jmonkeyengine:jme3-core:${rootProject.ext.jmonkeyVersion}") {
         transitive = false
     }
-    implementation("org.jmonkeyengine:jme3-lwjgl3:$jmonkeyVersion") {
+    implementation("org.jmonkeyengine:jme3-lwjgl3:${rootProject.ext.jmonkeyVersion}") {
         transitive = false
     }
     testImplementation platform('org.junit:junit-bom:6.0.0')

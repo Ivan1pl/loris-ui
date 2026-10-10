@@ -27,6 +27,11 @@ public class ImGuiOpenGlRenderer {
         ImGui.getIO().setIniFilename(null);
         ImGui.getIO().setLogFilename(null);
         ImGui.getIO().setWantSaveIniSettings(false);
+        // A renderer exception can leave windows and style stacks open when render() closes the frame. Error recovery
+        // unwinds them, but with its assert enabled imgui-java's default assert callback calls System.exit(1) and the
+        // original exception is lost. The recovery tooltip is disabled too, as it offers to re-enable the assert.
+        ImGui.getIO().setConfigErrorRecoveryEnableAssert(false);
+        ImGui.getIO().setConfigErrorRecoveryEnableTooltip(false);
         ImGui.getIO().getFonts().build();
         this.implSdl3.init(windowHandle);
         this.implGl3.init();
@@ -41,6 +46,17 @@ public class ImGuiOpenGlRenderer {
         implSdl3.processEvent(eventPtr);
     }
 
+    /**
+     * Renders one ImGui frame containing the given screen. Must be called on the render (GL) thread. The frame is
+     * always closed and its draw data submitted, even if the screen throws. Unbalanced ImGui state left by a throwing
+     * renderer (open windows, pushed styles) is recovered when the frame closes, and the original exception (for
+     * example the {@link IllegalStateException} reporting a failed {@link LorisScreen} layout) then propagates.
+     *
+     * @param screen            screen to render; must not be null
+     * @param w                 display width in pixels
+     * @param h                 display height in pixels
+     * @param bundleKeyResolver resolver for localised text; must not be null
+     */
     public void render(LorisScreen screen, int w, int h, BundleKeyResolver bundleKeyResolver) {
         implGl3.newFrame();
         implSdl3.newFrame();
@@ -48,9 +64,11 @@ public class ImGuiOpenGlRenderer {
         ImGui.newFrame();
 
         ImGuiState.hoveringScrollableWindow = false;
-        screen.render(backend, w, h, bundleKeyResolver);
-
-        ImGui.render();
-        implGl3.renderDrawData(ImGui.getDrawData());
+        try {
+            screen.render(backend, w, h, bundleKeyResolver);
+        } finally {
+            ImGui.render();
+            implGl3.renderDrawData(ImGui.getDrawData());
+        }
     }
 }

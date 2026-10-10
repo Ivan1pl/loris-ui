@@ -82,6 +82,10 @@ public class ComboBox<ItemType> implements Component {
     public record Item<ItemType>(ItemType item, Panel label) {
     }
 
+    /**
+     * Builder for {@link ComboBox}. Required arguments are checked eagerly; Supplier setters reject null; constant
+     * overloads of optional properties accept null meaning unset/toolkit default.
+     */
     public static class Builder<ItemType> {
         private int width = 0;
         private int height = 0;
@@ -92,17 +96,17 @@ public class ComboBox<ItemType> implements Component {
         private ComboBoxItemStyle itemStyle = ComboBoxItemStyle.builder().build();
 
         public Builder<ItemType> items(List<Item<ItemType>> items) {
-            this.items = items;
+            this.items = Objects.requireNonNull(items, "items");
             return this;
         }
 
         @SafeVarargs
         public final Builder<ItemType> items(Item<ItemType>... items) {
-            return items(Arrays.asList(items));
+            return items(Arrays.asList(Objects.requireNonNull(items, "items")));
         }
 
         public Builder<ItemType> emptySelectionLabel(Panel emptySelectionLabel) {
-            this.emptySelectionLabel = emptySelectionLabel;
+            this.emptySelectionLabel = Objects.requireNonNull(emptySelectionLabel, "emptySelectionLabel");
             return this;
         }
 
@@ -113,17 +117,17 @@ public class ComboBox<ItemType> implements Component {
         }
 
         public Builder<ItemType> style(ComboBoxStyle style) {
-            this.style = style;
+            this.style = Objects.requireNonNull(style, "style");
             return this;
         }
 
         public Builder<ItemType> popupStyle(ComboBoxPopupStyle popupStyle) {
-            this.popupStyle = popupStyle;
+            this.popupStyle = Objects.requireNonNull(popupStyle, "popupStyle");
             return this;
         }
 
         public Builder<ItemType> itemStyle(ComboBoxItemStyle itemStyle) {
-            this.itemStyle = itemStyle;
+            this.itemStyle = Objects.requireNonNull(itemStyle, "itemStyle");
             return this;
         }
 

@@ -29,12 +29,6 @@ public class LorisJme3Example extends SimpleApplication {
         guiViewPort.addProcessor(imGuiJmeDisplay);
     }
 
-    @Override
-    public void destroy() {
-        super.destroy();
-        System.exit(0);
-    }
-
     private static AppSettings createDefaultSettings() {
         AppSettings settings = new AppSettings(true);
         settings.setHeight(600);

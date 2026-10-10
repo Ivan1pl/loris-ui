@@ -12,16 +12,39 @@ throw new IllegalStateException("Missing renderer for class: " + component.getCl
 ```
 
 ### Null Handling
-`null` means "not configured / use toolkit default" for optional properties (style colours, backgrounds, fonts, tooltips) and is checked at the use site: `x == null ? null : x.get()` in getters, `if (value != null)` before pushing ImGui state.
-Required arguments (ids, mandatory suppliers/callbacks) are validated with `Objects.requireNonNull(x, "x")` in builders/constructors so misuse fails fast at build time.
+`null` means "not configured / use toolkit default" for optional properties (style colours, backgrounds, fonts, tooltips). Components and styles store optional dynamic properties as a `Supplier` that defaults to `() -> null`, so the field itself is never `null`:
+- **Supplier setters** reject `null` with `Objects.requireNonNull(x, "x")`. To unset a property, use the constant overload.
+- **Constant overloads** of optional properties accept `null`, meaning unset or toolkit default, and delegate to the Supplier setter (`color(() -> value)`).
+- **Getters** return the plain value with `x.get()`, with no null check on the field. The result may be `null` for optional properties, and the use site checks it (`if (value != null)` before pushing ImGui state).
+
+Required arguments (ids, mandatory suppliers and callbacks, sizes) are validated with `Objects.requireNonNull(x, "x")` in builders and constructors, so misuse fails at build time.
+- **Validate eagerly, before wrapping.** An overload that wraps its argument in a lambda checks the argument first. Otherwise a `null` would only fail later, on the render thread, inside the lambda.
+- **Required bindings whose setter may be skipped** (no default value, for example the `valueGetter`/`valueSetter` of inputs, or `image`/`imageMode` of `Image`) are checked in `build()` with `Objects.requireNonNull(field, "field")`.
+- Documented exceptions: a `Text` builder with no text set renders `""`, and a `null` constant background colour means no background.
+
+Builder Javadoc states the contract in one sentence: "Builder for {@link X}. Required arguments are checked eagerly; Supplier setters reject null; constant overloads of optional properties accept null meaning unset/toolkit default."
+
 No nullability annotations; avoid `Optional` fields and parameters.
 
 ```java
-public Builder id(Supplier<String> id) {
-    this.id = Objects.requireNonNull(id, "id");
+private Supplier<Color> backgroundColor = () -> null;
+
+public Builder backgroundColor(Color backgroundColor) {
+    return backgroundColor(() -> backgroundColor);
+}
+
+public Builder backgroundColor(Supplier<Color> backgroundColor) {
+    this.backgroundColor = Objects.requireNonNull(backgroundColor, "backgroundColor");
     return this;
 }
-public Color getBackground() {
-    return background == null ? null : background.get();
+
+public Builder position(IntSupplier x, IntSupplier y) {
+    Objects.requireNonNull(x, "x");
+    Objects.requireNonNull(y, "y");
+    return position((_, _) -> x.getAsInt(), (_, _) -> y.getAsInt());
+}
+
+public Color getBackgroundColor() {
+    return backgroundColor.get();
 }
 ```

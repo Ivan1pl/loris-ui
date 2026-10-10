@@ -7,6 +7,7 @@ import com.ivan1pl.lorisui.api.core.IntBiFunction;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.IntBinaryOperator;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
@@ -47,10 +48,24 @@ public class Panel implements Component {
         return id.get();
     }
 
+    /**
+     * Returns the horizontal position for the given screen size, evaluated on each call.
+     *
+     * @param w screen width
+     * @param h screen height
+     * @return the x coordinate, or 0 when no position was set
+     */
     public int getX(int w, int h) {
         return x.applyAsInt(w, h);
     }
 
+    /**
+     * Returns the vertical position for the given screen size, evaluated on each call.
+     *
+     * @param w screen width
+     * @param h screen height
+     * @return the y coordinate, or 0 when no position was set
+     */
     public int getY(int w, int h) {
         return y.applyAsInt(w, h);
     }
@@ -68,7 +83,7 @@ public class Panel implements Component {
     }
 
     public Background getBackground() {
-        return background == null ? null : background.get();
+        return background.get();
     }
 
     public List<IntBiFunction<Component>> getContent() {
@@ -91,7 +106,15 @@ public class Panel implements Component {
         return scrollable;
     }
 
+    static Supplier<Background> colorBackground(Supplier<Color> color) {
+        return () -> {
+            Color value = color.get();
+            return value == null ? null : Background.color(value);
+        };
+    }
+
     public static Builder panelBuilder(String id) {
+        Objects.requireNonNull(id, "id");
         return new Builder(() -> id);
     }
 
@@ -101,12 +124,12 @@ public class Panel implements Component {
 
     protected static abstract class BaseBuilder<T extends Panel, Builder extends BaseBuilder<T, Builder>> {
         private final Supplier<String> id;
-        private IntBinaryOperator x;
-        private IntBinaryOperator y;
+        private IntBinaryOperator x = (_, _) -> 0;
+        private IntBinaryOperator y = (_, _) -> 0;
         private IntBinaryOperator width;
         private IntBinaryOperator height;
         private Layout layout = Layout.VERTICAL;
-        private Supplier<Background> background;
+        private Supplier<Background> background = () -> null;
         private Supplier<Boolean> open = () -> true;
         private final List<IntBiFunction<Component>> content = new ArrayList<>();
         private final List<Style> styles = new ArrayList<>();
@@ -114,7 +137,7 @@ public class Panel implements Component {
         private boolean scrollable = true;
 
         protected BaseBuilder(Supplier<String> id) {
-            this.id = id;
+            this.id = Objects.requireNonNull(id, "id");
         }
 
         public Builder position(int x, int y) {
@@ -122,106 +145,102 @@ public class Panel implements Component {
         }
 
         public Builder position(IntSupplier x, IntSupplier y) {
+            Objects.requireNonNull(x, "x");
+            Objects.requireNonNull(y, "y");
             return position((_, _) -> x.getAsInt(), (_, _) -> y.getAsInt());
         }
 
         @SuppressWarnings("unchecked")
         public Builder position(IntBinaryOperator x, IntBinaryOperator y) {
-            this.x = x;
-            this.y = y;
+            this.x = Objects.requireNonNull(x, "x");
+            this.y = Objects.requireNonNull(y, "y");
             return (Builder) this;
         }
 
-        public Builder size(int w, int h) {
-            return size((_, _) -> w, (_, _) -> h);
+        public Builder size(int width, int height) {
+            return size((_, _) -> width, (_, _) -> height);
         }
 
-        public Builder size(IntSupplier w, IntSupplier h) {
-            return size((_, _) -> w.getAsInt(), (_, _) -> h.getAsInt());
+        public Builder size(IntSupplier width, IntSupplier height) {
+            Objects.requireNonNull(width, "width");
+            Objects.requireNonNull(height, "height");
+            return size((_, _) -> width.getAsInt(), (_, _) -> height.getAsInt());
         }
 
         @SuppressWarnings("unchecked")
-        public Builder size(IntBinaryOperator w, IntBinaryOperator h) {
-            this.width = w;
-            this.height = h;
+        public Builder size(IntBinaryOperator width, IntBinaryOperator height) {
+            this.width = Objects.requireNonNull(width, "width");
+            this.height = Objects.requireNonNull(height, "height");
             return (Builder) this;
         }
 
         @SuppressWarnings("unchecked")
         public Builder layout(Layout layout) {
-            this.layout = layout;
+            this.layout = Objects.requireNonNull(layout, "layout");
             return (Builder) this;
         }
 
-        @SuppressWarnings("unchecked")
-        public Builder backgroundImage(String backgroundImage, ImageMode imageMode) {
-            this.background = () -> Background.image(backgroundImage, imageMode);
-            return (Builder) this;
+        public Builder backgroundImage(String image, ImageMode imageMode) {
+            return background(Background.image(image, imageMode));
         }
 
-        @SuppressWarnings("unchecked")
         public Builder backgroundColor(Color backgroundColor) {
-            this.background = () -> Background.color(backgroundColor);
-            return (Builder) this;
+            return backgroundColor(() -> backgroundColor);
         }
 
-        @SuppressWarnings("unchecked")
         public Builder backgroundColor(Supplier<Color> backgroundColor) {
-            this.background = () -> Background.color(backgroundColor.get());
-            return (Builder) this;
+            return background(colorBackground(Objects.requireNonNull(backgroundColor, "backgroundColor")));
         }
 
-        @SuppressWarnings("unchecked")
         public Builder background(Background background) {
-            this.background = () -> background;
-            return (Builder) this;
+            return background(() -> background);
         }
 
         @SuppressWarnings("unchecked")
         public Builder background(Supplier<Background> background) {
-            this.background = background;
+            this.background = Objects.requireNonNull(background, "background");
             return (Builder) this;
         }
 
         @SuppressWarnings("unchecked")
         public Builder open(Supplier<Boolean> open) {
-            this.open = open;
+            this.open = Objects.requireNonNull(open, "open");
             return (Builder) this;
         }
 
         @SuppressWarnings("unchecked")
         public Builder addContent(Component component) {
+            Objects.requireNonNull(component, "component");
             this.content.add((_, _) -> component);
             return (Builder) this;
         }
 
         @SuppressWarnings("unchecked")
         public Builder addContent(Supplier<Component> component) {
+            Objects.requireNonNull(component, "component");
             this.content.add((_, _) -> component.get());
             return (Builder) this;
         }
 
         @SuppressWarnings("unchecked")
         public Builder addContent(IntBiFunction<Component> component) {
-            this.content.add(component);
+            this.content.add(Objects.requireNonNull(component, "component"));
             return (Builder) this;
         }
 
         @SuppressWarnings("unchecked")
         public Builder addStyle(Style style) {
-            this.styles.add(style);
+            this.styles.add(Objects.requireNonNull(style, "style"));
             return (Builder) this;
         }
 
-        @SuppressWarnings("unchecked")
         public Builder tooltip(Panel tooltip) {
-            this.tooltip = () -> tooltip;
-            return (Builder) this;
+            return tooltip(() -> tooltip);
         }
 
         @SuppressWarnings("unchecked")
         public Builder tooltip(Supplier<Panel> tooltip) {
-            this.tooltip = tooltip;
+            this.tooltip = Objects.requireNonNull(tooltip, "tooltip");
             return (Builder) this;
         }
 
@@ -231,9 +250,17 @@ public class Panel implements Component {
             return (Builder) this;
         }
 
+        /**
+         * Builds the panel.
+         *
+         * @return a new panel
+         * @throws NullPointerException if {@code size(...)} was never called
+         */
         public abstract T build();
 
         protected T doBuild(PanelFactory<T> factory) {
+            Objects.requireNonNull(width, "width");
+            Objects.requireNonNull(height, "height");
             return factory.createNew(
                     id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable);
         }
@@ -246,6 +273,11 @@ public class Panel implements Component {
         }
     }
 
+    /**
+     * Builder for {@link Panel}. Required arguments are checked eagerly; Supplier setters reject null;
+     * constant overloads of optional properties accept null meaning unset/toolkit default.
+     * {@code size(...)} is required and checked at {@code build()}.
+     */
     public static class Builder extends BaseBuilder<Panel, Builder> {
         private Builder(Supplier<String> id) {
             super(id);

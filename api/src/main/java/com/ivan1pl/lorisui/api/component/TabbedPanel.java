@@ -2,6 +2,7 @@ package com.ivan1pl.lorisui.api.component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
@@ -71,6 +72,10 @@ public class TabbedPanel implements Component {
         return new Builder();
     }
 
+    /**
+     * Builder for {@link TabbedPanel}. Required arguments are checked eagerly; Supplier setters reject null;
+     * constant overloads of optional properties accept null meaning unset/toolkit default.
+     */
     public static class Builder {
         private int width;
         private int height = 30;
@@ -98,6 +103,7 @@ public class TabbedPanel implements Component {
         public Builder addTab(BiFunction<Integer, Integer, Component> tabLabel, Background tabLabelBackground,
                               Background tabLabelHoveredBackground, Background tabLabelActiveBackground,
                               Background tabLabelSelectedBackground, Component tabContents) {
+            Objects.requireNonNull(tabContents, "tabContents");
             return addTab(tabLabel, tabLabelBackground, tabLabelHoveredBackground, tabLabelActiveBackground,
                     tabLabelSelectedBackground, () -> tabContents);
         }
@@ -105,6 +111,8 @@ public class TabbedPanel implements Component {
         public Builder addTab(BiFunction<Integer, Integer, Component> tabLabel, Background tabLabelBackground,
                               Background tabLabelHoveredBackground, Background tabLabelActiveBackground,
                               Background tabLabelSelectedBackground, Supplier<Component> tabContents) {
+            Objects.requireNonNull(tabLabel, "tabLabel");
+            Objects.requireNonNull(tabContents, "tabContents");
             this.tabs.add(tabLabel);
             this.tabsBackgrounds.add(tabLabelBackground);
             this.tabsHoveredBackgrounds.add(tabLabelHoveredBackground);
@@ -114,7 +122,16 @@ public class TabbedPanel implements Component {
             return this;
         }
 
+        /**
+         * Builds the tabbed panel. The first tab is selected initially.
+         *
+         * @return a new {@link TabbedPanel}
+         * @throws IllegalStateException if no tab was added
+         */
         public TabbedPanel build() {
+            if (tabs.isEmpty()) {
+                throw new IllegalStateException("TabbedPanel requires at least one tab");
+            }
             return new TabbedPanel(width, height, tabBarHeight, tabs, tabsBackgrounds, tabsHoveredBackgrounds,
                     tabsActiveBackgrounds, tabsSelectedBackground, tabsContents);
         }

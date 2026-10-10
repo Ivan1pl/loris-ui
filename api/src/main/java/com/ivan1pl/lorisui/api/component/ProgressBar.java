@@ -2,6 +2,7 @@ package com.ivan1pl.lorisui.api.component;
 
 import com.ivan1pl.lorisui.api.core.Color;
 
+import java.util.Objects;
 import java.util.function.Supplier;
 
 public class ProgressBar implements Component {
@@ -30,16 +31,31 @@ public class ProgressBar implements Component {
         return height;
     }
 
-    public Supplier<Float> getProgress() {
-        return progress;
+    /**
+     * Returns the progress, evaluated on each call.
+     *
+     * @return the progress fraction, or 0 when no progress was set
+     */
+    public float getProgress() {
+        return progress.get();
     }
 
-    public Supplier<Color> getBackgroundColor() {
-        return backgroundColor;
+    /**
+     * Returns the background colour, evaluated on each call.
+     *
+     * @return the background colour, or {@code null} to keep the toolkit default
+     */
+    public Color getBackgroundColor() {
+        return backgroundColor.get();
     }
 
-    public Supplier<Color> getBarColor() {
-        return barColor;
+    /**
+     * Returns the bar colour, evaluated on each call.
+     *
+     * @return the bar colour, or {@code null} to keep the toolkit default
+     */
+    public Color getBarColor() {
+        return barColor.get();
     }
 
     public float getRounding() {
@@ -50,6 +66,10 @@ public class ProgressBar implements Component {
         return new Builder();
     }
 
+    /**
+     * Builder for {@link ProgressBar}. Required arguments are checked eagerly; Supplier setters reject null; constant
+     * overloads of optional properties accept null meaning unset/toolkit default.
+     */
     public static class Builder {
         private int width;
         private int height;
@@ -71,7 +91,7 @@ public class ProgressBar implements Component {
         }
 
         public Builder progress(Supplier<Float> progress) {
-            this.progress = progress;
+            this.progress = Objects.requireNonNull(progress, "progress");
             return this;
         }
 
@@ -80,7 +100,7 @@ public class ProgressBar implements Component {
         }
 
         public Builder backgroundColor(Supplier<Color> backgroundColor) {
-            this.backgroundColor = backgroundColor;
+            this.backgroundColor = Objects.requireNonNull(backgroundColor, "backgroundColor");
             return this;
         }
 
@@ -89,7 +109,7 @@ public class ProgressBar implements Component {
         }
 
         public Builder barColor(Supplier<Color> barColor) {
-            this.barColor = barColor;
+            this.barColor = Objects.requireNonNull(barColor, "barColor");
             return this;
         }
 

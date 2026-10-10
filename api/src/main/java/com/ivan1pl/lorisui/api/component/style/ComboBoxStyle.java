@@ -2,6 +2,7 @@ package com.ivan1pl.lorisui.api.component.style;
 
 import com.ivan1pl.lorisui.api.core.Color;
 
+import java.util.Objects;
 import java.util.function.Supplier;
 
 public class ComboBoxStyle implements Style {
@@ -28,34 +29,74 @@ public class ComboBoxStyle implements Style {
         this.borderThickness = borderThickness;
     }
 
+    /**
+     * Returns the background colour, evaluated on each call.
+     *
+     * @return the background colour, or {@code null} to keep the toolkit default
+     */
     public Color getBackgroundColor() {
         return backgroundColor.get();
     }
 
+    /**
+     * Returns the background colour hovered, evaluated on each call.
+     *
+     * @return the background colour hovered, or {@code null} to keep the toolkit default
+     */
     public Color getBackgroundColorHovered() {
         return backgroundColorHovered.get();
     }
 
+    /**
+     * Returns the border colour, evaluated on each call.
+     *
+     * @return the border colour, or {@code null} to keep the toolkit default
+     */
     public Color getBorderColor() {
         return borderColor.get();
     }
 
+    /**
+     * Returns the arrow button colour, evaluated on each call.
+     *
+     * @return the arrow button colour, or {@code null} to keep the toolkit default
+     */
     public Color getArrowButtonColor() {
         return arrowButtonColor.get();
     }
 
+    /**
+     * Returns the arrow button colour hovered, evaluated on each call.
+     *
+     * @return the arrow button colour hovered, or {@code null} to keep the toolkit default
+     */
     public Color getArrowButtonColorHovered() {
         return arrowButtonColorHovered.get();
     }
 
+    /**
+     * Returns the arrow colour, evaluated on each call.
+     *
+     * @return the arrow colour, or {@code null} to keep the toolkit default
+     */
     public Color getArrowColor() {
         return arrowColor.get();
     }
 
+    /**
+     * Returns the rounding, evaluated on each call.
+     *
+     * @return the rounding, or {@code null} to keep the toolkit default
+     */
     public Float getRounding() {
         return rounding.get();
     }
 
+    /**
+     * Returns the border thickness, evaluated on each call.
+     *
+     * @return the border thickness, or {@code null} to keep the toolkit default
+     */
     public Float getBorderThickness() {
         return borderThickness.get();
     }
@@ -64,6 +105,10 @@ public class ComboBoxStyle implements Style {
         return new Builder();
     }
 
+    /**
+     * Builder for {@link ComboBoxStyle}. Required arguments are checked eagerly; Supplier setters reject null;
+     * constant overloads of optional properties accept null meaning unset/toolkit default.
+     */
     public static class Builder {
         private Supplier<Color> backgroundColor = () -> null;
         private Supplier<Color> backgroundColorHovered = () -> null;
@@ -77,7 +122,7 @@ public class ComboBoxStyle implements Style {
         private Builder() {}
 
         public Builder backgroundColor(Supplier<Color> backgroundColor) {
-            this.backgroundColor = backgroundColor;
+            this.backgroundColor = Objects.requireNonNull(backgroundColor, "backgroundColor");
             return this;
         }
 
@@ -86,7 +131,7 @@ public class ComboBoxStyle implements Style {
         }
 
         public Builder backgroundColorHovered(Supplier<Color> backgroundColorHovered) {
-            this.backgroundColorHovered = backgroundColorHovered;
+            this.backgroundColorHovered = Objects.requireNonNull(backgroundColorHovered, "backgroundColorHovered");
             return this;
         }
 
@@ -95,7 +140,7 @@ public class ComboBoxStyle implements Style {
         }
 
         public Builder borderColor(Supplier<Color> borderColor) {
-            this.borderColor = borderColor;
+            this.borderColor = Objects.requireNonNull(borderColor, "borderColor");
             return this;
         }
 
@@ -104,7 +149,7 @@ public class ComboBoxStyle implements Style {
         }
 
         public Builder arrowButtonColor(Supplier<Color> arrowButtonColor) {
-            this.arrowButtonColor = arrowButtonColor;
+            this.arrowButtonColor = Objects.requireNonNull(arrowButtonColor, "arrowButtonColor");
             return this;
         }
 
@@ -113,7 +158,7 @@ public class ComboBoxStyle implements Style {
         }
 
         public Builder arrowButtonColorHovered(Supplier<Color> arrowButtonColorHovered) {
-            this.arrowButtonColorHovered = arrowButtonColorHovered;
+            this.arrowButtonColorHovered = Objects.requireNonNull(arrowButtonColorHovered, "arrowButtonColorHovered");
             return this;
         }
 
@@ -122,7 +167,7 @@ public class ComboBoxStyle implements Style {
         }
 
         public Builder arrowColor(Supplier<Color> arrowColor) {
-            this.arrowColor = arrowColor;
+            this.arrowColor = Objects.requireNonNull(arrowColor, "arrowColor");
             return this;
         }
 
@@ -131,7 +176,7 @@ public class ComboBoxStyle implements Style {
         }
 
         public Builder rounding(Supplier<Float> rounding) {
-            this.rounding = rounding;
+            this.rounding = Objects.requireNonNull(rounding, "rounding");
             return this;
         }
 
@@ -140,7 +185,7 @@ public class ComboBoxStyle implements Style {
         }
 
         public Builder borderThickness(Supplier<Float> borderThickness) {
-            this.borderThickness = borderThickness;
+            this.borderThickness = Objects.requireNonNull(borderThickness, "borderThickness");
             return this;
         }
 

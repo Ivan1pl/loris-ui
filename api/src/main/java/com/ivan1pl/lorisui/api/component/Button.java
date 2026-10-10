@@ -5,7 +5,7 @@ import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.api.core.IntBiFunction;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.function.IntBinaryOperator;
 import java.util.function.Supplier;
 
@@ -30,28 +30,49 @@ public class Button extends Panel {
     }
 
     public Background getActiveBackground() {
-        return activeBackground == null ? null : activeBackground.get();
+        return activeBackground.get();
     }
 
     public Background getHoveredBackground() {
-        return hoveredBackground == null ? null : hoveredBackground.get();
+        return hoveredBackground.get();
     }
 
     public Background getDisabledBackground() {
-        return disabledBackground == null ? null : disabledBackground.get();
+        return disabledBackground.get();
     }
 
-    public Supplier<Boolean> getEnabled() {
-        return enabled;
+    /**
+     * Returns whether the button currently accepts clicks, evaluated on each call.
+     *
+     * @return {@code true} when the button is enabled
+     */
+    public boolean isEnabled() {
+        return enabled.get();
     }
 
-    public Runnable getAction() {
-        return action;
+    /**
+     * Runs the button's action if the button is currently {@link #isEnabled() enabled}; does nothing otherwise.
+     * Intended to be called by the backend on the render thread when the button is clicked.
+     */
+    public void click() {
+        if (isEnabled()) {
+            action.run();
+        }
     }
 
+    /**
+     * Resolves the background to draw for the given interaction state, evaluated on each call. When the button is
+     * disabled, the disabled background is used; otherwise the active background takes priority over the hovered one.
+     * Any state background that is unset falls back to the base {@link #getBackground() background}.
+     *
+     * @param hovered whether the pointer is over the button
+     * @param active  whether the button is being pressed
+     * @return the background for the state, or {@code null} when neither the state nor the base background is set
+     */
     public Background getBackground(boolean hovered, boolean active) {
-        if (!enabled.get()) {
-            return Optional.ofNullable(getDisabledBackground()).orElse(getBackground());
+        if (!isEnabled()) {
+            Background disabled = getDisabledBackground();
+            return disabled == null ? getBackground() : disabled;
         }
         Background background = null;
         if (active) {
@@ -64,6 +85,7 @@ public class Button extends Panel {
     }
 
     public static Builder buttonBuilder(String id) {
+        Objects.requireNonNull(id, "id");
         return new Builder(() -> id);
     }
 
@@ -71,10 +93,15 @@ public class Button extends Panel {
         return new Builder(id);
     }
 
+    /**
+     * Builder for {@link Button}. Required arguments are checked eagerly; Supplier setters reject null;
+     * constant overloads of optional properties accept null meaning unset/toolkit default.
+     * {@code size(...)} is required and checked at {@code build()}.
+     */
     public static class Builder extends BaseBuilder<Button, Builder> {
-        private Supplier<Background> activeBackground;
-        private Supplier<Background> hoveredBackground;
-        private Supplier<Background> disabledBackground;
+        private Supplier<Background> activeBackground = () -> null;
+        private Supplier<Background> hoveredBackground = () -> null;
+        private Supplier<Background> disabledBackground = () -> null;
         private Supplier<Boolean> enabled = () -> true;
         private Runnable action = () -> {};
 
@@ -83,77 +110,65 @@ public class Button extends Panel {
         }
 
         public Builder activeBackgroundImage(String image, ImageMode imageMode) {
-            this.activeBackground = () -> Background.image(image, imageMode);
-            return this;
+            return activeBackground(Background.image(image, imageMode));
         }
 
         public Builder activeBackgroundColor(Color color) {
-            this.activeBackground = () -> Background.color(color);
-            return this;
+            return activeBackgroundColor(() -> color);
         }
 
         public Builder activeBackgroundColor(Supplier<Color> color) {
-            this.activeBackground = () -> Background.color(color.get());
-            return this;
+            return activeBackground(colorBackground(Objects.requireNonNull(color, "color")));
         }
 
         public Builder activeBackground(Background background) {
-            this.activeBackground = () -> background;
-            return this;
+            return activeBackground(() -> background);
         }
 
         public Builder activeBackground(Supplier<Background> background) {
-            this.activeBackground = background;
+            this.activeBackground = Objects.requireNonNull(background, "background");
             return this;
         }
 
         public Builder hoveredBackgroundImage(String image, ImageMode imageMode) {
-            this.hoveredBackground = () -> Background.image(image, imageMode);
-            return this;
+            return hoveredBackground(Background.image(image, imageMode));
         }
 
         public Builder hoveredBackgroundColor(Color color) {
-            this.hoveredBackground = () -> Background.color(color);
-            return this;
+            return hoveredBackgroundColor(() -> color);
         }
 
         public Builder hoveredBackgroundColor(Supplier<Color> color) {
-            this.hoveredBackground = () -> Background.color(color.get());
-            return this;
+            return hoveredBackground(colorBackground(Objects.requireNonNull(color, "color")));
         }
 
         public Builder hoveredBackground(Background background) {
-            this.hoveredBackground = () -> background;
-            return this;
+            return hoveredBackground(() -> background);
         }
 
         public Builder hoveredBackground(Supplier<Background> background) {
-            this.hoveredBackground = background;
+            this.hoveredBackground = Objects.requireNonNull(background, "background");
             return this;
         }
 
         public Builder disabledBackgroundImage(String image, ImageMode imageMode) {
-            this.disabledBackground = () -> Background.image(image, imageMode);
-            return this;
+            return disabledBackground(Background.image(image, imageMode));
         }
 
         public Builder disabledBackgroundColor(Color color) {
-            this.disabledBackground = () -> Background.color(color);
-            return this;
+            return disabledBackgroundColor(() -> color);
         }
 
         public Builder disabledBackgroundColor(Supplier<Color> color) {
-            this.disabledBackground = () -> Background.color(color.get());
-            return this;
+            return disabledBackground(colorBackground(Objects.requireNonNull(color, "color")));
         }
 
         public Builder disabledBackground(Background background) {
-            this.disabledBackground = () -> background;
-            return this;
+            return disabledBackground(() -> background);
         }
 
         public Builder disabledBackground(Supplier<Background> background) {
-            this.disabledBackground = background;
+            this.disabledBackground = Objects.requireNonNull(background, "background");
             return this;
         }
 
@@ -162,12 +177,12 @@ public class Button extends Panel {
         }
 
         public Builder enabled(Supplier<Boolean> enabled) {
-            this.enabled = enabled;
+            this.enabled = Objects.requireNonNull(enabled, "enabled");
             return this;
         }
 
         public Builder action(Runnable action) {
-            this.action = action;
+            this.action = Objects.requireNonNull(action, "action");
             return this;
         }
 

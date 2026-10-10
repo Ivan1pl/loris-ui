@@ -15,7 +15,8 @@ This document describes the technology choices and rationale for LorisUI, a mult
   - Instance/static `main()` without arguments (final in Java 25), used in `LorisJme3Example`
   - `var`, lambdas, generics with self-typed builders (`BaseBuilder<T, B>`)
   - JPMS `module-info.java` in `api` (`lorisui.api.main`) and `imgui` (`lorisui.imgui.main`)
-- **Note**: no Gradle toolchain is configured yet, so the build uses whatever JDK runs Gradle. That JDK must be 25 or newer.
+- **Toolchain**: root `allprojects` sets a Java 25 Gradle toolchain for every module with the `java` plugin, so the JDK that runs Gradle no longer matters. A JDK 25 must be installed locally: there is no foojay resolver, so Gradle does not download JDKs.
+  - If Gradle selects a JDK it auto-provisioned earlier (under `~/.gradle/jdks`), it prints a Gradle 10 deprecation warning about auto-provisioning without toolchain repositories. Fix it by deleting that JDK from `~/.gradle/jdks`; Gradle then auto-detects the system JDK 25.
 
 ### Gradle Groovy DSL
 - Build scripts: `build.gradle`, `settings.gradle`, `*/build.gradle`
@@ -35,8 +36,9 @@ This document describes the technology choices and rationale for LorisUI, a mult
   - `jme3/build.gradle` passes `--patch-module jme3.core=<jme3-lwjgl3 jar>` to the compiler.
 
 ### Testing
-- **JUnit 6.0.0** (Jupiter) through `junit-bom`, with `junit-platform-launcher`. It's configured in every module, and `useJUnitPlatform()` is set in the root `allprojects` block.
-- **Status**: there are no test sources yet.
+- **JUnit 6.0.0** (Jupiter) through `junit-bom`, with `junit-platform-launcher`, declared in every module. The JUnit Platform is enabled for all `Test` tasks by the lazy `tasks.withType(Test).configureEach { useJUnitPlatform() }` hook in root `allprojects`.
+- **Mockito 5.24.0** (`mockito-core`, version in root `ext`) in the test-bearing modules (`api`, `imgui`). Each loads Mockito as a `-javaagent` from a non-transitive `mockitoAgent` configuration, avoiding the JDK 21+ dynamic-agent warning.
+- **Status**: unit tests exist in `api` (builders, styles, `Color`, `ImageMode`, `LorisScreen`) and `imgui` (`ImGuiBackend` lookup, texture cache, texture masking). They don't need a GL context. `jme3` and `examples` have no tests.
 
 ## Database
 None. LorisUI is a client-side UI library.
@@ -47,7 +49,8 @@ None. LorisUI is a client-side UI library.
 - Plugins: `java-library` + `maven-publish` (library modules), `java` (examples, root)
 - Repositories: `mavenLocal()` then `mavenCentral()`
 - Group `com.ivan1pl.loris-ui`, version `1.0-SNAPSHOT`
-- Shared versions are set as root `ext` properties (`jmonkeyVersion`, `lwjglVersion`). There is no version catalog.
+- Shared versions are set as root `ext` properties (`jmonkeyVersion`, `lwjglVersion`, `mockitoVersion`) and referenced as `rootProject.ext.<name>`. There is no version catalog.
+- Root `allprojects` also sets the Java 25 toolchain and JUnit Platform through lazy hooks (`plugins.withId('java')`, `tasks.withType(Test).configureEach`)
 
 ## Infrastructure
 
@@ -81,6 +84,7 @@ Provided by the Java compiler. No nullability annotations or static analysers ar
 | `org.jmonkeyengine:jme3-lwjgl3` | 3.10.0-SNAPSHOT | jme3, examples | implementation |
 | `org.jmonkeyengine:jme3-desktop` | 3.10.0-SNAPSHOT | examples | implementation |
 | `org.junit:junit-bom` | 6.0.0 | all | test |
+| `org.mockito:mockito-core` | 5.24.0 | api, imgui | test (+ `mockitoAgent` javaagent) |
 
 **`loris-ui-api` has no external dependencies, and this is a firm architectural constraint.**
 

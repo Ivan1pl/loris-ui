@@ -14,8 +14,8 @@ public class ProgressBarRenderer extends Renderer<ProgressBar> {
     public void render(ProgressBar component, int w, int h, RendererProvider rendererProvider,
                        BundleKeyResolver bundleKeyResolver, boolean topLevel, boolean enableInput) {
         float rounding = component.getRounding();
-        Color backgroundColor = component.getBackgroundColor().get();
-        Color barColor = component.getBarColor().get();
+        Color backgroundColor = component.getBackgroundColor();
+        Color barColor = component.getBarColor();
         if (rounding > 0f) {
             ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, rounding);
         }
@@ -27,7 +27,7 @@ public class ProgressBarRenderer extends Renderer<ProgressBar> {
             ImGui.pushStyleColor(ImGuiCol.PlotHistogram,
                     barColor.getR(), barColor.getG(), barColor.getB(), barColor.getA());
         }
-        ImGui.progressBar(component.getProgress().get(), component.getWidth(), component.getHeight(), "");
+        ImGui.progressBar(component.getProgress(), component.getWidth(), component.getHeight(), "");
         if (barColor != null) {
             ImGui.popStyleColor(1);
         }

@@ -118,28 +118,28 @@ public class PanelRenderer extends Renderer<Panel> {
                     ImGui.popStyleColor(2);
                 }
             }
-            Background background = component.getBackground();
-            if (background != null) {
-                float posX = ImGui.getCursorPosX();
-                float posY = ImGui.getCursorPosY();
-                if (component instanceof Button button) {
-                    ImGui.dummy(component.getWidth(w, h), component.getHeight(w, h));
-                    ImGui.setCursorPos(posX, posY);
-                    boolean hovered = false;
-                    boolean active = false;
-                    if (ImGui.isWindowHovered(ImGuiHoveredFlags.ChildWindows)) {
-                        hovered = true;
-                        if (ImGui.isKeyDown(ImGuiKey.MouseLeft)) {
-                            active = true;
-                        } else if (ImGui.isKeyReleased(ImGuiKey.MouseLeft)) {
-                            //TODO check if this is the same button that received down
-                            if (button.getAction() != null && button.getEnabled().get()) {
-                                button.getAction().run();
-                            }
-                        }
+            float posX = ImGui.getCursorPosX();
+            float posY = ImGui.getCursorPosY();
+            Background background;
+            if (component instanceof Button button) {
+                ImGui.dummy(component.getWidth(w, h), component.getHeight(w, h));
+                ImGui.setCursorPos(posX, posY);
+                boolean hovered = false;
+                boolean active = false;
+                if (ImGui.isWindowHovered(ImGuiHoveredFlags.ChildWindows)) {
+                    hovered = true;
+                    if (ImGui.isKeyDown(ImGuiKey.MouseLeft)) {
+                        active = true;
+                    } else if (ImGui.isKeyReleased(ImGuiKey.MouseLeft)) {
+                        //TODO check if this is the same button that received down
+                        button.click();
                     }
-                    background = button.getBackground(hovered, active);
                 }
+                background = button.getBackground(hovered, active);
+            } else {
+                background = component.getBackground();
+            }
+            if (background != null) {
                 switch (background) {
                     case Background.MaskedImage maskedImage -> {
                         int flags = enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs);

@@ -26,7 +26,7 @@ public class ComboBoxRenderer<ItemType> extends Renderer<ComboBox<ItemType>> {
     @Override
     public void render(ComboBox<ItemType> component, int w, int h, RendererProvider rendererProvider,
                        BundleKeyResolver bundleKeyResolver, boolean topLevel, boolean enableInput) {
-        ImGui.pushItemWidth(component.getWidth());
+        ImGui.setNextItemWidth(component.getWidth());
 
         float paddingY = Math.max(0, (component.getHeight() - ImGui.getFontSize()) / 2);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, ImGui.getStyle().getFramePaddingX(), paddingY);
@@ -71,7 +71,6 @@ public class ComboBoxRenderer<ItemType> extends Renderer<ComboBox<ItemType>> {
             ImGui.endCombo();
         }
 
-        ImGui.popItemWidth();
         float comboMinX = ImGui.getItemRectMinX();
         float comboMinY = ImGui.getItemRectMinY();
         ImGui.setCursorScreenPos(comboMinX, comboMinY);
