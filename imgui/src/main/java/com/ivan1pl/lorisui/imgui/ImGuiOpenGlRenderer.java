@@ -2,18 +2,19 @@ package com.ivan1pl.lorisui.imgui;
 
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
 import com.ivan1pl.lorisui.api.screen.LorisScreen;
+import com.ivan1pl.lorisui.imgui.backend.ImGuiBackend;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.sdl3.ImGuiImplSdl3;
 
-public class ImGuiRenderer {
+public class ImGuiOpenGlRenderer {
     private final long windowHandle;
     private final ImGuiBackend backend;
     private final ImGuiImplSdl3 implSdl3;
     private final ImGuiImplGl3 implGl3;
 
-    public ImGuiRenderer(ImGuiBackend backend, long windowHandle) {
+    public ImGuiOpenGlRenderer(ImGuiBackend backend, long windowHandle) {
         this.backend = backend;
         this.windowHandle = windowHandle;
         ImGui.createContext();

@@ -1,7 +1,9 @@
-package com.ivan1pl.lorisui.imgui.renderer;
+package com.ivan1pl.lorisui.imgui.renderer.impl;
 
 import com.ivan1pl.lorisui.api.component.Spacer;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
+import com.ivan1pl.lorisui.imgui.renderer.Renderer;
+import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
 import imgui.ImGui;
 
 public class SpacerRenderer extends Renderer<Spacer> {

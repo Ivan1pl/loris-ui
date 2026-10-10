@@ -18,4 +18,5 @@ allprojects {
 
 ext {
     jmonkeyVersion = '3.10.0-SNAPSHOT'
+    lwjglVersion = '3.4.1'
 }

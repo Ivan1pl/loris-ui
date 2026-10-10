@@ -1,6 +1,7 @@
 package com.ivan1pl.lorisui.example.jme3;
 
 import com.ivan1pl.lorisui.api.font.Font;
+import com.ivan1pl.lorisui.example.shared.ExampleScreen;
 import com.ivan1pl.lorisui.jme3.ImGuiJmeDisplay;
 import com.jme3.app.SimpleApplication;
 import com.jme3.system.AppSettings;

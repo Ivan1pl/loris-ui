@@ -7,6 +7,7 @@ import imgui.ImFontGlyphRangesBuilder;
 import imgui.ImGui;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 public final class ImGuiFont implements Font {
     private static final short[] DEFAULT_GLYPH_RANGES;
@@ -49,9 +50,14 @@ public final class ImGuiFont implements Font {
     }
 
     private static ImGuiFont doLoadFromResource(String resource, int size, short[] glyphRanges) throws IOException {
-        byte[] data = ImGuiFont.class.getResourceAsStream(resource).readAllBytes();
-        return new ImGuiFont(ImGui.getIO().getFonts().addFontFromMemoryTTF(
-                data, size, new ImFontConfig(), glyphRanges));
+        try (InputStream inputStream = ImGuiFont.class.getResourceAsStream(resource)) {
+            if (inputStream == null) {
+                throw new IOException("Resource '" + resource + "' not found");
+            }
+            byte[] data = inputStream.readAllBytes();
+            return new ImGuiFont(ImGui.getIO().getFonts().addFontFromMemoryTTF(
+                    data, size, new ImFontConfig(), glyphRanges));
+        }
     }
 
     public void useFont(Runnable runnable) {

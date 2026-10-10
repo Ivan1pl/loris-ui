@@ -1,15 +1,12 @@
 package com.ivan1pl.lorisui.imgui.renderer;
 
+import com.ivan1pl.lorisui.api.backend.Backend;
+import com.ivan1pl.lorisui.api.backend.TextureData;
 import com.ivan1pl.lorisui.api.component.Component;
 import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL21;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,52 +18,20 @@ public abstract class Renderer<ComponentType extends Component> {
     public abstract void render(ComponentType component, int w, int h, RendererProvider rendererProvider,
                                 BundleKeyResolver bundleKeyResolver, boolean topLevel, boolean enableInput);
 
-    protected static TextureData loadTexture(String path) throws IOException {
-        return loadTexture(path, null, null, null);
+    protected static TextureData loadTexture(Backend backend, String path) throws IOException {
+        return loadTexture(backend, path, null, null, null);
     }
 
-    protected static TextureData loadTexture(String path, Color maskedR, Color maskedG, Color maskedB)
+    protected static TextureData loadTexture(Backend backend, String path, Color maskedR, Color maskedG, Color maskedB)
             throws IOException {
         TextureData textureData = getFromCache(path, maskedR, maskedG, maskedB);
         if (textureData != null) {
             return textureData;
         }
-        BufferedImage image = ImageIO.read(Renderer.class.getResource(path));
-        if (maskedR != null || maskedG != null || maskedB != null) {
-            for (int x = 0; x < image.getWidth(); ++x) {
-                for (int y = 0; y < image.getHeight(); ++y) {
-                    Color color = new Color(image.getRGB(x, y));
-                    image.setRGB(x, y, color.mask(maskedR, maskedG, maskedB).getRGBA());
-                }
-            }
-        }
-        ByteBuffer buffer = imageToBuffer(image);
-        int texture = GL11.glGenTextures();
-        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
 
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_REPEAT);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_REPEAT);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
-
-        GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
-        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL21.GL_SRGB_ALPHA, image.getWidth(), image.getHeight(), 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, buffer);
-        textureData = new TextureData(texture, image.getWidth(), image.getHeight());
+        textureData = backend.loadTexture(path, maskedR, maskedG, maskedB);
         putToCache(path, maskedR, maskedG, maskedB, textureData);
         return textureData;
-    }
-
-    private static ByteBuffer imageToBuffer(BufferedImage image) {
-        int[] pixels = image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth());
-        ByteBuffer buffer = ByteBuffer.allocateDirect(pixels.length * 4);
-        for (int pixel : pixels) {
-            buffer.put((byte) ((pixel >> 16) & 0xFF));
-            buffer.put((byte) ((pixel >> 8) & 0xFF));
-            buffer.put((byte) (pixel & 0xFF));
-            buffer.put((byte) ((pixel >> 24) & 0xFF));
-        }
-        buffer.flip();
-        return buffer;
     }
 
     private static TextureData getFromCache(String path, Color maskedR, Color maskedG, Color maskedB) {
@@ -102,8 +67,5 @@ public abstract class Renderer<ComponentType extends Component> {
             innerR.put(key, innerG = new HashMap<>());
         }
         innerG.put(maskedB == null ? NO_COLOR_KEY : maskedB, textureData);
-    }
-
-    protected record TextureData(int id, int width, int height) {
     }
 }

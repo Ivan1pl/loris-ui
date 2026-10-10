@@ -1,4 +1,4 @@
-package com.ivan1pl.lorisui.example.jme3;
+package com.ivan1pl.lorisui.example.shared;
 
 import com.ivan1pl.lorisui.api.component.*;
 import com.ivan1pl.lorisui.api.component.style.*;
@@ -83,7 +83,6 @@ public class ExampleScreen extends LorisScreen {
             .rounding(10f)
             .size(15f)
             .build();
-    private final List<ComboBox.Item<String>> comboBoxItems;
     private final ComboBox<String> comboBox;
     private final Panel panel;
     private float progress = 0f;
@@ -91,7 +90,7 @@ public class ExampleScreen extends LorisScreen {
     private int numberInputContent = 1;
 
     public ExampleScreen(Font font) {
-        this.comboBoxItems = Stream.of("item1", "item2", "item3", "item4")
+        List<ComboBox.Item<String>> comboBoxItems = Stream.of("item1", "item2", "item3", "item4")
                 .map(item -> createComboBoxItem(item, font))
                 .toList();
         this.comboBox = ComboBox.builder(String.class)

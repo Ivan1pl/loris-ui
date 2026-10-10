@@ -1,11 +1,14 @@
-package com.ivan1pl.lorisui.imgui.renderer;
+package com.ivan1pl.lorisui.imgui.renderer.impl;
 
 import com.ivan1pl.lorisui.api.backend.Backend;
+import com.ivan1pl.lorisui.api.backend.TextureData;
 import com.ivan1pl.lorisui.api.component.*;
 import com.ivan1pl.lorisui.api.component.style.Style;
 import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
 import com.ivan1pl.lorisui.imgui.ImGuiState;
+import com.ivan1pl.lorisui.imgui.renderer.Renderer;
+import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
 import com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier;
 import imgui.ImGui;
 import imgui.flag.*;
@@ -140,7 +143,7 @@ public class PanelRenderer extends Renderer<Panel> {
                 switch (background) {
                     case Background.MaskedImage maskedImage -> {
                         int flags = enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs);
-                        TextureData texture = loadTexture(maskedImage.getImage(),
+                        TextureData texture = loadTexture(backend, maskedImage.getImage(),
                                 maskedImage.getRedColor(), maskedImage.getGreenColor(), maskedImage.getBlueColor());
                         ImageMode imageMode = maskedImage.getImageMode();
                         ImGui.beginChild(id + "_bg", component.getWidth(w, h), component.getHeight(w, h), false,
@@ -151,7 +154,7 @@ public class PanelRenderer extends Renderer<Panel> {
                     }
                     case Background.Image image -> {
                         int flags = enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs);
-                        TextureData texture = loadTexture(image.getImage());
+                        TextureData texture = loadTexture(backend, image.getImage());
                         ImageMode imageMode = image.getImageMode();
                         ImGui.beginChild(id + "_bg", component.getWidth(w, h), component.getHeight(w, h), false,
                                 flags);

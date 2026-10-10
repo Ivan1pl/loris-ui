@@ -6,6 +6,12 @@ plugins {
 dependencies {
     api project(':loris-ui-api')
     api 'io.github.spair:imgui-java-app:1.92.7.1'
+    api "org.lwjgl:lwjgl-stb:$lwjglVersion"
+
+    runtimeOnly "org.lwjgl:lwjgl-stb:$lwjglVersion:natives-windows"
+    runtimeOnly "org.lwjgl:lwjgl-stb:$lwjglVersion:natives-linux"
+    runtimeOnly "org.lwjgl:lwjgl-stb:$lwjglVersion:natives-macos"
+
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

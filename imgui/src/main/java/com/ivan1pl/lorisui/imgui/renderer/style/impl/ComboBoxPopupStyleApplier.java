@@ -1,25 +1,21 @@
-package com.ivan1pl.lorisui.imgui.renderer.style;
+package com.ivan1pl.lorisui.imgui.renderer.style.impl;
 
-import com.ivan1pl.lorisui.api.component.style.ComboBoxStyle;
+import com.ivan1pl.lorisui.api.component.style.ComboBoxPopupStyle;
 import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
+import com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
 
-public class ComboBoxStyleApplier implements StyleApplier<ComboBoxStyle> {
+public class ComboBoxPopupStyleApplier implements StyleApplier<ComboBoxPopupStyle> {
     @Override
-    public Styles applyStyles(ComboBoxStyle style, RendererProvider rendererProvider) {
+    public Styles applyStyles(ComboBoxPopupStyle style, RendererProvider rendererProvider) {
         StylesImpl styles = new StylesImpl();
 
-        applyColor(ImGuiCol.FrameBg, style.getBackgroundColor(), styles);
-        applyColor(ImGuiCol.FrameBgHovered, style.getBackgroundColorHovered(), styles);
-        applyColor(ImGuiCol.Border, style.getBorderColor(), styles);
-        applyColor(ImGuiCol.Button, style.getArrowButtonColor(), styles);
-        applyColor(ImGuiCol.ButtonHovered, style.getArrowButtonColorHovered(), styles);
-        applyColor(ImGuiCol.Text, style.getArrowColor(), styles);
-        applyVar(ImGuiStyleVar.FrameRounding, style.getRounding(), styles);
-        applyVar(ImGuiStyleVar.FrameBorderSize, style.getBorderThickness(), styles);
+        applyColor(ImGuiCol.PopupBg, style.getBackgroundColor(), styles);
+        applyVar(ImGuiStyleVar.PopupRounding, style.getRounding(), styles);
+        applyVar(ImGuiStyleVar.PopupBorderSize, style.getBorderThickness(), styles);
 
         return styles;
     }

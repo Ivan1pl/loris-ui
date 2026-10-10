@@ -3,8 +3,9 @@ package com.ivan1pl.lorisui.jme3;
 import com.ivan1pl.lorisui.api.font.Font;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
 import com.ivan1pl.lorisui.api.screen.LorisScreen;
-import com.ivan1pl.lorisui.imgui.ImGuiBackend;
-import com.ivan1pl.lorisui.imgui.ImGuiRenderer;
+import com.ivan1pl.lorisui.imgui.backend.ImGuiBackend;
+import com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlBackend;
+import com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer;
 import com.ivan1pl.lorisui.imgui.font.ImGuiFont;
 import com.jme3.input.InputManager;
 import com.jme3.input.lwjgl.SdlEventListener;
@@ -24,11 +25,11 @@ import java.util.Map;
 import java.util.ResourceBundle;
 
 public class ImGuiJmeDisplay implements SceneProcessor, BundleKeyResolver {
-    private final ImGuiBackend backend = new ImGuiBackend();
+    private final ImGuiBackend backend = new ImGuiOpenGlBackend();
     private final LwjglWindow window;
     private final SdlEventListener sdlEventListener;
     private final InputManager inputManager;
-    private final ImGuiRenderer renderer;
+    private final ImGuiOpenGlRenderer renderer;
     private RenderManager renderManager;
     private ViewPort vp;
     private int w;
@@ -42,7 +43,7 @@ public class ImGuiJmeDisplay implements SceneProcessor, BundleKeyResolver {
     public ImGuiJmeDisplay(JmeContext context, InputManager inputManager, ViewPort viewport) {
         this.window = (LwjglWindow) context;
         this.inputManager = inputManager;
-        this.renderer = new ImGuiRenderer(backend, this.window.getWindowHandle());
+        this.renderer = new ImGuiOpenGlRenderer(backend, this.window.getWindowHandle());
         this.sdlEventListener = event -> this.renderer.processSdlEvent(event.address());
         this.w = viewport.getCamera().getWidth();
         this.h = viewport.getCamera().getHeight();

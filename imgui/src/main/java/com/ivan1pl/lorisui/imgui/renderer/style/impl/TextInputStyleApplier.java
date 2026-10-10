@@ -1,8 +1,9 @@
-package com.ivan1pl.lorisui.imgui.renderer.style;
+package com.ivan1pl.lorisui.imgui.renderer.style.impl;
 
 import com.ivan1pl.lorisui.api.component.style.TextInputStyle;
 import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
+import com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;

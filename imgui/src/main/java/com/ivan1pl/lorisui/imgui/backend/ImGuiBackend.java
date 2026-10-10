@@ -1,18 +1,21 @@
-package com.ivan1pl.lorisui.imgui;
+package com.ivan1pl.lorisui.imgui.backend;
 
 import com.ivan1pl.lorisui.api.backend.Backend;
 import com.ivan1pl.lorisui.api.component.*;
 import com.ivan1pl.lorisui.api.component.style.*;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
-import com.ivan1pl.lorisui.imgui.renderer.*;
-import com.ivan1pl.lorisui.imgui.renderer.style.*;
+import com.ivan1pl.lorisui.imgui.renderer.Renderer;
+import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
+import com.ivan1pl.lorisui.imgui.renderer.impl.*;
+import com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier;
+import com.ivan1pl.lorisui.imgui.renderer.style.impl.*;
 import imgui.ImGui;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ImGuiBackend implements Backend, RendererProvider {
+public abstract class ImGuiBackend implements Backend, RendererProvider {
     private final Map<Class<? extends Component>, Renderer<?>> renderers;
     private final Map<Class<? extends Style>, StyleApplier<?>> styleAppliers;
 

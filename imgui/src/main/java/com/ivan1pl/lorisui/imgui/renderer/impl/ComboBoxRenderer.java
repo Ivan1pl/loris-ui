@@ -1,4 +1,4 @@
-package com.ivan1pl.lorisui.imgui.renderer;
+package com.ivan1pl.lorisui.imgui.renderer.impl;
 
 import com.ivan1pl.lorisui.api.component.ComboBox;
 import com.ivan1pl.lorisui.api.component.Panel;
@@ -6,6 +6,8 @@ import com.ivan1pl.lorisui.api.component.style.ComboBoxItemStyle;
 import com.ivan1pl.lorisui.api.component.style.ComboBoxPopupStyle;
 import com.ivan1pl.lorisui.api.component.style.ComboBoxStyle;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
+import com.ivan1pl.lorisui.imgui.renderer.Renderer;
+import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
 import imgui.ImGui;
 import imgui.flag.ImGuiComboFlags;
 import imgui.flag.ImGuiStyleVar;

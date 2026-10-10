@@ -1,8 +1,11 @@
-package com.ivan1pl.lorisui.imgui.renderer;
+package com.ivan1pl.lorisui.imgui.renderer.impl;
 
 import com.ivan1pl.lorisui.api.backend.Backend;
+import com.ivan1pl.lorisui.api.backend.TextureData;
 import com.ivan1pl.lorisui.api.component.Image;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
+import com.ivan1pl.lorisui.imgui.renderer.Renderer;
+import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
@@ -27,7 +30,7 @@ public class ImageRenderer extends Renderer<Image> {
             int flags = enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs);
             String id = component.toString() + "_img";
             ImGui.beginChild(id, component.getWidth(), component.getHeight(), false, flags);
-            TextureData texture = loadTexture(component.getImage());
+            TextureData texture = loadTexture(backend, component.getImage());
             backend.renderTexture(texture.id(), component.getImageMode(), component.getWidth(), component.getHeight(),
                     texture.width(), texture.height());
             ImGui.endChild();
