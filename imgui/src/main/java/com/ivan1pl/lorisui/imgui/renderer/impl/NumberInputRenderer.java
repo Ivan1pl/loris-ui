@@ -3,7 +3,7 @@ package com.ivan1pl.lorisui.imgui.renderer.impl;
 import com.ivan1pl.lorisui.api.component.NumberInput;
 import com.ivan1pl.lorisui.api.component.style.TextInputStyle;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
-import com.ivan1pl.lorisui.imgui.font.ImGuiFont;
+import com.ivan1pl.lorisui.imgui.ImGuiFont;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
 import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
 import imgui.ImGui;

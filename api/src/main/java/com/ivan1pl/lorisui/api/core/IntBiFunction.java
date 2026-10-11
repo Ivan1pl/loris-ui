@@ -3,10 +3,10 @@ package com.ivan1pl.lorisui.api.core;
 /**
  * A function of two {@code int} arguments. Panels use it for content computed from the screen width and height.
  *
- * @param <R> the type of the result
+ * @param <ResultType> the type of the result
  */
 @FunctionalInterface
-public interface IntBiFunction<R> {
+public interface IntBiFunction<ResultType> {
     /**
      * Applies this function to the given arguments.
      *
@@ -14,5 +14,5 @@ public interface IntBiFunction<R> {
      * @param b the second argument
      * @return the function result
      */
-    R apply(int a, int b);
+    ResultType apply(int a, int b);
 }

@@ -3,13 +3,9 @@ plugins {
     id 'maven-publish'
 }
 
-configurations {
-    mockitoAgent
-}
-
 dependencies {
     api project(':loris-ui-api')
-    api "org.lwjgl:lwjgl-stb:${rootProject.ext.lwjglVersion}"
+    implementation "org.lwjgl:lwjgl-stb:${rootProject.ext.lwjglVersion}"
     compileOnly "io.github.spair:imgui-java-app:${rootProject.ext.imguiVersion}"
 
     runtimeOnly('io.github.spair:imgui-java-app') {
@@ -25,17 +21,7 @@ dependencies {
 
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation "org.mockito:mockito-core:${rootProject.ext.mockitoVersion}"
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-    mockitoAgent("org.mockito:mockito-core:${rootProject.ext.mockitoVersion}") {
-        transitive = false
-    }
-}
-
-tasks.withType(Test).configureEach {
-    FileCollection agent = configurations.mockitoAgent
-    jvmArgumentProviders.add({ ["-javaagent:${agent.singleFile.absolutePath}"] } as CommandLineArgumentProvider)
 }
 
 tasks.named('javadoc', Javadoc) {

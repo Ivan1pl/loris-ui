@@ -30,8 +30,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * {@link #render} calls draw the last successful layout. Hosts should treat the exception as fatal.
  */
 public abstract class LorisScreen {
-    private static final ExecutorService LAYOUT_UPDATER = Executors.newSingleThreadExecutor(
-            Thread.ofPlatform().name("lorisui-layout").daemon(true).factory());
+    private static final Object LAYOUT_UPDATER_LOCK = new Object();
+
+    private static ExecutorService layoutUpdater;
 
     private final AtomicBoolean layoutNeedsUpdate = new AtomicBoolean(true);
     private final AtomicReference<Throwable> layoutFailure = new AtomicReference<>();
@@ -72,9 +73,30 @@ public abstract class LorisScreen {
             throw new IllegalStateException("Layout of " + getClass().getName() + " failed", failure);
         }
         if (layoutNeedsUpdate.getAndSet(false)) {
-            LAYOUT_UPDATER.execute(this::updateLayout);
+            synchronized (LAYOUT_UPDATER_LOCK) {
+                if (layoutUpdater == null) {
+                    layoutUpdater = Executors.newSingleThreadExecutor(
+                            Thread.ofPlatform().name("lorisui-layout").daemon(true).factory());
+                }
+                layoutUpdater.execute(this::updateLayout);
+            }
         }
         backend.render(w, h, content, bundleKeyResolver);
+    }
+
+    /**
+     * Stops the background work that runs {@link #layout()} for all screens. Layouts that were already requested
+     * still complete and are drawn by later {@link #render} calls. The work resumes automatically when a screen next
+     * needs a layout. Hosts call this when they are disposed. Does nothing if no layout work is active, and may be
+     * called from any thread.
+     */
+    public static void shutdownLayoutUpdates() {
+        synchronized (LAYOUT_UPDATER_LOCK) {
+            if (layoutUpdater != null) {
+                layoutUpdater.shutdown();
+                layoutUpdater = null;
+            }
+        }
     }
 
     private void updateLayout() {

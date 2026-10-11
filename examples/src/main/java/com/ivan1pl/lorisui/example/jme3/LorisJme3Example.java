@@ -2,14 +2,20 @@ package com.ivan1pl.lorisui.example.jme3;
 
 import com.ivan1pl.lorisui.api.font.Font;
 import com.ivan1pl.lorisui.example.shared.ExampleScreen;
+import com.ivan1pl.lorisui.example.shared.ExampleSettings;
 import com.ivan1pl.lorisui.jme3.ImGuiJmeDisplay;
 import com.jme3.app.SimpleApplication;
+import com.jme3.input.KeyInput;
+import com.jme3.input.controls.ActionListener;
+import com.jme3.input.controls.KeyTrigger;
 import com.jme3.system.AppSettings;
 
 import java.io.IOException;
 import java.util.Locale;
 
 public class LorisJme3Example extends SimpleApplication {
+    private static final String TOGGLE_UI_MAPPING = "toggleUi";
+
     private ImGuiJmeDisplay imGuiJmeDisplay;
 
     @Override
@@ -18,38 +24,58 @@ public class LorisJme3Example extends SimpleApplication {
         getInputManager().setCursorVisible(true);
 
         imGuiJmeDisplay = new ImGuiJmeDisplay(context, inputManager, guiViewPort);
-        imGuiJmeDisplay.setResourceBundle("global", "bundles.global");
+        imGuiJmeDisplay.setResourceBundle(ExampleSettings.BUNDLE_NAME, ExampleSettings.BUNDLE_PATH);
         Font font;
         try {
-            font = imGuiJmeDisplay.registerFontFromResources("/fonts/open-sans.regular.ttf", 20);
+            font = imGuiJmeDisplay.registerFontFromResources(ExampleSettings.FONT_PATH, ExampleSettings.FONT_SIZE);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        ExampleScreen exampleScreen = new ExampleScreen(font);
-        imGuiJmeDisplay.addScreen("example", exampleScreen);
-        imGuiJmeDisplay.setCurrentScreen("example");
+        ExampleScreen exampleScreen = new ExampleScreen(font, () -> guiViewPort.removeProcessor(imGuiJmeDisplay));
+        imGuiJmeDisplay.addScreen(ExampleSettings.SCREEN_NAME, exampleScreen);
+        imGuiJmeDisplay.setCurrentScreen(ExampleSettings.SCREEN_NAME);
         guiViewPort.addProcessor(imGuiJmeDisplay);
+
+        inputManager.addMapping(TOGGLE_UI_MAPPING, new KeyTrigger(KeyInput.KEY_F1));
+        inputManager.addListener((ActionListener) (_, isPressed, _) -> {
+            if (isPressed) {
+                toggleDisplay();
+            }
+        }, TOGGLE_UI_MAPPING);
     }
 
     @Override
     public void destroy() {
-        if (imGuiJmeDisplay != null) {
+        if (isDisplayAttached()) {
             guiViewPort.removeProcessor(imGuiJmeDisplay);
         }
         super.destroy();
     }
 
+    private void toggleDisplay() {
+        if (isDisplayAttached()) {
+            guiViewPort.removeProcessor(imGuiJmeDisplay);
+        } else {
+            guiViewPort.addProcessor(imGuiJmeDisplay);
+        }
+    }
+
+    // ViewPort.removeProcessor calls cleanup even for a processor that is not attached
+    private boolean isDisplayAttached() {
+        return imGuiJmeDisplay != null && guiViewPort.getProcessors().contains(imGuiJmeDisplay);
+    }
+
     private static AppSettings createDefaultSettings() {
         AppSettings settings = new AppSettings(true);
-        settings.setHeight(600);
-        settings.setWidth(800);
+        settings.setHeight(ExampleSettings.WINDOW_HEIGHT);
+        settings.setWidth(ExampleSettings.WINDOW_WIDTH);
         settings.setFullscreen(false);
         settings.setRenderer(AppSettings.LWJGL_OPENGL33);
         return settings;
     }
 
     static void main() {
-        Locale.setDefault(Locale.ENGLISH);
+        Locale.setDefault(ExampleSettings.LOCALE);
         var app = new LorisJme3Example();
         app.setShowSettings(false);
         app.setSettings(createDefaultSettings());

@@ -1,12 +1,13 @@
 # Renderers & Style Appliers
 
 ### Renderer Implementation Shape
-Each renderer is `public class <Component>Renderer extends Renderer<Component>` in `imgui.renderer.impl`, overriding the single `render(component, w, h, rendererProvider, bundleKeyResolver, topLevel, enableInput)` method.
+Each renderer is `public class <Component>Renderer extends Renderer<Component>` in `imgui.renderer.impl`, overriding the single `render(component, w, h, rendererProvider, bundleKeyResolver, topLevel, enableInput)` method. Renderers have no-argument constructors and hold no backend reference: everything they need from the backend comes through the `RendererProvider` argument. Custom renderers outside the library follow the same shape and are registered with `registerRenderer` (see `architecture/component-model.md`).
 - Render children via `rendererProvider.getRenderer(child).render(...)` with `topLevel = false`.
 - ImGui window flags are `private static final int FLAGS_*` constants (one flag per line, combined with `|`); disable input with `enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs)`.
 - Unique ImGui IDs derive from the component (`component + "_text"`, `"##" + component`).
-- Font-bearing components wrap drawing in `((ImGuiFont) font).useFont(() -> doRender(...))`, falling back when the font is null.
-- Every ImGui push has a matching pop; load textures through the cached `Renderer.loadTexture(ImGuiBackend backend, String path[, Color maskedR, Color maskedG, Color maskedB])` helpers (the cache is keyed by path and masks) and draw them with `ImGuiBackend.renderTexture(...)`. Renderers that need textures take the `ImGuiBackend` in their constructor.
+- Font-bearing components wrap drawing in `((ImGuiFont) font).useFont(() -> doRender(...))`, falling back when the font is null. `ImGuiFont` lives in `com.ivan1pl.lorisui.imgui` (there is no `imgui.font` package); `useFont` pops the font in `finally` and throws `IllegalStateException` (without running the code) if the renderer the font was registered with is not initialized or another renderer's Dear ImGui context is current.
+- Every ImGui push has a matching pop.
+- Load textures with `rendererProvider.loadTexture(path)` or `rendererProvider.loadTexture(path, maskedR, maskedG, maskedB)` and draw them with `rendererProvider.renderTexture(...)`. The backend caches textures per instance, keyed by the normalized path (`"/x.png"` and `"x.png"` share one texture) and the masks, until its `unloadTextures()` runs. Wrap the `IOException` in a `RuntimeException`, since `render` can't throw it. Never unload textures from a renderer or a component callback: the backend rejects `unloadTextures()` while it is drawing.
 - Renderer-shared global flags live in the internal `com.ivan1pl.lorisui.imgui.impl.ImGuiState`; hosts never read it directly but use the `ImGuiOpenGlRenderer` input-capture queries.
 
 ### Class-Path Resource Lookup

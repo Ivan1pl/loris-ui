@@ -1,5 +1,7 @@
 # Java Formatting
 
+The style below is enforced by Checkstyle (`config/checkstyle/checkstyle.xml`, a failing gate in `./gradlew build`, see `build/gradle.md`) and mirrored in the repository's `.editorconfig`. There is no auto-formatter: write code in this style and fix what Checkstyle reports.
+
 ### Indentation, Braces and Line Length
 4-space indentation (no tabs), same-line (K&R) braces, 120-column limit, 8-space continuation indent. Wrapped parameter lists in declarations align under the first parameter. Fluent builder chains put one call per line. Empty constructors are written inline as `{}`.
 
@@ -13,7 +15,7 @@ private Builder() {}
 ```
 
 ### Import Layout
-IntelliJ default layout: one alphabetically sorted block of project and third-party imports, a blank line, then `java.*` imports. Use explicit single-type imports; no static imports; avoid wildcard imports.
+IntelliJ default layout: one sorted block of project and third-party imports, a blank line, then `java.*` imports. Within each block, imports are sorted in ASCII order, which is case-sensitive (`com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer` before `com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlBackend`, because uppercase letters sort before lowercase). No static imports. Single-type imports are the default; wildcard imports are acceptable (for example `api.component.*` in `ImGuiBackend`) and need not be expanded.
 
 ```java
 import com.ivan1pl.lorisui.api.component.TextInput;

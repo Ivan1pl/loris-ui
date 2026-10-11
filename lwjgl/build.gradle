@@ -1,0 +1,13 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+dependencies {
+    api project(':loris-ui-imgui')
+    compileOnly "org.lwjgl:lwjgl:${rootProject.ext.lwjglVersion}"
+    compileOnly "org.lwjgl:lwjgl-sdl:${rootProject.ext.lwjglVersion}"
+    testImplementation platform('org.junit:junit-bom:6.0.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}

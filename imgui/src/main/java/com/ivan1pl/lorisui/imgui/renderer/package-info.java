@@ -3,8 +3,9 @@
  *
  * <p>A {@link com.ivan1pl.lorisui.imgui.renderer.Renderer Renderer} draws one kind of component with Dear ImGui, and a
  * {@link com.ivan1pl.lorisui.imgui.renderer.RendererProvider RendererProvider} finds the renderer for a component and
- * the style applier for a style. Implement a renderer to draw a custom component, and return it from an
- * {@link com.ivan1pl.lorisui.imgui.backend.ImGuiBackend ImGuiBackend} subclass.
+ * the style applier for a style, and loads and draws the textures of images. Implement a renderer to draw a custom
+ * component, and register it with
+ * {@link com.ivan1pl.lorisui.imgui.backend.ImGuiBackend#registerRenderer ImGuiBackend.registerRenderer}.
  *
  * <p>imgui-java is a runtime dependency of this module, not part of its compile-time API: code that calls Dear ImGui
  * directly, such as a custom renderer, must add imgui-java to its own build and, on the module path,

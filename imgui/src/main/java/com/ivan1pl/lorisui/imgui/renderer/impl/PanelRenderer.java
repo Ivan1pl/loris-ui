@@ -4,7 +4,6 @@ import com.ivan1pl.lorisui.api.component.*;
 import com.ivan1pl.lorisui.api.component.style.Style;
 import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
-import com.ivan1pl.lorisui.imgui.backend.ImGuiBackend;
 import com.ivan1pl.lorisui.imgui.backend.TextureData;
 import com.ivan1pl.lorisui.imgui.impl.ImGuiState;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
@@ -42,11 +41,6 @@ public class PanelRenderer extends Renderer<Panel> {
 
     private final StyleStack styleStack = new StyleStack();
     private final ImBoolean modalPopupOpen = new ImBoolean();
-    private final ImGuiBackend backend;
-
-    public PanelRenderer(ImGuiBackend backend) {
-        this.backend = backend;
-    }
 
     @Override
     public void render(Panel component, int w, int h, RendererProvider rendererProvider,
@@ -80,9 +74,7 @@ public class PanelRenderer extends Renderer<Panel> {
                 }
                 if (!open) {
                     return;
-                }/* else {
-                    imgui.getCurrentWindow().setPos(new Vec2(component.getX(), component.getY()));
-                }*/
+                }
             } else if (topLevel) {
                 int flags = enableInput ? FLAGS_WINDOW : (FLAGS_WINDOW | ImGuiWindowFlags.NoInputs);
                 if (component.isOpen()) {
@@ -143,22 +135,22 @@ public class PanelRenderer extends Renderer<Panel> {
                 switch (background) {
                     case Background.MaskedImage maskedImage -> {
                         int flags = enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs);
-                        TextureData texture = loadTexture(backend, maskedImage.getImage(),
+                        TextureData texture = rendererProvider.loadTexture(maskedImage.getImage(),
                                 maskedImage.getRedColor(), maskedImage.getGreenColor(), maskedImage.getBlueColor());
                         ImageMode imageMode = maskedImage.getImageMode();
                         ImGui.beginChild(id + "_bg", component.getWidth(w, h), component.getHeight(w, h), false,
                                 flags);
-                        backend.renderTexture(texture.id(), imageMode, component.getWidth(w, h),
+                        rendererProvider.renderTexture(texture.id(), imageMode, component.getWidth(w, h),
                                 component.getHeight(w, h), texture.width(), texture.height());
                         ImGui.endChild();
                     }
                     case Background.Image image -> {
                         int flags = enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs);
-                        TextureData texture = loadTexture(backend, image.getImage());
+                        TextureData texture = rendererProvider.loadTexture(image.getImage());
                         ImageMode imageMode = image.getImageMode();
                         ImGui.beginChild(id + "_bg", component.getWidth(w, h), component.getHeight(w, h), false,
                                 flags);
-                        backend.renderTexture(texture.id(), imageMode, component.getWidth(w, h),
+                        rendererProvider.renderTexture(texture.id(), imageMode, component.getWidth(w, h),
                                 component.getHeight(w, h), texture.width(), texture.height());
                         ImGui.endChild();
                     }
@@ -230,12 +222,12 @@ public class PanelRenderer extends Renderer<Panel> {
         }
     }
 
-    private static class ArrayStack<Type> {
+    private static class ArrayStack<ElementType> {
         private static final int INITIAL_SIZE = 256;
         private Object[] data = new Object[INITIAL_SIZE];
         private int size = 0;
 
-        public void push(Type object) {
+        public void push(ElementType object) {
             Object[] data = this.data;
             if (size == data.length) {
                 Object[] newData = new Object[data.length << 1];
@@ -247,11 +239,11 @@ public class PanelRenderer extends Renderer<Panel> {
         }
 
         @SuppressWarnings("unchecked")
-        public Type pop() {
+        public ElementType pop() {
             if (size == 0) {
                 throw new NoSuchElementException();
             }
-            Type element = (Type) data[--size];
+            ElementType element = (ElementType) data[--size];
             data[size] = null;
             return element;
         }

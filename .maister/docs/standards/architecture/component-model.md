@@ -5,11 +5,16 @@ Toolkit-neutral abstractions in `api` are empty marker interfaces (`Component`, 
 Use abstract classes for shared behaviour / template methods (`Renderer`, `LorisScreen`, `ImGuiBackend`, `Panel.BaseBuilder`); use interfaces for stateless contracts (`Backend`, `RendererProvider`, `StyleApplier`, `BundleKeyResolver`).
 
 ### Toolkit-Neutral `Backend` Port
-`Backend` declares only `render(int w, int h, List<Component> components, BundleKeyResolver bundleKeyResolver)`. Toolkit concerns stay in the backend module: textures are `ImGuiBackend` methods (`public abstract TextureData loadTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB) throws IOException`, implemented by `ImGuiOpenGlBackend`, and the concrete `public void renderTexture(int id, ImageMode imageMode, int width, int height, int textureWidth, int textureHeight)`), with the `TextureData` record in `imgui.backend`. Input capture is exposed to hosts by `ImGuiOpenGlRenderer` (`wantsMouseInput()`, `wantsKeyboardInput()`, `isHoveringScrollablePanel()`), never by the API. Do not add toolkit-specific methods or types to `Backend`.
+`Backend` declares only `render(int w, int h, List<Component> components, BundleKeyResolver bundleKeyResolver)`. Toolkit concerns stay in the backend module:
+- **Textures** belong to each `ImGuiBackend` instance. Renderers load and draw them only through the `RendererProvider` they receive: `TextureData loadTexture(String resourcePath)`, `TextureData loadTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB)` (both `throws IOException`, cached per backend with keys normalized to class-path style, failures not cached) and `renderTexture(int id, ImageMode imageMode, int width, int height, int textureWidth, int textureHeight)`. `ImGuiBackend` implements the two `loadTexture` methods as `public final` on top of its graphics-API hooks `protected abstract TextureData createTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB) throws IOException` (called on a cache miss with the normalized path, no leading `/`) and `protected abstract void deleteTexture(TextureData texture)` (implemented by the final `ImGuiOpenGlBackend`). `public final unloadTextures()` releases every texture and throws `IllegalStateException` while the backend is drawing; renderer teardown calls it. The `TextureData` record lives in `imgui.backend`.
+- **Input capture** is exposed to hosts by `ImGuiOpenGlRenderer` (`wantsMouseInput()`, `wantsKeyboardInput()`, `wantsTextInput()`, `isHoveringScrollablePanel()`), never by the API. `wantsTextInput()` tells hosts whose framework does not start SDL text input itself (the LWJGL host) when to start and stop it.
+- **Fonts** are registered with `ImGuiOpenGlRenderer` (or through a host display) and returned as `ImGuiFont` handles in the `com.ivan1pl.lorisui.imgui` package.
+
+Do not add toolkit-specific methods or types to `Backend`.
 
 ### Class-Keyed Renderer and StyleApplier Registry
-Each `api` Component has exactly one `Renderer` and each `Style` exactly one `StyleApplier`, registered by class in the `ImGuiBackend` constructor. Lookup walks the superclass chain, so subclasses (Button, Popup, ModalPopup) reuse their parent's renderer unless registered explicitly. A missing registration fails fast with `IllegalStateException`.
-- New component: class with Builder in `api/component` + `imgui/renderer/impl/<Name>Renderer` + one `renderers.put(...)` line.
+Each `api` Component has exactly one `Renderer` and each `Style` exactly one `StyleApplier`, registered by class in the `ImGuiBackend` constructor (written directly to the maps, so the constructor calls no overridable method). Lookup (`getRenderer` / `getStyleApplier`, both `public final`) walks the superclass chain, so subclasses (Button, Popup, ModalPopup) reuse their parent's renderer unless registered explicitly. A missing registration fails fast with `IllegalStateException`.
+- New component: class with Builder in `api/component` + `imgui/renderer/impl/<Name>Renderer` (no-argument constructor) + one `renderers.put(...)` line.
 - New style: class in `api/component/style` + `imgui/renderer/style/impl/<Name>Applier` + one `styleAppliers.put(...)` line.
 
 ```java
@@ -17,19 +22,17 @@ renderers.put(ProgressBar.class, new ProgressBarRenderer());
 styleAppliers.put(TextInputStyle.class, new TextInputStyleApplier());
 ```
 
-### Custom Components and Styles Outside the Library
-Library users extend the backend by subclassing `ImGuiBackend` and overriding `getRenderer` / `getStyleApplier`: return their own `Renderer` / `StyleApplier` for their types and delegate to `super` for everything else, which keeps the built-in registry, the superclass-chain lookup and the `IllegalStateException` for unmatched types. There is no registration API.
-- The subclass also implements `loadTexture` for its graphics API; `ImGuiOpenGlBackend` is final and can't be extended.
-- The host passes the custom backend to `ImGuiOpenGlRenderer`. The jME host (`ImGuiJmeDisplay`) always uses `ImGuiOpenGlBackend` and does not accept a custom backend yet.
+### Custom Components and Styles Through Registration
+Library users plug in their own components and styles by registering a `Renderer` / `StyleApplier`, never by subclassing the backend:
+- **On a backend**: `ImGuiBackend.registerRenderer(Class<ComponentType>, Renderer<? super ComponentType>)` and `registerStyleApplier(Class<StyleType>, StyleApplier<? super StyleType>)`, both `public final`. A registration replaces any existing mapping, including a built-in one, and takes effect from the next lookup; subclasses without their own mapping use the nearest registered ancestor. Null arguments throw `NullPointerException`; an interface class throws `IllegalArgumentException`, because lookup walks only the superclass chain. Not gated by lifecycle; UI thread only.
+- **On a display**: `ImGuiJmeDisplay` and `ImGuiLwjglDisplay` offer the same two methods, delegating to their private backend. They throw `IllegalStateException` while the display is initialized or unusable (jME: failed initialization; LWJGL: closed). Registrations persist across jME re-attach.
+- **Generic component types** need an unchecked class cast, kept to the narrowest scope: `(Class<ComboBox<String>>) (Class<?>) ComboBox.class`.
+- Custom renderers load and draw textures through their `RendererProvider`, and apply fonts with `((ImGuiFont) font).useFont(...)`.
 - imgui-java is only a runtime dependency of `loris-ui-imgui`, so code with a custom `Renderer` adds imgui-java to its own build and, on the module path, `requires imgui.binding`.
+- Subclass `ImGuiBackend` only to support another graphics API (implementing `createTexture` / `deleteTexture`); `ImGuiOpenGlBackend` is final, and the bundled hosts always use their own `ImGuiOpenGlBackend`.
 
 ```java
-@SuppressWarnings("unchecked")
-@Override
-public <ComponentType extends Component> Renderer<? super ComponentType> getRenderer(ComponentType component) {
-    if (component instanceof Gauge) {
-        return (Renderer<? super ComponentType>) gaugeRenderer;
-    }
-    return super.getRenderer(component);
-}
+ImGuiJmeDisplay display = new ImGuiJmeDisplay(context, inputManager, guiViewPort);
+display.registerRenderer(Gauge.class, new GaugeRenderer());
+display.registerStyleApplier(GaugeStyle.class, new GaugeStyleApplier());
 ```

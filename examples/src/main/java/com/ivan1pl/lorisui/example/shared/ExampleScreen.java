@@ -8,6 +8,7 @@ import com.ivan1pl.lorisui.api.screen.LorisScreen;
 
 import java.text.NumberFormat;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -89,7 +90,8 @@ public class ExampleScreen extends LorisScreen {
     private String textInputContent = "Text input";
     private int numberInputContent = 1;
 
-    public ExampleScreen(Font font) {
+    public ExampleScreen(Font font, Runnable hideUiAction) {
+        Objects.requireNonNull(hideUiAction, "hideUiAction");
         List<ComboBox.Item<String>> comboBoxItems = Stream.of("item1", "item2", "item3", "item4")
                 .map(item -> createComboBoxItem(item, font))
                 .toList();
@@ -102,7 +104,7 @@ public class ExampleScreen extends LorisScreen {
                 .build();
         this.panel = Panel.panelBuilder("example_panel")
                 .size(600, 400)
-                .position((w, _) -> w/2 - 300, (_, h) -> h/2 - 200)
+                .position((w, _) -> w / 2 - 300, (_, h) -> h / 2 - 200)
                 .layout(Layout.VERTICAL)
                 .backgroundImage("/textures/textures.png", IMAGE_MODE_PANEL_BG)
                 .addStyle(SCROLLBAR_STYLE)
@@ -209,6 +211,16 @@ public class ExampleScreen extends LorisScreen {
                                                 .font(font)
                                                 .color(Color.GREEN)
                                                 .text(() -> textInputContent.length() + "/30")
+                                                .build())
+                                        .addContent(Button.buttonBuilder("hide_ui")
+                                                .size(90, 30)
+                                                .action(hideUiAction)
+                                                .addContent(Text.builder()
+                                                        .width(90)
+                                                        .align(Text.Align.CENTER)
+                                                        .font(font)
+                                                        .localizedText("global.hideUi")
+                                                        .build())
                                                 .build())
                                         .build())
                                 .addContent(Spacer.builder()

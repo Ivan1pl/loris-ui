@@ -12,7 +12,10 @@ import com.ivan1pl.lorisui.api.component.style.ScrollbarStyle;
 import com.ivan1pl.lorisui.api.component.style.Style;
 import com.ivan1pl.lorisui.api.component.style.TextInputStyle;
 import com.ivan1pl.lorisui.api.core.Color;
+import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
+import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
+import com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +24,12 @@ import java.util.List;
 class ImGuiBackendTest {
     private final ImGuiBackend backend = new ImGuiBackend() {
         @Override
-        public TextureData loadTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB) {
+        protected TextureData createTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected void deleteTexture(TextureData texture) {
             throw new UnsupportedOperationException();
         }
     };
@@ -68,5 +76,80 @@ class ImGuiBackendTest {
         for (Style style : styles) {
             Assertions.assertNotNull(backend.getStyleApplier(style), style.getClass().getName());
         }
+    }
+
+    @Test
+    void shouldReturnRendererRegisteredForCustomComponent() {
+        Renderer<Gauge> gaugeRenderer = new NoOpRenderer<>();
+
+        backend.registerRenderer(Gauge.class, gaugeRenderer);
+
+        Assertions.assertSame(gaugeRenderer, backend.getRenderer(new Gauge()));
+    }
+
+    @Test
+    void shouldReplaceBuiltInPanelRendererAlsoForSubclasses() {
+        Renderer<Panel> panelRenderer = new NoOpRenderer<>();
+
+        backend.registerRenderer(Panel.class, panelRenderer);
+
+        Assertions.assertSame(panelRenderer, backend.getRenderer(Panel.panelBuilder("panel").size(10, 10).build()));
+        Assertions.assertSame(panelRenderer, backend.getRenderer(Button.buttonBuilder("button").size(10, 10).build()));
+    }
+
+    @Test
+    void shouldReturnRegisteredStyleApplierAndReplaceBuiltIn() {
+        StyleApplier<GaugeStyle> gaugeStyleApplier = new NoOpStyleApplier<>();
+        StyleApplier<ScrollbarStyle> scrollbarStyleApplier = new NoOpStyleApplier<>();
+
+        backend.registerStyleApplier(GaugeStyle.class, gaugeStyleApplier);
+        backend.registerStyleApplier(ScrollbarStyle.class, scrollbarStyleApplier);
+
+        Assertions.assertSame(gaugeStyleApplier, backend.getStyleApplier(new GaugeStyle()));
+        Assertions.assertSame(scrollbarStyleApplier, backend.getStyleApplier(ScrollbarStyle.builder().build()));
+    }
+
+    @Test
+    void shouldRejectNullRegistrationArguments() {
+        Assertions.assertThrows(NullPointerException.class,
+                () -> backend.registerRenderer(null, new NoOpRenderer<Gauge>()));
+        Assertions.assertThrows(NullPointerException.class, () -> backend.registerRenderer(Gauge.class, null));
+        Assertions.assertThrows(NullPointerException.class,
+                () -> backend.registerStyleApplier(null, new NoOpStyleApplier<GaugeStyle>()));
+        Assertions.assertThrows(NullPointerException.class,
+                () -> backend.registerStyleApplier(GaugeStyle.class, null));
+    }
+
+    @Test
+    void shouldRejectRegistrationForInterfaceClassesNamingTheClass() {
+        IllegalArgumentException rendererFailure = Assertions.assertThrows(IllegalArgumentException.class,
+                () -> backend.registerRenderer(Component.class, new NoOpRenderer<Component>()));
+        IllegalArgumentException styleApplierFailure = Assertions.assertThrows(IllegalArgumentException.class,
+                () -> backend.registerStyleApplier(Style.class, new NoOpStyleApplier<Style>()));
+
+        Assertions.assertTrue(rendererFailure.getMessage().contains(Component.class.getName()),
+                rendererFailure.getMessage());
+        Assertions.assertTrue(styleApplierFailure.getMessage().contains(Style.class.getName()),
+                styleApplierFailure.getMessage());
+    }
+
+    private static final class Gauge implements Component {}
+
+    private static final class GaugeStyle implements Style {}
+
+    private static final class NoOpRenderer<ComponentType extends Component> extends Renderer<ComponentType> {
+        @Override
+        public void render(ComponentType component, int w, int h, RendererProvider rendererProvider,
+                           BundleKeyResolver bundleKeyResolver, boolean topLevel, boolean enableInput) {}
+    }
+
+    private static final class NoOpStyleApplier<StyleType extends Style> implements StyleApplier<StyleType> {
+        @Override
+        public Styles applyStyles(StyleType style, RendererProvider rendererProvider) {
+            return new Styles() {};
+        }
+
+        @Override
+        public void popStyles(Styles styles) {}
     }
 }

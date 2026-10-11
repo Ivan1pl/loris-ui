@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
@@ -47,9 +48,15 @@ class LorisScreenTest {
     @Test
     void shouldRenderNewContentWhenAsyncLayoutCompletes() {
         List<Component> content = List.of(new Component() {});
-        TestScreen screen = new TestScreen(() -> content);
+        CountDownLatch firstRenderDone = new CountDownLatch(1);
+        TestScreen screen = new TestScreen(() -> {
+            awaitUninterruptibly(firstRenderDone);
+            return content;
+        });
         RecordingBackend backend = new RecordingBackend();
 
+        screen.render(backend, 100, 100, RESOLVER);
+        firstRenderDone.countDown();
         renderUntilRendered(screen, backend, content);
 
         Assertions.assertEquals(List.of(), backend.rendered.getFirst());
@@ -100,6 +107,63 @@ class LorisScreenTest {
         screen.render(new RecordingBackend(), 100, 100, RESOLVER);
 
         Assertions.assertEquals("lorisui-layout", threadName.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    void shouldCompleteLayoutRequestedAfterShutdownOnDaemonLayoutThread() throws Exception {
+        CompletableFuture<Thread> before = new CompletableFuture<>();
+        new TestScreen(() -> {
+            before.complete(Thread.currentThread());
+            return List.of();
+        }).render(new RecordingBackend(), 100, 100, RESOLVER);
+        before.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        LorisScreen.shutdownLayoutUpdates();
+        CompletableFuture<Thread> after = new CompletableFuture<>();
+        List<Component> content = List.of(new Component() {});
+        TestScreen screen = new TestScreen(() -> {
+            after.complete(Thread.currentThread());
+            return content;
+        });
+
+        renderUntilRendered(screen, new RecordingBackend(), content);
+
+        Thread layoutThread = after.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        Assertions.assertEquals("lorisui-layout", layoutThread.getName());
+        Assertions.assertTrue(layoutThread.isDaemon());
+    }
+
+    @Test
+    void shouldTerminateLayoutThreadAfterShutdown() throws Exception {
+        CompletableFuture<Thread> layoutThread = new CompletableFuture<>();
+        new TestScreen(() -> {
+            layoutThread.complete(Thread.currentThread());
+            return List.of();
+        }).render(new RecordingBackend(), 100, 100, RESOLVER);
+        Thread thread = layoutThread.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+
+        LorisScreen.shutdownLayoutUpdates();
+
+        Assertions.assertTrue(thread.join(TIMEOUT), "layout thread did not terminate within " + TIMEOUT);
+    }
+
+    @Test
+    void shouldIgnoreRepeatedShutdownWithNothingRunning() {
+        LorisScreen.shutdownLayoutUpdates();
+
+        Assertions.assertDoesNotThrow(LorisScreen::shutdownLayoutUpdates);
+        List<Component> content = List.of(new Component() {});
+        renderUntilRendered(new TestScreen(() -> content), new RecordingBackend(), content);
+    }
+
+    private static void awaitUninterruptibly(CountDownLatch latch) {
+        try {
+            if (!latch.await(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
+                throw new IllegalStateException("latch not released within " + TIMEOUT);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
     }
 
     private static IllegalStateException renderUntilThrows(TestScreen screen) {

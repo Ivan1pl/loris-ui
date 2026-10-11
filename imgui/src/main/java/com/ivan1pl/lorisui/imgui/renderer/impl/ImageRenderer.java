@@ -2,7 +2,6 @@ package com.ivan1pl.lorisui.imgui.renderer.impl;
 
 import com.ivan1pl.lorisui.api.component.Image;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
-import com.ivan1pl.lorisui.imgui.backend.ImGuiBackend;
 import com.ivan1pl.lorisui.imgui.backend.TextureData;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
 import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
@@ -17,11 +16,6 @@ public class ImageRenderer extends Renderer<Image> {
             ImGuiWindowFlags.NoTitleBar |
             ImGuiWindowFlags.NoResize |
             ImGuiWindowFlags.NoBackground;
-    private final ImGuiBackend backend;
-
-    public ImageRenderer(ImGuiBackend backend) {
-        this.backend = backend;
-    }
 
     @Override
     public void render(Image component, int w, int h, RendererProvider rendererProvider,
@@ -30,9 +24,9 @@ public class ImageRenderer extends Renderer<Image> {
             int flags = enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs);
             String id = component.toString() + "_img";
             ImGui.beginChild(id, component.getWidth(), component.getHeight(), false, flags);
-            TextureData texture = loadTexture(backend, component.getImage());
-            backend.renderTexture(texture.id(), component.getImageMode(), component.getWidth(), component.getHeight(),
-                    texture.width(), texture.height());
+            TextureData texture = rendererProvider.loadTexture(component.getImage());
+            rendererProvider.renderTexture(texture.id(), component.getImageMode(), component.getWidth(),
+                    component.getHeight(), texture.width(), texture.height());
             ImGui.endChild();
         } catch (IOException e) {
             throw new RuntimeException(e);

@@ -1,5 +1,9 @@
-plugins {
-    id 'java'
+ext {
+    jmonkeyVersion = '3.10.0-SNAPSHOT'
+    lwjglVersion = '3.4.1'
+    mockitoVersion = '5.24.0'
+    imguiVersion = '1.92.7.1'
+    checkstyleVersion = '14.3.0'
 }
 
 allprojects {
@@ -17,16 +21,16 @@ allprojects {
                 languageVersion = JavaLanguageVersion.of(25)
             }
         }
+
+        apply plugin: 'checkstyle'
+        checkstyle {
+            toolVersion = rootProject.ext.checkstyleVersion
+            configDirectory = rootProject.layout.projectDirectory.dir('config/checkstyle')
+            maxWarnings = 0
+        }
     }
 
     tasks.withType(Test).configureEach {
         useJUnitPlatform()
     }
-}
-
-ext {
-    jmonkeyVersion = '3.10.0-SNAPSHOT'
-    lwjglVersion = '3.4.1'
-    mockitoVersion = '5.24.0'
-    imguiVersion = '1.92.7.1'
 }

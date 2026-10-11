@@ -12,6 +12,10 @@
  * a concrete UI toolkit; a host integrates the backend into a game engine, drives rendering and input, and supplies
  * fonts and localized text through {@link com.ivan1pl.lorisui.api.resolver.BundleKeyResolver}.
  * <p>
+ * Hosts may use {@link com.ivan1pl.lorisui.api.screen.ScreenManager} to keep their named screens and fire the
+ * screen lifecycle callbacks, and {@link com.ivan1pl.lorisui.api.resolver.ResourceBundleKeyResolver} to resolve
+ * localization keys from resource bundles.
+ * <p>
  * This module has no dependencies outside the JDK and does no drawing itself.
  */
 module lorisui.api {

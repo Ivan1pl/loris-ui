@@ -15,7 +15,8 @@ import java.nio.ByteBuffer;
 
 /**
  * The OpenGL implementation of {@link ImGuiBackend}, which loads textures from class-path resources into OpenGL
- * textures. Hosts that render with {@link com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer} use this backend.
+ * textures and deletes them when they are unloaded. Hosts that render with
+ * {@link com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer} use this backend.
  */
 public final class ImGuiOpenGlBackend extends ImGuiBackend {
     /**
@@ -27,25 +28,21 @@ public final class ImGuiOpenGlBackend extends ImGuiBackend {
      * Loads an image from a class-path resource into a new OpenGL texture, optionally recoloring it with channel
      * masks. Common image formats such as PNG and JPEG are supported.
      *
-     * <p>{@code resourcePath} is a class-path resource name, where a leading {@code /} is optional. On the module path
-     * the resource must be outside any Java package of a named module, or in a package that the application module
-     * opens unconditionally ({@code opens pkg;}). A qualified {@code opens pkg to ...} is not enough.
-     *
      * <p>When any mask is non-null, every pixel is recolored with {@link Color#mask(Color, Color, Color)
      * Color.mask(maskedR, maskedG, maskedB)}; when all masks are {@code null}, the image is loaded unchanged.
      *
-     * <p>Must be called on the host's UI thread, with the window's OpenGL context current.
+     * <p>Called on the host's UI thread, with the window's OpenGL context current.
      *
-     * @param resourcePath class-path resource name of the image; must not be null
+     * @param resourcePath class-path resource name of the image, without a leading {@code /}; never {@code null}
      * @param maskedR      color replacing the red channel, or {@code null} to keep it
      * @param maskedG      color replacing the green channel, or {@code null} to keep it
      * @param maskedB      color replacing the blue channel, or {@code null} to keep it
-     * @return the loaded texture, never {@code null}
+     * @return the new texture, never {@code null}
      * @throws IOException if the resource does not exist or cannot be decoded as an image (the message names
      *                     {@code resourcePath}), or if it cannot be read
      */
     @Override
-    public TextureData loadTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB)
+    protected TextureData createTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB)
             throws IOException {
         ByteBuffer encoded = null;
         ByteBuffer pixels = null;
@@ -103,5 +100,15 @@ public final class ImGuiOpenGlBackend extends ImGuiBackend {
                 MemoryUtil.memFree(encoded);
             }
         }
+    }
+
+    /**
+     * Deletes the OpenGL texture. Called on the host's UI thread, with the window's OpenGL context current.
+     *
+     * @param texture texture to delete; never {@code null}
+     */
+    @Override
+    protected void deleteTexture(TextureData texture) {
+        GL11.glDeleteTextures(texture.id());
     }
 }

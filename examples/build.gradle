@@ -4,10 +4,30 @@ plugins {
 
 dependencies {
     implementation project(':loris-ui-jme3')
+    implementation project(':loris-ui-lwjgl')
     implementation "org.jmonkeyengine:jme3-core:${rootProject.ext.jmonkeyVersion}"
     implementation "org.jmonkeyengine:jme3-desktop:${rootProject.ext.jmonkeyVersion}"
     implementation "org.jmonkeyengine:jme3-lwjgl3:${rootProject.ext.jmonkeyVersion}"
+    implementation "org.lwjgl:lwjgl:${rootProject.ext.lwjglVersion}"
+    implementation "org.lwjgl:lwjgl-sdl:${rootProject.ext.lwjglVersion}"
+    implementation "org.lwjgl:lwjgl-opengl:${rootProject.ext.lwjglVersion}"
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.register('runJme3Example', JavaExec) {
+    group = 'application'
+    description = 'Runs the LorisUI example in a jMonkeyEngine 3 application.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.ivan1pl.lorisui.example.jme3.LorisJme3Example'
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+
+tasks.register('runLwjglExample', JavaExec) {
+    group = 'application'
+    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglExample'
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
 }

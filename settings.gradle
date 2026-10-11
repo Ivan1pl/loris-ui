@@ -5,4 +5,6 @@ include 'imgui'
 project(":imgui").name = "loris-ui-imgui"
 include 'jme3'
 project(":jme3").name = "loris-ui-jme3"
+include 'lwjgl'
+project(":lwjgl").name = "loris-ui-lwjgl"
 include 'examples'
