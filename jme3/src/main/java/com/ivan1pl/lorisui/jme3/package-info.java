@@ -16,9 +16,13 @@
  * frame or screen switch has finished. Only one display may be attached at a time. jME does not remove the display on
  * application exit; see {@link com.ivan1pl.lorisui.jme3.ImGuiJmeDisplay} for the lifecycle and the exit pattern.
  * <p>
- * On JDK 25, imgui-java and LWJGL load native code, so run the application with {@code --enable-native-access}
- * ({@code ALL-UNNAMED} on the class path, the names of those modules on the module path) to avoid restricted-method
- * warnings. A failed Dear ImGui assertion terminates the JVM; see
- * {@link com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer}.
+ * <b>Runtime requirements.</b> The library does not bring jMonkeyEngine with it: the application declares
+ * {@code jme3-core} and {@code jme3-lwjgl3}, and any other jME modules it uses, as its own dependencies. The library
+ * brings the Dear ImGui backend and imgui-java at runtime; LWJGL and its SDL bindings come with jME's LWJGL3 renderer.
+ * The display needs jMonkeyEngine 3.10 or later, whose {@code jme3-lwjgl3} window is based on SDL3, running on
+ * LWJGL 3.4.x, the LWJGL version the Dear ImGui backend uses at runtime. On JDK 25, imgui-java and LWJGL load
+ * native code, so run the application with {@code --enable-native-access} ({@code ALL-UNNAMED} on the class path,
+ * the names of those modules on the module path) to avoid restricted-method warnings. A failed Dear ImGui assertion
+ * terminates the JVM; see {@link com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer}.
  */
 package com.ivan1pl.lorisui.jme3;

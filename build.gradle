@@ -30,6 +30,64 @@ allprojects {
         }
     }
 
+    plugins.withId('maven-publish') {
+        java {
+            withSourcesJar()
+            withJavadocJar()
+        }
+
+        publishing {
+            publications {
+                maven(MavenPublication) {
+                    from components.java
+                    pom {
+                        name = project.provider {
+                            if (!project.ext.has('pomName')) {
+                                throw new GradleException("Project ${project.path} must set ext.pomName in its " +
+                                        'build.gradle; the published POM requires it')
+                            }
+                            project.ext.pomName
+                        }
+                        description = project.provider {
+                            if (!project.description) {
+                                throw new GradleException("Project ${project.path} must set description in its " +
+                                        'build.gradle; the published POM requires it')
+                            }
+                            project.description
+                        }
+                        url = 'https://github.com/Ivan1pl/loris-ui'
+                        licenses {
+                            license {
+                                name = 'Apache License, Version 2.0'
+                                url = 'https://www.apache.org/licenses/LICENSE-2.0'
+                            }
+                        }
+                        developers {
+                            developer {
+                                id = 'Ivan1pl'
+                                name = 'Mikołaj Nowak'
+                                email = 'ivan.legnica@gmail.com'
+                            }
+                        }
+                        scm {
+                            connection = 'scm:git:https://github.com/Ivan1pl/loris-ui.git'
+                            url = 'https://github.com/Ivan1pl/loris-ui'
+                        }
+                    }
+                }
+            }
+        }
+
+        tasks.named('javadoc', Javadoc) {
+            options.addBooleanOption('Xdoclint:all', true)
+            options.addBooleanOption('Werror', true)
+        }
+
+        tasks.named('check') {
+            dependsOn 'javadoc'
+        }
+    }
+
     tasks.withType(Test).configureEach {
         useJUnitPlatform()
     }

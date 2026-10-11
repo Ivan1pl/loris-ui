@@ -38,7 +38,7 @@ public static class Builder extends BaseBuilder<ModalPopup, Builder> {
 ```
 
 ### Dynamic Properties via Suppliers
-Properties that may change at runtime are stored as functional types and evaluated at render time: `Supplier<T>` for values, `IntBinaryOperator` / `IntBiFunction` for values depending on screen size `(w, h)`, `Function<BundleKeyResolver, String>` for localisable text, `Consumer<T>` for two-way bindings. Builders offer an overload pair where the constant overload delegates to the functional overload; getters unwrap with `.get()` / `.applyAsInt(w, h)`.
+Properties that may change at runtime are stored as functional types and evaluated at render time: `Supplier<T>` for values, `IntBinaryOperator` / `IntBiFunction` for values depending on the screen size `(w, h)` in logical window coordinates (always the screen's size, not the parent's, also for nested panels; renderers pass it unchanged to children), `Function<BundleKeyResolver, String>` for localisable text, `Consumer<T>` for two-way bindings. Builders offer an overload pair where the constant overload delegates to the functional overload; getters unwrap with `.get()` / `.applyAsInt(w, h)`.
 
 ```java
 public Builder barColor(Color barColor) {

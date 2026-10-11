@@ -278,8 +278,7 @@ public final class ImGuiOpenGlRenderer {
      *
      * <p>{@code w} and {@code h} are the size of the window in logical window coordinates, as reported by
      * {@code SDL_GetWindowSize}, not in framebuffer pixels; Dear ImGui's SDL3 backend applies the framebuffer scale of
-     * HiDPI displays itself. The bundled jMonkeyEngine host passes its camera size, which is in pixels, so on HiDPI
-     * displays with a framebuffer scale above 1 its UI is scaled incorrectly.
+     * HiDPI displays itself.
      *
      * <p>The frame is closed even when the screen throws, and the exception is then rethrown to the caller. For
      * example, the {@link IllegalStateException} with which {@link LorisScreen#render} reports a failed layout reaches
@@ -287,8 +286,8 @@ public final class ImGuiOpenGlRenderer {
      * suppressed exception.
      *
      * @param screen            screen to render; must not be null
-     * @param w                 display width in logical window coordinates
-     * @param h                 display height in logical window coordinates
+     * @param w                 screen width in logical window coordinates
+     * @param h                 screen height in logical window coordinates
      * @param bundleKeyResolver resolver for localized text; must not be null
      * @throws NullPointerException  if {@code screen} or {@code bundleKeyResolver} is {@code null}
      * @throws IllegalStateException if the renderer is not initialized or a frame is already being rendered (checked

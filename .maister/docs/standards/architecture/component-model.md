@@ -12,6 +12,24 @@ Use abstract classes for shared behaviour / template methods (`Renderer`, `Loris
 
 Do not add toolkit-specific methods or types to `Backend`.
 
+### Hosts Pass the Logical Window Size
+Every host passes the window's logical size (window coordinates as reported by `SDL_GetWindowSize`, not framebuffer pixels) to `ImGuiOpenGlRenderer.render(screen, w, h, resolver)` on every frame; Dear ImGui's SDL3 backend applies the HiDPI framebuffer scale. The same `w` / `h` are the screen size that position, size and content functions receive.
+- `ImGuiJmeDisplay` queries `SDLVideo.SDL_GetWindowSize` on its window handle each frame in `drawCurrentScreen()`, inside a `MemoryStack` frame closed before rendering, and throws `IllegalStateException` with `SDLError.SDL_GetError()` when the query fails.
+- `ImGuiLwjglDisplay.render(width, height)` takes the size the application reads with `SDL_GetWindowSize`.
+- Never size the UI from the jME camera, the viewport or `SceneProcessor.reshape`; those are framebuffer pixels on HiDPI displays. A new host (and the planned neutral host SPI) follows the same contract.
+
+```java
+try (MemoryStack stack = MemoryStack.stackPush()) {
+    IntBuffer widthBuffer = stack.mallocInt(1);
+    IntBuffer heightBuffer = stack.mallocInt(1);
+    if (!SDLVideo.SDL_GetWindowSize(window.getWindowHandle(), widthBuffer, heightBuffer)) {
+        throw new IllegalStateException("Could not read the window size: " + SDLError.SDL_GetError());
+    }
+    width = widthBuffer.get(0);
+    height = heightBuffer.get(0);
+}
+```
+
 ### Class-Keyed Renderer and StyleApplier Registry
 Each `api` Component has exactly one `Renderer` and each `Style` exactly one `StyleApplier`, registered by class in the `ImGuiBackend` constructor (written directly to the maps, so the constructor calls no overridable method). Lookup (`getRenderer` / `getStyleApplier`, both `public final`) walks the superclass chain, so subclasses (Button, Popup, ModalPopup) reuse their parent's renderer unless registered explicitly. A missing registration fails fast with `IllegalStateException`.
 - New component: class with Builder in `api/component` + `imgui/renderer/impl/<Name>Renderer` (no-argument constructor) + one `renderers.put(...)` line.

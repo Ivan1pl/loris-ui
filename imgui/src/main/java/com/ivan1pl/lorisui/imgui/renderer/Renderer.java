@@ -27,10 +27,10 @@ public abstract class Renderer<ComponentType extends Component> {
      * Draws the given component with Dear ImGui. Called on the host's UI thread while a frame is being rendered.
      *
      * @param component         component to draw; never {@code null}
-     * @param w                 display width in pixels; pass it unchanged to child components, whose position and
-     *                          size bindings receive it
-     * @param h                 display height in pixels; pass it unchanged to child components, whose position and
-     *                          size bindings receive it
+     * @param w                 screen width in logical window coordinates; pass it unchanged to child components,
+     *                          whose position, size and content bindings receive it
+     * @param h                 screen height in logical window coordinates; pass it unchanged to child components,
+     *                          whose position, size and content bindings receive it
      * @param rendererProvider  provider of the renderers for child components and the style appliers for styles
      * @param bundleKeyResolver resolver for localized text
      * @param topLevel          {@code true} when the component is a top-level element of the screen, placed at its

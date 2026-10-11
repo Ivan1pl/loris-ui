@@ -191,8 +191,8 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
      * that {@link #getRenderer} returns for it. Must be called on the host's UI thread, while a Dear ImGui frame is
      * open.
      *
-     * @param w                 display width in pixels
-     * @param h                 display height in pixels
+     * @param w                 screen width in logical window coordinates
+     * @param h                 screen height in logical window coordinates
      * @param components        components to draw; must not be null and is not modified
      * @param bundleKeyResolver resolver for localized text; must not be null
      * @throws IllegalStateException if there is no renderer or style applier for a component or style being drawn

@@ -28,7 +28,7 @@ This document describes the technology choices and rationale for LorisUI, a mult
   - No ImGui type appears in an exported signature, so `loris-ui-imgui` compiles against the pinned version (`compileOnly`) and declares a `runtimeOnly` rich-version range (`require "[1.92.7.1,1.93)"`, `prefer "1.92.7.1"`). The range is capped below the next minor because imgui-java is not semver and a published POM carries only the range (Maven ignores `prefer`); raise the cap when moving to a new imgui-java minor. Consumers get imgui-java at runtime but not on their compile classpath; the version is `ext.imguiVersion`.
   - Code that calls Dear ImGui directly (a custom `Renderer`) adds imgui-java to its own build and, on the module path, `requires imgui.binding`.
   - On JDK 25, imgui-java and LWJGL load native code, so applications pass `--enable-native-access` to avoid restricted-method warnings.
-  - **Offline builds**: resolving the range needs Gradle's version listing. The first build on a machine, and the first build after Gradle's dynamic-version cache expires, need network access; after that `--offline` works and `prefer` keeps builds on 1.92.7.1.
+  - **Offline builds**: the range needs network access the first time runtime classpaths resolve it; see "Dependency Scopes for Toolkit Libraries" in `standards/build/gradle.md`.
 
 ### Graphics / Native
 - **LWJGL** **3.4.1**: `lwjgl-stb` (an `implementation` dependency of `loris-ui-imgui`, so consumers get it at runtime only) for image decoding when loading textures, plus the OpenGL and SDL bindings (through imgui-java). `lwjgl-stb` native classifiers for Windows, Linux, macOS and macOS arm64 (`natives-windows`, `natives-linux`, `natives-macos`, `natives-macos-arm64`) are declared as `runtimeOnly`.
@@ -37,7 +37,7 @@ This document describes the technology choices and rationale for LorisUI, a mult
   - `examples` declares `lwjgl`, `lwjgl-sdl` and `lwjgl-opengl` as `implementation`, because `LorisLwjglExample` creates its own SDL window and OpenGL context.
 
 ### Game Engine Host
-- **jMonkeyEngine** **3.10.0-SNAPSHOT**: `jme3-core` and `jme3-lwjgl3` (in `jme3`, with `transitive = false`), plus `jme3-desktop` in `examples`. LorisUI integrates as a `SceneProcessor` (`ImGuiJmeDisplay`).
+- **jMonkeyEngine** **3.10.0-SNAPSHOT**: `jme3-core` and `jme3-lwjgl3`, non-transitive `compileOnly` in `jme3`, so the published `loris-ui-jme3` carries no jME dependency and the application declares the jME modules it uses; `examples` declares `jme3-core`, `jme3-lwjgl3` and `jme3-desktop` as `implementation`. LorisUI integrates as a `SceneProcessor` (`ImGuiJmeDisplay`).
   - The snapshot isn't on Maven Central. It's resolved from `mavenLocal()`, so jME must be installed locally first.
   - jME3 jars split packages, so `loris-ui-jme3` stays on the classpath (no `module-info.java`) and sets `Automatic-Module-Name: lorisui.jme3` in its jar manifest.
 
@@ -55,11 +55,11 @@ None. LorisUI is a client-side UI library.
 ## Build Tools & Package Management
 - **Gradle 9.6.0** (wrapper committed)
 - Multi-project build: `:api` → `loris-ui-api`, `:imgui` → `loris-ui-imgui`, `:jme3` → `loris-ui-jme3`, `:lwjgl` → `loris-ui-lwjgl`, `:examples`
-- Plugins: `java-library` + `maven-publish` (library modules), `java` (examples), `checkstyle` (every Java project, applied from root `allprojects`); the root project applies no plugin and has no sources
+- Plugins: `java-library` then `maven-publish` (library modules, in that order), `java` (examples), `checkstyle` (every Java project, applied from root `allprojects`); the root project applies no plugin and has no sources
 - Repositories: `mavenLocal()` then `mavenCentral()`
 - Group `com.ivan1pl.loris-ui`, version `1.0-SNAPSHOT`
 - Shared versions are set as root `ext` properties (`jmonkeyVersion`, `lwjglVersion`, `mockitoVersion`, `imguiVersion`, `checkstyleVersion`) and referenced as `rootProject.ext.<name>`. There is no version catalog.
-- Root `allprojects` also sets the Java 25 toolchain, Checkstyle and the JUnit Platform through lazy hooks (`plugins.withId('java')`, `tasks.withType(Test).configureEach`)
+- Root `allprojects` also sets the Java 25 toolchain, Checkstyle, the JUnit Platform, publishing and the Javadoc gate through lazy hooks (`plugins.withId('java')`, `plugins.withId('maven-publish')`, `tasks.withType(Test).configureEach`)
 - Running the examples: `./gradlew :examples:runJme3Example` and `./gradlew :examples:runLwjglExample` (`JavaExec` tasks in the `application` group, on the Java 25 toolchain, passing `--enable-native-access=ALL-UNNAMED`). On macOS the SDL-based examples may need `-XstartOnFirstThread`, which the tasks don't pass.
 
 ## Infrastructure
@@ -71,10 +71,10 @@ None.
 None yet (see the roadmap, Phase 1).
 
 ### Distribution
-`maven-publish` is applied to `api`, `imgui`, `jme3` and `lwjgl`, but no `publishing {}` block is configured yet. The goal is to publish to a Maven repository.
+`api`, `imgui`, `jme3` and `lwjgl` apply `maven-publish`, configured once by a root `plugins.withId('maven-publish')` hook: one `maven` publication from `components.java` with sources and Javadoc jars, and a POM with the module's name and description (each library sets `description` and `ext.pomName`, both required; see `standards/build/gradle.md`) plus the shared url (`https://github.com/Ivan1pl/loris-ui`), Apache-2.0 license, developer and scm. No repository is configured, so `./gradlew publishToMavenLocal` publishes to the local Maven repository only; `examples` is not published. Remote publishing (Maven Central or GitHub Packages) is planned (see the roadmap, Phase 3).
 
 ### Javadoc
-Every exported package of `lorisui.api`, `lorisui.imgui` and `lorisui.lwjgl`, and the `jme3` package, has user-facing Javadoc, a `package-info.java`, and (for the three named modules) a module doc comment. The `imgui` `javadoc` task excludes `**/impl/**` and passes the main source directories as `-sourcepath`, so the generated docs contain only the exported packages. There is no doclint gate in the build.
+Every exported package of `lorisui.api`, `lorisui.imgui` and `lorisui.lwjgl`, and the `jme3` package, has user-facing Javadoc, a `package-info.java`, and (for the three named modules) a module doc comment. The `imgui` `javadoc` task excludes `**/impl/**` and passes the main source directories as `-sourcepath`, so the generated docs contain only the exported packages. The `javadoc` task of every library runs with `-Xdoclint:all -Werror`. `assemble` runs it through the Javadoc jar, so `./gradlew build` and `publishToMavenLocal` fail on any Javadoc warning, and `check` depends on it, so a standalone `./gradlew check` does too; `examples` has no Javadoc gate.
 
 ## Development Tools
 
@@ -97,8 +97,8 @@ Provided by the Java compiler. No nullability annotations or static analysers ar
 | `org.lwjgl:lwjgl-stb` (+ natives) | 3.4.1 | imgui | implementation / runtimeOnly |
 | `org.lwjgl:lwjgl`, `org.lwjgl:lwjgl-sdl` | 3.4.1 | jme3, lwjgl | compileOnly |
 | `org.lwjgl:lwjgl`, `org.lwjgl:lwjgl-sdl`, `org.lwjgl:lwjgl-opengl` | 3.4.1 | examples | implementation |
-| `org.jmonkeyengine:jme3-core` | 3.10.0-SNAPSHOT | jme3, examples | implementation |
-| `org.jmonkeyengine:jme3-lwjgl3` | 3.10.0-SNAPSHOT | jme3, examples | implementation |
+| `org.jmonkeyengine:jme3-core` | 3.10.0-SNAPSHOT | jme3 / examples | compileOnly / implementation |
+| `org.jmonkeyengine:jme3-lwjgl3` | 3.10.0-SNAPSHOT | jme3 / examples | compileOnly / implementation |
 | `org.jmonkeyengine:jme3-desktop` | 3.10.0-SNAPSHOT | examples | implementation |
 | `org.junit:junit-bom` | 6.0.0 | all | test |
 | `com.puppycrawl.tools:checkstyle` | 14.3.0 | all (Gradle `checkstyle` plugin) | build tool |

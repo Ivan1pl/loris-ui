@@ -8,11 +8,11 @@ package com.ivan1pl.lorisui.api.core;
 @FunctionalInterface
 public interface IntBiFunction<ResultType> {
     /**
-     * Applies this function to the given arguments.
+     * Applies this function to the given screen size.
      *
-     * @param a the first argument
-     * @param b the second argument
+     * @param width  the screen width in logical window coordinates
+     * @param height the screen height in logical window coordinates
      * @return the function result
      */
-    ResultType apply(int a, int b);
+    ResultType apply(int width, int height);
 }

@@ -3,6 +3,9 @@ plugins {
     id 'maven-publish'
 }
 
+description = 'Renders LorisUI screens with Dear ImGui on OpenGL.'
+ext.pomName = 'LorisUI Dear ImGui backend'
+
 dependencies {
     api project(':loris-ui-api')
     implementation "org.lwjgl:lwjgl-stb:${rootProject.ext.lwjglVersion}"

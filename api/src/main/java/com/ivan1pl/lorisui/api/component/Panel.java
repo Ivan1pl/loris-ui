@@ -17,7 +17,9 @@ import java.util.function.Supplier;
  *
  * <p>A panel listed directly in a screen's component tree, and every popup, is placed at its own position on the
  * screen. A panel nested in another panel is placed by its parent's {@link Layout}, and its position is not used.
- * A panel can also have a background, a tooltip and styles that apply to the panel and everything inside it.
+ * The size and content functions of every panel, nested ones included, and the position functions of top-level
+ * panels and popups receive the screen width and height, not the parent's size. A panel can also have a background,
+ * a tooltip and styles that apply to the panel and everything inside it.
  *
  * <p>Every panel has an ID. Panel IDs are stable keys that must be unique among siblings, that is among the panels
  * of the same parent or among the top-level panels of a screen. Backends use the ID to recognize the same panel

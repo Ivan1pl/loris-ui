@@ -3,6 +3,10 @@ plugins {
     id 'maven-publish'
 }
 
+description = 'Toolkit-agnostic LorisUI API: a declarative component model for game menus and HUDs, screens, ' +
+        'and the backend port that renders them.'
+ext.pomName = 'LorisUI API'
+
 configurations {
     mockitoAgent
 }

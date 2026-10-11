@@ -3,14 +3,13 @@ plugins {
     id 'maven-publish'
 }
 
+description = 'Hosts LorisUI screens in a jMonkeyEngine 3 application.'
+ext.pomName = 'LorisUI jMonkeyEngine 3 host'
+
 dependencies {
     api project(':loris-ui-imgui')
-    implementation("org.jmonkeyengine:jme3-core:${rootProject.ext.jmonkeyVersion}") {
-        transitive = false
-    }
-    implementation("org.jmonkeyengine:jme3-lwjgl3:${rootProject.ext.jmonkeyVersion}") {
-        transitive = false
-    }
+    compileOnly("org.jmonkeyengine:jme3-core:${rootProject.ext.jmonkeyVersion}") { transitive = false }
+    compileOnly("org.jmonkeyengine:jme3-lwjgl3:${rootProject.ext.jmonkeyVersion}") { transitive = false }
     compileOnly "org.lwjgl:lwjgl:${rootProject.ext.lwjglVersion}"
     compileOnly "org.lwjgl:lwjgl-sdl:${rootProject.ext.lwjglVersion}"
     testImplementation platform('org.junit:junit-bom:6.0.0')

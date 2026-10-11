@@ -22,8 +22,12 @@ import com.jme3.renderer.queue.RenderQueue;
 import com.jme3.system.JmeContext;
 import com.jme3.system.lwjgl.LwjglWindow;
 import com.jme3.texture.FrameBuffer;
+import org.lwjgl.sdl.SDLError;
+import org.lwjgl.sdl.SDLVideo;
+import org.lwjgl.system.MemoryStack;
 
 import java.io.IOException;
+import java.nio.IntBuffer;
 import java.util.Objects;
 
 /**
@@ -88,9 +92,12 @@ import java.util.Objects;
  * }
  * </pre>
  *
- * <h2>Known limitation</h2>
- * The display sizes the UI by the viewport's camera, which is measured in pixels, while Dear ImGui expects logical
- * window coordinates. On HiDPI displays with a scale factor above 1, the UI is therefore scaled incorrectly.
+ * <h2>Window size</h2>
+ * Each frame, the display sizes the UI to the window's size in logical window coordinates, as reported by
+ * {@code SDL_GetWindowSize}, not in framebuffer pixels, so the UI follows window resizes and the scaling of HiDPI
+ * displays. The display's viewport must therefore render to the window: offscreen viewports, such as one rendering to
+ * a texture or one with a {@code FilterPostProcessor}, are not supported. jME's emulated display-scale modes, set with
+ * an {@code AppSettings} display-scale mode above 1, are not supported either.
  *
  * <h2>Threading</h2>
  * The display is not thread-safe. Call its methods on the jME application (render) thread, for example from
@@ -111,8 +118,6 @@ public class ImGuiJmeDisplay implements SceneProcessor {
     private final DeferredRelease deferredTeardown = new DeferredRelease(this::tearDown);
     private RenderManager renderManager;
     private ViewPort vp;
-    private int w;
-    private int h;
     private boolean initialized = false;
     private boolean failed = false;
     // True while tearDown runs, when the release is no longer pending but onEndScreen can still call the display
@@ -126,8 +131,7 @@ public class ImGuiJmeDisplay implements SceneProcessor {
      *                     ({@link LwjglWindow}), so the application must use jME's LWJGL3 renderer
      * @param inputManager the application's input manager, used to consume the mouse and keyboard events that the UI
      *                     uses; or {@code null} to leave all input events to the application
-     * @param viewport     the viewport the display will be added to, whose camera size is used until the display is
-     *                     initialized; must not be null
+     * @param viewport     the viewport the display will be added to; must not be null
      * @throws NullPointerException if {@code context} or {@code viewport} is null
      * @throws ClassCastException   if {@code context} is not an LWJGL3 window
      */
@@ -140,8 +144,6 @@ public class ImGuiJmeDisplay implements SceneProcessor {
         this.inputSys = new ImGuiInputSystem(renderer);
         this.sdlEventListener = event -> renderer.processSdlEvent(event.address());
         this.vp = viewport;
-        this.w = viewport.getCamera().getWidth();
-        this.h = viewport.getCamera().getHeight();
     }
 
     /**
@@ -355,17 +357,12 @@ public class ImGuiJmeDisplay implements SceneProcessor {
         }
         this.renderManager = rm;
         this.vp = vp;
-        Camera camera = vp.getCamera();
-        this.w = camera.getWidth();
-        this.h = camera.getHeight();
         initialized = true;
         deferredTeardown.run(screenManager::activate);
     }
 
     @Override
     public void reshape(ViewPort vp, int w, int h) {
-        this.w = w;
-        this.h = h;
     }
 
     /**
@@ -392,8 +389,9 @@ public class ImGuiJmeDisplay implements SceneProcessor {
      * the frame has been drawn; a failure of the release then propagates from this method.
      *
      * @param rq the viewport's render queue
-     * @throws IllegalStateException if the screen's most recent layout failed (see {@link LorisScreen#render}), or if
-     *                               a component or style of the screen has no registered renderer or style applier
+     * @throws IllegalStateException if the screen's most recent layout failed (see {@link LorisScreen#render}), if a
+     *                               component or style of the screen has no registered renderer or style applier, or
+     *                               if the window size cannot be read from SDL
      */
     @Override
     public void postQueue(RenderQueue rq) {
@@ -532,10 +530,21 @@ public class ImGuiJmeDisplay implements SceneProcessor {
     }
 
     private void drawCurrentScreen() {
+        int width;
+        int height;
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer widthBuffer = stack.mallocInt(1);
+            IntBuffer heightBuffer = stack.mallocInt(1);
+            if (!SDLVideo.SDL_GetWindowSize(window.getWindowHandle(), widthBuffer, heightBuffer)) {
+                throw new IllegalStateException("Could not read the window size: " + SDLError.SDL_GetError());
+            }
+            width = widthBuffer.get(0);
+            height = heightBuffer.get(0);
+        }
         Camera camera = vp.getCamera();
         renderManager.setCamera(camera, true);
         try {
-            renderer.render(screenManager.getCurrentScreen(), w, h, resolver);
+            renderer.render(screenManager.getCurrentScreen(), width, height, resolver);
         } finally {
             renderManager.setCamera(camera, false);
         }

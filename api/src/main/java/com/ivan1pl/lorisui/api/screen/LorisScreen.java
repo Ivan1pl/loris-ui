@@ -60,8 +60,8 @@ public abstract class LorisScreen {
      * on the host's UI thread, each time the host renders.
      *
      * @param backend           backend that draws the components; must not be null
-     * @param w                 available width in pixels
-     * @param h                 available height in pixels
+     * @param w                 screen width in logical window coordinates
+     * @param h                 screen height in logical window coordinates
      * @param bundleKeyResolver resolver for localized text; must not be null
      * @throws IllegalStateException if the last requested {@link #layout()} failed or returned {@code null}; the
      *                               cause is the original failure. Each failure is thrown once and nothing is

@@ -15,12 +15,12 @@ import java.util.List;
 public interface Backend {
     /**
      * Draws the given top-level components. Called on the host's UI thread each time the host renders, with the
-     * display size in pixels and the list most recently returned by
+     * screen size in logical window coordinates and the list most recently returned by
      * {@link com.ivan1pl.lorisui.api.screen.LorisScreen#layout() LorisScreen.layout()} (an empty list before the
      * first layout completes). Backends must not modify the list.
      *
-     * @param w                 display width in pixels
-     * @param h                 display height in pixels
+     * @param w                 screen width in logical window coordinates
+     * @param h                 screen height in logical window coordinates
      * @param components        top-level components to draw, in order; must not be null
      * @param bundleKeyResolver resolver for localized text; must not be null
      */

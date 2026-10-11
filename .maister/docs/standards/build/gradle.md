@@ -12,12 +12,12 @@ project(":foo").name = "loris-ui-foo"
 ```
 
 ### Plugins per Module Type
-Library modules apply `java-library` and `maven-publish`; the non-published demo module applies only `java`. The root project has no sources and applies no plugin (`checkstyle` is applied to every Java project from root `allprojects`).
+Library modules apply `java-library` and then `maven-publish`, in that order: the root publishing hook runs when `maven-publish` is applied and needs the `java` extension and `components.java`, which `java-library` creates. The non-published demo module applies only `java`. The root project has no sources and applies no plugin (`checkstyle` is applied to every Java project from root `allprojects`).
 
 ### Shared Configuration in `allprojects`
-Group (`com.ivan1pl.loris-ui`), version, repositories (`mavenLocal()` first — needed for the jME 3.10.0-SNAPSHOT — then `mavenCentral()`), the Java toolchain, Checkstyle and the JUnit Platform are set once in root `allprojects`. Subprojects must not redeclare them.
+Group (`com.ivan1pl.loris-ui`), version, repositories (`mavenLocal()` first — needed for the jME 3.10.0-SNAPSHOT — then `mavenCentral()`), the Java toolchain, Checkstyle, the JUnit Platform, the publishing configuration (see Publishing) and the Javadoc gate (see Javadoc Gate) are set once in root `allprojects`. Subprojects must not redeclare them.
 
-The toolchain, Checkstyle and test settings use lazy hooks, because `allprojects` runs before the subprojects apply their plugins. A plain `java { }` or `test { }` block there fails for any subproject, since its `java` extension and `test` task don't exist yet when the root script runs. Use `plugins.withId('java')` (it also fires for `java-library`) and `tasks.withType(Test).configureEach`:
+The toolchain, Checkstyle, test, publishing and Javadoc gate settings use lazy hooks, because `allprojects` runs before the subprojects apply their plugins. A plain `java { }` or `test { }` block there fails for any subproject, since its `java` extension and `test` task don't exist yet when the root script runs. Use `plugins.withId('java')` (it also fires for `java-library`), `plugins.withId('maven-publish')` and `tasks.withType(Test).configureEach`:
 
 ```groovy
 allprojects {
@@ -36,6 +36,10 @@ allprojects {
         }
     }
 
+    plugins.withId('maven-publish') {
+        // sources and Javadoc jars, the `maven` publication and the Javadoc gate; see the sections below
+    }
+
     tasks.withType(Test).configureEach {
         useJUnitPlatform()
     }
@@ -46,6 +50,43 @@ The toolchain only selects an installed JDK 25 (there is no foojay resolver plug
 
 ### Checkstyle Gate
 Checkstyle is a failing build gate for the main and test sources of every Java project. The `checkstyleMain` and `checkstyleTest` tasks attach to `check`, so `./gradlew build` fails on any violation. The rules live once at the root in `config/checkstyle/checkstyle.xml` (`severity` `error`), with file-specific exceptions in `config/checkstyle/suppressions.xml`; subprojects have no Checkstyle configuration of their own. Keep `maxWarnings = 0` and the default `ignoreFailures = false`. Fix violations instead of suppressing them; add a suppression only for a deliberate, documented exception (the internal `ImGuiState` flag holder keeps its public static fields). The Checkstyle task runs on the project's Java 25 toolchain. A repository-root `.editorconfig` keeps editors in line with the same rules; there is no auto-formatter.
+
+### Javadoc Gate
+Javadoc is a failing build gate for every library module. The root `plugins.withId('maven-publish')` hook runs `javadoc` with strict doclint. The Javadoc jar (see Publishing) makes `assemble` run `javadoc`, so `./gradlew build` and `publishToMavenLocal` fail on any Javadoc warning; the hook also makes `check` depend on `javadoc`, so a standalone `./gradlew check` is gated too. Only modules that apply `maven-publish` get the gate, so the demo module `examples` is not linted. Fix warnings instead of relaxing the options; do not add `links` to external Javadoc. The gate needs no network access: Javadoc resolves the compile classpath, whose versions are pinned.
+
+```groovy
+tasks.named('javadoc', Javadoc) {
+    options.addBooleanOption('Xdoclint:all', true)
+    options.addBooleanOption('Werror', true)
+}
+
+tasks.named('check') {
+    dependsOn 'javadoc'
+}
+```
+
+### Publishing (Local Only)
+The root `plugins.withId('maven-publish')` hook configures publishing for every library module: it adds sources and Javadoc jars (`java { withSourcesJar(); withJavadocJar() }`) and one `maven` publication `from components.java`. The POM metadata shared by all modules (url, Apache-2.0 license, developer, scm) lives once in that hook. No `repositories` are configured, so artifacts are published only with `./gradlew publishToMavenLocal`; the demo module `examples` is not published.
+
+Each library module sets its own POM name and description in its `build.gradle`, after the `plugins` block. Both are required: the hook reads them lazily through providers, and a module missing either fails POM generation with a `GradleException` naming the module. A string wrapped to stay within 120 columns ends the line with the `+` and continues with an 8-space indent, because a line starting with `+` is parsed as a new statement with a unary plus.
+
+```groovy
+description = 'Toolkit-agnostic LorisUI API: a declarative component model for game menus and HUDs, screens, ' +
+        'and the backend port that renders them.'
+ext.pomName = 'LorisUI API'
+```
+
+The hook runs when `maven-publish` is applied, before the rest of the module's script has set these values, so the POM `name` and `description` must be providers evaluated when the POM is generated. Inside `pom {}`, qualify every project property with `project.` (`project.provider`, `project.ext.pomName`, `project.description`): a bare `ext` or `description` there binds to the POM object, not the project. Each provider guards its value with a `GradleException` naming the module (see the root `build.gradle`):
+
+```groovy
+name = project.provider {
+    if (!project.ext.has('pomName')) {
+        throw new GradleException("Project ${project.path} must set ext.pomName in its " +
+                'build.gradle; the published POM requires it')
+    }
+    project.ext.pomName
+}
+```
 
 ### Shared Versions in Root `ext`
 Versions used by more than one module or declaration (jMonkeyEngine, LWJGL, Mockito, imgui-java, Checkstyle) are defined once in the root `ext` block, at the top of the root `build.gradle`, before `allprojects` (which reads `checkstyleVersion`). Add new shared versions there instead of hardcoding them in subprojects.
@@ -69,9 +110,6 @@ testImplementation "org.mockito:mockito-core:${rootProject.ext.mockitoVersion}"
 
 Mockito is a test dependency of `api` only, declared twice there (test dependency and `mockitoAgent` javaagent, see `testing/test-writing.md`); other modules don't declare it until a test uses it.
 
-### jME3 Dependencies Non-Transitive in Library
-The `jme3` library module declares jMonkeyEngine artifacts with `transitive = false` so the library does not impose engine transitive dependencies on consumers; the consuming application declares the full jME set (core, desktop, lwjgl3) itself.
-
 ### Dependency Scopes for Toolkit Libraries
 A library module declares a dependency as `api` only when its types appear in the module's exported signatures (`api project(':loris-ui-api')` in `imgui`). Toolkit libraries used only inside the implementation are never `api`: compile against a pinned version with `compileOnly`, and declare the runtime requirement with `runtimeOnly` and a rich-version range that prefers the tested version, so consumers get the toolkit at runtime but not on their compile classpath. A toolkit library the module calls directly but never exposes is `implementation` (runtime scope for consumers), as `lwjgl-stb` is in `imgui`.
 
@@ -88,11 +126,15 @@ runtimeOnly('io.github.spair:imgui-java-app') {
 
 Cap toolkit ranges below the next minor (`[1.92.7.1,1.93)`), never open-ended: toolkits such as imgui-java are not semver, and a published POM carries only the range (Maven ignores `prefer`), so an open range lets Maven consumers resolve an untested release. Raise the cap when moving to a new minor.
 
-The range needs Gradle's version listing: the first build on a machine, and the first build after Gradle's dynamic-version cache expires, need network access; `--offline` works once the listing is cached.
+The range needs Gradle's version listing, and only runtime classpaths resolve it: the tests run by `check` and the example run tasks. Their first resolution on a machine, and the first after Gradle's dynamic-version cache expires, need network access; `--offline` works once the listing is cached.
 
-Libraries that the consuming application (or another runtime dependency) already supplies at runtime are `compileOnly` only. Both host modules compile against LWJGL this way: `jme3` against `lwjgl` and `lwjgl-sdl` (jME's `SdlEventListener` signature uses `SDL_Event`), which the application's `jme3-lwjgl3` provides; `lwjgl` against `lwjgl` and `lwjgl-sdl`, which arrive at runtime with imgui-java. An application that calls LWJGL itself (the LWJGL example creates its window and GL context) declares the LWJGL modules it compiles against as `implementation`.
+Libraries that the consuming application (or another runtime dependency) already supplies at runtime are `compileOnly` only. The `jme3` host compiles against jMonkeyEngine this way (`jme3-core` and `jme3-lwjgl3`), so its published POM and Gradle module metadata carry no jME dependency. Both are non-transitive (`transitive = false`), so jME's own dependencies stay off the host's compile and Javadoc classpath, and the LWJGL modules the host compiles against are declared explicitly; the application declares the jME modules it uses (`jme3-core`, `jme3-lwjgl3`, `jme3-desktop`) itself, as `examples` does with `implementation`.
+
+Both host modules compile against LWJGL the same way: `jme3` against `lwjgl` and `lwjgl-sdl` (jME's `SdlEventListener` signature uses `SDL_Event`), which the application's `jme3-lwjgl3` provides; `lwjgl` against `lwjgl` and `lwjgl-sdl`, which arrive at runtime with imgui-java. An application that calls LWJGL itself (the LWJGL example creates its window and GL context) declares the LWJGL modules it compiles against as `implementation`.
 
 ```groovy
+compileOnly("org.jmonkeyengine:jme3-core:${rootProject.ext.jmonkeyVersion}") { transitive = false }
+compileOnly("org.jmonkeyengine:jme3-lwjgl3:${rootProject.ext.jmonkeyVersion}") { transitive = false }
 compileOnly "org.lwjgl:lwjgl:${rootProject.ext.lwjglVersion}"
 compileOnly "org.lwjgl:lwjgl-sdl:${rootProject.ext.lwjglVersion}"
 ```
@@ -108,6 +150,8 @@ tasks.named('javadoc', Javadoc) {
     options.addPathOption('sourcepath').value = sourceSets.main.java.srcDirs.toList()
 }
 ```
+
+Only `imgui` has `impl` packages. Any library module that gains one, including `jme3` or `lwjgl`, adds the same block to its `build.gradle`; the root Javadoc gate does not exclude `impl` packages by itself.
 
 ### Automatic Module Name for Non-Modular Libraries
 A library module without a `module-info.java` (`jme3`) sets a stable automatic module name in its jar manifest, following the `lorisui.<module>` naming in `architecture/modules.md`. No compiler module-patching arguments are used.

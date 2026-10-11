@@ -3,6 +3,9 @@ plugins {
     id 'maven-publish'
 }
 
+description = "Hosts LorisUI screens in an application's own LWJGL SDL3 window and OpenGL loop."
+ext.pomName = 'LorisUI LWJGL/SDL3 host'
+
 dependencies {
     api project(':loris-ui-imgui')
     compileOnly "org.lwjgl:lwjgl:${rootProject.ext.lwjglVersion}"
