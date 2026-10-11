@@ -3,6 +3,7 @@ package com.ivan1pl.lorisui.imgui.backend;
 import com.ivan1pl.lorisui.api.backend.Backend;
 import com.ivan1pl.lorisui.api.component.*;
 import com.ivan1pl.lorisui.api.component.style.*;
+import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
 import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
@@ -11,15 +12,38 @@ import com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier;
 import com.ivan1pl.lorisui.imgui.renderer.style.impl.*;
 import imgui.ImGui;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Base class of the Dear ImGui backends, which draw LorisUI components as Dear ImGui widgets.
+ *
+ * <p>Each component is drawn by the {@link Renderer} that {@link #getRenderer} returns for it, and each style is
+ * applied by the {@link StyleApplier} that {@link #getStyleApplier} returns. The backend has built-in renderers and
+ * style appliers for every component and style in {@code lorisui.api}. Renderers use {@link #loadTexture} and
+ * {@link #renderTexture} to draw images.
+ *
+ * <p><b>Custom components and styles.</b> To draw your own component or style types, subclass this class, override
+ * {@link #getRenderer} and {@link #getStyleApplier} to return your implementations for your types, and delegate to
+ * {@code super} for all other types, so the built-in ones keep working. The backend passes itself to renderers as their
+ * {@link RendererProvider}, so the overrides also apply to child components. The subclass must also implement
+ * {@link #loadTexture} for its graphics API. {@link ImGuiOpenGlBackend}, the OpenGL implementation, is final and
+ * cannot be extended. A host passes the backend to {@link com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer}; the bundled
+ * jMonkeyEngine host always uses {@code ImGuiOpenGlBackend} and does not yet accept a custom backend.
+ *
+ * <p>The backend is used on the host's UI thread only.
+ */
 public abstract class ImGuiBackend implements Backend, RendererProvider {
     private final Map<Class<? extends Component>, Renderer<?>> renderers;
     private final Map<Class<? extends Style>, StyleApplier<?>> styleAppliers;
 
-    public ImGuiBackend() {
+    /**
+     * Creates a backend with the built-in renderers and style appliers for all components and styles in
+     * {@code lorisui.api}.
+     */
+    protected ImGuiBackend() {
         Map<Class<? extends Component>, Renderer<?>> renderers = new HashMap<>();
         renderers.put(Panel.class, new PanelRenderer(this));
         renderers.put(Spacer.class, new SpacerRenderer());
@@ -41,6 +65,19 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
         this.styleAppliers = styleAppliers;
     }
 
+    /**
+     * Returns the renderer for the given component. The lookup starts with the component's class and walks up its
+     * superclass chain, so a subclass without its own renderer is drawn by the renderer of its nearest ancestor that
+     * has one (for example, a {@link Button} is drawn as a {@link Panel}).
+     *
+     * <p>Override this method to draw custom components: return your renderer for your component types and delegate
+     * to {@code super} for all other components.
+     *
+     * @param component       component to draw; must not be null
+     * @param <ComponentType> type of the component
+     * @return the renderer for the component, never {@code null}
+     * @throws IllegalStateException if neither the component's class nor any of its superclasses has a renderer
+     */
     @SuppressWarnings("unchecked")
     @Override
     public <ComponentType extends Component> Renderer<? super ComponentType> getRenderer(ComponentType component) {
@@ -56,6 +93,19 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
         return renderer;
     }
 
+    /**
+     * Returns the style applier for the given style. The lookup starts with the style's class and walks up its
+     * superclass chain, so a subclass without its own style applier is applied by the style applier of its nearest
+     * ancestor that has one.
+     *
+     * <p>Override this method to apply custom styles: return your style applier for your style types and delegate to
+     * {@code super} for all other styles.
+     *
+     * @param style       style to apply; must not be null
+     * @param <StyleType> type of the style
+     * @return the style applier for the style, never {@code null}
+     * @throws IllegalStateException if neither the style's class nor any of its superclasses has a style applier
+     */
     @SuppressWarnings("unchecked")
     @Override
     public <StyleType extends Style> StyleApplier<? super StyleType> getStyleApplier(StyleType style) {
@@ -71,12 +121,54 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
         return styleApplier;
     }
 
+    /**
+     * Draws the given components in list order, each as a top-level element with input enabled, using the renderer
+     * that {@link #getRenderer} returns for it. Must be called on the host's UI thread, while a Dear ImGui frame is
+     * open.
+     *
+     * @param w                 display width in pixels
+     * @param h                 display height in pixels
+     * @param components        components to draw; must not be null and is not modified
+     * @param bundleKeyResolver resolver for localized text; must not be null
+     * @throws IllegalStateException if there is no renderer or style applier for a component or style being drawn
+     */
     @Override
     public void render(int w, int h, List<Component> components, BundleKeyResolver bundleKeyResolver) {
         components.forEach(c -> getRenderer(c).render(c, w, h, this, bundleKeyResolver, true, true));
     }
 
-    @Override
+    /**
+     * Loads an image resource into a new texture, optionally recoloring it with channel masks. Each call loads a new
+     * texture; renderers should use {@link Renderer}'s cached {@code loadTexture} helpers instead of calling this
+     * method directly. How {@code resourcePath} is resolved depends on the implementation.
+     *
+     * <p>When any mask is non-null, every pixel is recolored with {@link Color#mask(Color, Color, Color)
+     * Color.mask(maskedR, maskedG, maskedB)}; when all masks are {@code null}, the image is loaded unchanged.
+     *
+     * <p>Must be called on the host's UI thread, with the graphics context current.
+     *
+     * @param resourcePath path of the image resource; must not be null
+     * @param maskedR      color replacing the red channel, or {@code null} to keep it
+     * @param maskedG      color replacing the green channel, or {@code null} to keep it
+     * @param maskedB      color replacing the blue channel, or {@code null} to keep it
+     * @return the loaded texture, never {@code null}
+     * @throws IOException if the resource does not exist, cannot be read or cannot be decoded as an image
+     */
+    public abstract TextureData loadTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB)
+            throws IOException;
+
+    /**
+     * Draws a texture as a {@code width} by {@code height} pixel image at the current Dear ImGui cursor position, using
+     * the given image mode to choose which part of the texture is shown and how it is scaled. Must be called on the
+     * host's UI thread, from a renderer while it draws.
+     *
+     * @param id            texture ID, as returned in {@link TextureData#id()}
+     * @param imageMode     how the texture is mapped onto the image; must not be null
+     * @param width         width of the drawn image in pixels
+     * @param height        height of the drawn image in pixels
+     * @param textureWidth  full width of the texture in pixels
+     * @param textureHeight full height of the texture in pixels
+     */
     public void renderTexture(int id, ImageMode imageMode, int width, int height, int textureWidth, int textureHeight) {
         switch (imageMode) {
             case ImageMode.Repeat _ -> renderTextureRepeat(id, width, height, textureWidth, textureHeight);

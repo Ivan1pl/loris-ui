@@ -41,6 +41,32 @@ class ComboBoxTest {
                 () -> assertNullPointer("itemStyle", () -> builder.itemStyle((ComboBoxItemStyle) null)));
     }
 
+    @Test
+    void shouldUseDefaultEmptySelectionLabelIdWithoutHash() {
+        ComboBox<String> comboBox = ComboBox.builder(String.class).build();
+
+        Assertions.assertFalse(comboBox.getEmptySelectionLabel().getId().contains("#"));
+    }
+
+    @Test
+    void shouldDeriveZeroSizeFromEmptySelectionLabelAndKeepExplicitSize() {
+        Panel label = Panel.panelBuilder("label").size(40, 12).build();
+        ComboBox<String> derived = ComboBox.builder(String.class)
+                .emptySelectionLabel(label)
+                .size(0, 0)
+                .build();
+        ComboBox<String> explicit = ComboBox.builder(String.class)
+                .emptySelectionLabel(label)
+                .size(100, 20)
+                .build();
+
+        Assertions.assertAll(
+                () -> Assertions.assertEquals(12, derived.getHeight()),
+                () -> Assertions.assertEquals(40 + 12, derived.getWidth()),
+                () -> Assertions.assertEquals(20, explicit.getHeight()),
+                () -> Assertions.assertEquals(100, explicit.getWidth()));
+    }
+
     private static void assertNullPointer(String expectedMessage, Executable executable) {
         Assertions.assertEquals(expectedMessage,
                 Assertions.assertThrows(NullPointerException.class, executable).getMessage());

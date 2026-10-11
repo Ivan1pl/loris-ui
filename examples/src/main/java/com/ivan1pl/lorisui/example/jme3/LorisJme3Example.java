@@ -10,12 +10,14 @@ import java.io.IOException;
 import java.util.Locale;
 
 public class LorisJme3Example extends SimpleApplication {
+    private ImGuiJmeDisplay imGuiJmeDisplay;
+
     @Override
     public void simpleInitApp() {
         getFlyByCamera().setEnabled(false);
         getInputManager().setCursorVisible(true);
 
-        ImGuiJmeDisplay imGuiJmeDisplay = new ImGuiJmeDisplay(context, inputManager, guiViewPort);
+        imGuiJmeDisplay = new ImGuiJmeDisplay(context, inputManager, guiViewPort);
         imGuiJmeDisplay.setResourceBundle("global", "bundles.global");
         Font font;
         try {
@@ -27,6 +29,14 @@ public class LorisJme3Example extends SimpleApplication {
         imGuiJmeDisplay.addScreen("example", exampleScreen);
         imGuiJmeDisplay.setCurrentScreen("example");
         guiViewPort.addProcessor(imGuiJmeDisplay);
+    }
+
+    @Override
+    public void destroy() {
+        if (imGuiJmeDisplay != null) {
+            guiViewPort.removeProcessor(imGuiJmeDisplay);
+        }
+        super.destroy();
     }
 
     private static AppSettings createDefaultSettings() {

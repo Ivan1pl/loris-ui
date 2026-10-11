@@ -1,8 +1,8 @@
 package com.ivan1pl.lorisui.imgui.renderer;
 
-import com.ivan1pl.lorisui.api.backend.Backend;
-import com.ivan1pl.lorisui.api.backend.TextureData;
 import com.ivan1pl.lorisui.api.core.Color;
+import com.ivan1pl.lorisui.imgui.backend.ImGuiBackend;
+import com.ivan1pl.lorisui.imgui.backend.TextureData;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 class RendererTest {
     @Test
     void shouldLoadTextureOnceWhenSamePathAndMasksRequestedTwice() throws IOException {
-        Backend backend = mockBackend();
+        ImGuiBackend backend = mockBackend();
         String path = uniquePath();
 
         TextureData first = Renderer.loadTexture(backend, path, Color.RED, null, Color.BLUE);
@@ -26,7 +26,7 @@ class RendererTest {
 
     @Test
     void shouldCacheNullAndNonNullMasksSeparately() throws IOException {
-        Backend backend = mockBackend();
+        ImGuiBackend backend = mockBackend();
         String path = uniquePath();
 
         TextureData unmasked = Renderer.loadTexture(backend, path);
@@ -41,7 +41,7 @@ class RendererTest {
 
     @Test
     void shouldShareEntryWhenMaskColorsAreEqualInstances() throws IOException {
-        Backend backend = mockBackend();
+        ImGuiBackend backend = mockBackend();
         String path = uniquePath();
 
         TextureData first = Renderer.loadTexture(backend, path, new Color(0.2f, 0.4f, 0.6f, 1f), null, null);
@@ -54,7 +54,7 @@ class RendererTest {
 
     @Test
     void shouldCacheDifferentPathsSeparately() throws IOException {
-        Backend backend = mockBackend();
+        ImGuiBackend backend = mockBackend();
         String firstPath = uniquePath();
         String secondPath = uniquePath();
 
@@ -66,9 +66,9 @@ class RendererTest {
         Mockito.verify(backend, Mockito.times(1)).loadTexture(secondPath, null, null, null);
     }
 
-    private static Backend mockBackend() throws IOException {
+    private static ImGuiBackend mockBackend() throws IOException {
         AtomicInteger nextId = new AtomicInteger();
-        Backend backend = Mockito.mock(Backend.class);
+        ImGuiBackend backend = Mockito.mock(ImGuiBackend.class);
         Mockito.when(backend.loadTexture(Mockito.anyString(), Mockito.any(), Mockito.any(), Mockito.any()))
                 .thenAnswer(_ -> new TextureData(nextId.incrementAndGet(), 16, 16));
         return backend;

@@ -1,10 +1,7 @@
 package com.ivan1pl.lorisui.api.screen;
 
 import com.ivan1pl.lorisui.api.backend.Backend;
-import com.ivan1pl.lorisui.api.backend.TextureData;
 import com.ivan1pl.lorisui.api.component.Component;
-import com.ivan1pl.lorisui.api.component.ImageMode;
-import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -163,15 +160,6 @@ class LorisScreenTest {
 
         private List<Component> lastRendered() {
             return rendered.getLast();
-        }
-
-        @Override
-        public void renderTexture(int id, ImageMode imageMode, int width, int height, int textureWidth,
-                                  int textureHeight) {}
-
-        @Override
-        public TextureData loadTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB) {
-            throw new UnsupportedOperationException();
         }
     }
 }

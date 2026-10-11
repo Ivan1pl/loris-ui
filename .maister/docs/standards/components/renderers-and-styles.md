@@ -6,7 +6,11 @@ Each renderer is `public class <Component>Renderer extends Renderer<Component>` 
 - ImGui window flags are `private static final int FLAGS_*` constants (one flag per line, combined with `|`); disable input with `enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs)`.
 - Unique ImGui IDs derive from the component (`component + "_text"`, `"##" + component`).
 - Font-bearing components wrap drawing in `((ImGuiFont) font).useFont(() -> doRender(...))`, falling back when the font is null.
-- Every ImGui push has a matching pop; load textures through the cached `Renderer.loadTexture(...)` helpers.
+- Every ImGui push has a matching pop; load textures through the cached `Renderer.loadTexture(ImGuiBackend backend, String path[, Color maskedR, Color maskedG, Color maskedB])` helpers (the cache is keyed by path and masks) and draw them with `ImGuiBackend.renderTexture(...)`. Renderers that need textures take the `ImGuiBackend` in their constructor.
+- Renderer-shared global flags live in the internal `com.ivan1pl.lorisui.imgui.impl.ImGuiState`; hosts never read it directly but use the `ImGuiOpenGlRenderer` input-capture queries.
+
+### Class-Path Resource Lookup
+Fonts and textures are loaded by class-path resource name through the class loader (`imgui.impl.ClassPathResources.open(path)`), never through `Class.getResourceAsStream`. A single leading `/` is stripped, so `"/textures/x.png"` and `"textures/x.png"` name the same resource. A missing resource is an `IOException` whose message includes the path. Public Javadoc for resource-path parameters states the module-path rule (see `global/commenting.md`).
 
 ### Style Class Shape
 Style classes (in `api.component.style`, implementing `Style`) store every attribute as `Supplier<Color>` / `Supplier<Float>`, default each builder field to `() -> null` (meaning "keep toolkit default"), and expose getters returning the unwrapped nullable value (`Color`, boxed `Float`). Each attribute has a constant overload alongside the Supplier overload.

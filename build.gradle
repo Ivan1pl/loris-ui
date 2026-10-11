@@ -28,4 +28,5 @@ ext {
     jmonkeyVersion = '3.10.0-SNAPSHOT'
     lwjglVersion = '3.4.1'
     mockitoVersion = '5.24.0'
+    imguiVersion = '1.92.7.1'
 }

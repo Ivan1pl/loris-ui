@@ -7,7 +7,7 @@ Target the latest Java LTS release — currently **Java 25**. Never target non-L
 - Closed variant sets: `sealed abstract class` with a private constructor, lowercase static factories (`ImageMode.sprite(...)`, `Background.color(...)`) and nested `public static final class` variants with private constructors.
 - Dispatch with an exhaustive pattern `switch` (no `default` branch); order subclass cases before parent cases.
 - Use `instanceof` patterns (`x instanceof Button button`) instead of explicit casts.
-- Records only for small immutable data carriers with no behaviour (`TextureData`, `ComboBox.Item`); anything with builders, suppliers or getters is a regular class.
+- Records only for small immutable data carriers with no behaviour (`TextureData` in `imgui.backend`, `ComboBox.Item`); anything with builders, suppliers or getters is a regular class.
 - Use unnamed `_` for ignored lambda parameters and pattern bindings; name ignored catch/method parameters `ignored`.
 
 ```java

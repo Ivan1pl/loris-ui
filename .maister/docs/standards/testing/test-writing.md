@@ -50,10 +50,10 @@ tasks.withType(Test).configureEach {
 }
 ```
 
-Use mocks for collaborators whose calls you verify (callbacks, `Backend`). Prefer a small hand-written fake (for example a recording `Backend`) when it is simpler than stubbing. Call `Assertions.*` and `Mockito.*` through the class name, since static imports aren't used (see `java/formatting.md`).
+Use mocks for collaborators whose calls you verify (callbacks, `ImGuiBackend`). Prefer a small hand-written fake when it is simpler than stubbing, for example a recording `Backend`, which implements only `render`. Call `Assertions.*` and `Mockito.*` through the class name, since static imports aren't used (see `java/formatting.md`).
 
 ### No Native Toolkit Calls in Tests
-Tests must not call `imgui.ImGui.*` or anything else that needs a native ImGui or GL context, because none exists in a unit test. Test renderer-side logic through pure seams instead: the `ImGuiBackend` registry lookup, the texture cache via a mocked `Backend`, and pixel masking on a plain `ByteBuffer`.
+Tests must not call `imgui.ImGui.*` or anything else that needs a native ImGui or GL context, because none exists in a unit test. Tests also must not reference imgui-java types at all: `imgui-java-app` is `compileOnly` in `loris-ui-imgui`, so it is absent from the test compile classpath. Test renderer-side logic through pure seams instead: the `ImGuiBackend` registry lookup, the texture cache via `Mockito.mock(ImGuiBackend.class)` (stubbing `loadTexture`), pixel masking on a plain `ByteBuffer`, and class-path resource lookup with a test resource.
 
 ### Shared Static State
 `Renderer.TEXTURES` is a static cache shared by every test in the JVM. Tests that touch it use unique resource paths (for example `"textures/" + UUID.randomUUID() + ".png"`) so cache hits from other tests can't affect them.

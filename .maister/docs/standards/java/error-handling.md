@@ -22,7 +22,9 @@ Required arguments (ids, mandatory suppliers and callbacks, sizes) are validated
 - **Required bindings whose setter may be skipped** (no default value, for example the `valueGetter`/`valueSetter` of inputs, or `image`/`imageMode` of `Image`) are checked in `build()` with `Objects.requireNonNull(field, "field")`.
 - Documented exceptions: a `Text` builder with no text set renders `""`, and a `null` constant background colour means no background.
 
-Builder Javadoc states the contract in one sentence: "Builder for {@link X}. Required arguments are checked eagerly; Supplier setters reject null; constant overloads of optional properties accept null meaning unset/toolkit default."
+Builder Javadoc documents this convention per builder and per setter:
+- The builder class comment says what it builds, how to obtain it (the static factory) and which properties are required (for example `size(...)` for panels, the value bindings for inputs, `image(...)` for `Image`), with the defaults of the optional ones where relevant.
+- Each setter states its null and validation behavior in `@param` / `@throws` (for example "must not be null" with `@throws NullPointerException`, or "or {@code null} to keep the toolkit default"); `build()` documents the exceptions for skipped required bindings.
 
 No nullability annotations; avoid `Optional` fields and parameters.
 

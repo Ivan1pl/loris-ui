@@ -16,10 +16,10 @@ LorisUI separates *what* the UI is (a toolkit-agnostic component model in `loris
 ## Key Features
 - **Toolkit-agnostic component model** (`api` module, zero external dependencies): `Panel`, `Button`, `Text`, `Image`, `TextInput`, `NumberInput`, `ComboBox`, `ProgressBar`, `TabbedPanel`, `Popup`/`ModalPopup`, `Spacer`, plus layout, background and style types.
 - **Builder-based, declarative screens**: subclass `LorisScreen`, implement `layout()`, and return a `List<Component>`. Layout is recomputed off the render thread when invalidated.
-- **Pluggable backend** (`Backend` interface): the ImGui/OpenGL backend is included. Each component type has its own renderer and each style type has its own style applier, both looked up in registries with superclass fallback.
+- **Pluggable backend** (`Backend` interface): the port is a single toolkit-neutral `render` call that receives the screen's components; textures, fonts and input capture belong to the backend and its host. The ImGui/OpenGL backend is included. Each component type has its own renderer and each style type has its own style applier, both looked up in registries with superclass fallback; custom components and styles plug in through an `ImGuiBackend` subclass.
 - **Rich image handling**: a sealed `ImageMode` (repeat, fit, sub-image, sprite, nine-slice-style resize variants) and RGB-channel colour masking for recolourable textures.
 - **i18n**: text is resolved through `BundleKeyResolver` using `ResourceBundle`s.
-- **Engine integration**: `ImGuiJmeDisplay` plugs into jMonkeyEngine as a `SceneProcessor`, with input forwarding and font registration.
+- **Engine integration**: `ImGuiJmeDisplay` plugs into jMonkeyEngine as a `SceneProcessor`, with input routing, screen lifecycle hooks and font registration.
 
 ## Success Criteria
 - The author's game(s) use LorisUI as their only UI layer, without workarounds.
@@ -28,7 +28,7 @@ LorisUI separates *what* the UI is (a toolkit-agnostic component model in `loris
 - At least one additional backend or host is implemented without changing `loris-ui-api`. This shows the abstraction holds.
 
 ## Differentiators
-- A strict API/implementation split: `loris-ui-api` has no dependencies and is a JPMS module, with internal packages unexported.
+- A strict API/implementation split: `loris-ui-api` has no dependencies and is a JPMS module (`lorisui.api`), with internal packages unexported and a documented public API.
 - Built on the latest LTS Java (currently Java 25): records, sealed types, pattern matching and JPMS.
 - ImGui's performance and maturity, with a declarative, styleable, game-oriented component model on top.
 

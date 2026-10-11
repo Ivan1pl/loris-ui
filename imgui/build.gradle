@@ -9,12 +9,19 @@ configurations {
 
 dependencies {
     api project(':loris-ui-api')
-    api 'io.github.spair:imgui-java-app:1.92.7.1'
     api "org.lwjgl:lwjgl-stb:${rootProject.ext.lwjglVersion}"
+    compileOnly "io.github.spair:imgui-java-app:${rootProject.ext.imguiVersion}"
 
+    runtimeOnly('io.github.spair:imgui-java-app') {
+        version {
+            require "[${rootProject.ext.imguiVersion},1.93)"
+            prefer rootProject.ext.imguiVersion
+        }
+    }
     runtimeOnly "org.lwjgl:lwjgl-stb:${rootProject.ext.lwjglVersion}:natives-windows"
     runtimeOnly "org.lwjgl:lwjgl-stb:${rootProject.ext.lwjglVersion}:natives-linux"
     runtimeOnly "org.lwjgl:lwjgl-stb:${rootProject.ext.lwjglVersion}:natives-macos"
+    runtimeOnly "org.lwjgl:lwjgl-stb:${rootProject.ext.lwjglVersion}:natives-macos-arm64"
 
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -29,4 +36,9 @@ dependencies {
 tasks.withType(Test).configureEach {
     FileCollection agent = configurations.mockitoAgent
     jvmArgumentProviders.add({ ["-javaagent:${agent.singleFile.absolutePath}"] } as CommandLineArgumentProvider)
+}
+
+tasks.named('javadoc', Javadoc) {
+    exclude '**/impl/**'
+    options.addPathOption('sourcepath').value = sourceSets.main.java.srcDirs.toList()
 }

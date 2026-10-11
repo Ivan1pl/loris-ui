@@ -1,12 +1,12 @@
 package com.ivan1pl.lorisui.imgui.renderer.impl;
 
-import com.ivan1pl.lorisui.api.backend.Backend;
-import com.ivan1pl.lorisui.api.backend.TextureData;
 import com.ivan1pl.lorisui.api.component.*;
 import com.ivan1pl.lorisui.api.component.style.Style;
 import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
-import com.ivan1pl.lorisui.imgui.ImGuiState;
+import com.ivan1pl.lorisui.imgui.backend.ImGuiBackend;
+import com.ivan1pl.lorisui.imgui.backend.TextureData;
+import com.ivan1pl.lorisui.imgui.impl.ImGuiState;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
 import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
 import com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier;
@@ -42,9 +42,9 @@ public class PanelRenderer extends Renderer<Panel> {
 
     private final StyleStack styleStack = new StyleStack();
     private final ImBoolean modalPopupOpen = new ImBoolean();
-    private final Backend backend;
+    private final ImGuiBackend backend;
 
-    public PanelRenderer(Backend backend) {
+    public PanelRenderer(ImGuiBackend backend) {
         this.backend = backend;
     }
 

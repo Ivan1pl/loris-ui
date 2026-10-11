@@ -1,9 +1,9 @@
 package com.ivan1pl.lorisui.imgui.renderer.impl;
 
-import com.ivan1pl.lorisui.api.backend.Backend;
-import com.ivan1pl.lorisui.api.backend.TextureData;
 import com.ivan1pl.lorisui.api.component.Image;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
+import com.ivan1pl.lorisui.imgui.backend.ImGuiBackend;
+import com.ivan1pl.lorisui.imgui.backend.TextureData;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
 import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
 import imgui.ImGui;
@@ -17,9 +17,9 @@ public class ImageRenderer extends Renderer<Image> {
             ImGuiWindowFlags.NoTitleBar |
             ImGuiWindowFlags.NoResize |
             ImGuiWindowFlags.NoBackground;
-    private final Backend backend;
+    private final ImGuiBackend backend;
 
-    public ImageRenderer(Backend backend) {
+    public ImageRenderer(ImGuiBackend backend) {
         this.backend = backend;
     }
 

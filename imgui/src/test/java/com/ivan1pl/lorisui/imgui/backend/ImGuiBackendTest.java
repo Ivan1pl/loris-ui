@@ -1,6 +1,5 @@
 package com.ivan1pl.lorisui.imgui.backend;
 
-import com.ivan1pl.lorisui.api.backend.TextureData;
 import com.ivan1pl.lorisui.api.component.Button;
 import com.ivan1pl.lorisui.api.component.Component;
 import com.ivan1pl.lorisui.api.component.ModalPopup;

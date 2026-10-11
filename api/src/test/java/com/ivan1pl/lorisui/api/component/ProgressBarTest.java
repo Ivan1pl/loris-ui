@@ -26,4 +26,35 @@ class ProgressBarTest {
                 () -> Assertions.assertEquals("progress", Assertions.assertThrows(NullPointerException.class,
                         () -> ProgressBar.builder().progress((Supplier<Float>) null)).getMessage()));
     }
+
+    @Test
+    void shouldReturnNullRoundingWhenUnset() {
+        Assertions.assertNull(ProgressBar.builder().build().getRounding());
+    }
+
+    @Test
+    void shouldReturnRoundingFromConstantAndSupplierOverloads() {
+        ProgressBar constant = ProgressBar.builder().rounding(5f).build();
+        ProgressBar supplied = ProgressBar.builder().rounding(() -> 5f).build();
+
+        Assertions.assertAll(
+                () -> Assertions.assertEquals(5f, constant.getRounding(), 1e-6f),
+                () -> Assertions.assertEquals(5f, supplied.getRounding(), 1e-6f));
+    }
+
+    @Test
+    void shouldKeepExplicitZeroRounding() {
+        ProgressBar constant = ProgressBar.builder().rounding(0f).build();
+        ProgressBar supplied = ProgressBar.builder().rounding(() -> 0f).build();
+
+        Assertions.assertAll(
+                () -> Assertions.assertEquals(0f, constant.getRounding(), 1e-6f),
+                () -> Assertions.assertEquals(0f, supplied.getRounding(), 1e-6f));
+    }
+
+    @Test
+    void shouldRejectNullRoundingSupplier() {
+        Assertions.assertEquals("rounding", Assertions.assertThrows(NullPointerException.class,
+                () -> ProgressBar.builder().rounding((Supplier<Float>) null)).getMessage());
+    }
 }

@@ -3,12 +3,6 @@ plugins {
     id 'maven-publish'
 }
 
-tasks.withType(JavaCompile).configureEach {
-    options.compilerArgs += [
-            '--patch-module', 'jme3.core=' + configurations.compileClasspath.find { it.name.contains('jme3-lwjgl3') }?.absolutePath
-    ]
-}
-
 dependencies {
     api project(':loris-ui-imgui')
     implementation("org.jmonkeyengine:jme3-core:${rootProject.ext.jmonkeyVersion}") {
@@ -17,7 +11,15 @@ dependencies {
     implementation("org.jmonkeyengine:jme3-lwjgl3:${rootProject.ext.jmonkeyVersion}") {
         transitive = false
     }
+    compileOnly "org.lwjgl:lwjgl:${rootProject.ext.lwjglVersion}"
+    compileOnly "org.lwjgl:lwjgl-sdl:${rootProject.ext.lwjglVersion}"
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('jar', Jar) {
+    manifest {
+        attributes('Automatic-Module-Name': 'lorisui.jme3')
+    }
 }

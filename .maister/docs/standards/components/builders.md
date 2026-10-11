@@ -9,7 +9,7 @@ public static Builder builder() {
 }
 
 public static class Builder {
-    private float rounding = -1f;
+    private Supplier<Float> rounding = () -> null;
 
     private Builder() {}
 
@@ -26,7 +26,7 @@ public static class Builder {
 ```
 
 ### Self-Typed BaseBuilder for Panel Subclasses
-Panel-derived components (Button, Popup, ModalPopup) use `Panel.BaseBuilder<T extends Panel, Builder extends BaseBuilder<T, Builder>>`. Shared setters return `(Builder) this` under method-level `@SuppressWarnings("unchecked")`. Subclass builders extend `BaseBuilder<Sub, Builder>`, add their own fields/setters, and implement `build()` via `doBuild(...)` with a constructor reference or lambda. Panel subclass constructors take the full base parameter list first.
+Panel-derived components (Button, Popup, ModalPopup) use `Panel.BaseBuilder<PanelType extends Panel, BuilderType extends BaseBuilder<PanelType, BuilderType>>`. `BaseBuilder` is package-private, as are its constructor, `doBuild(...)` and the nested `PanelFactory`, and `Panel`'s constructor; the Panel family is therefore closed to `api.component`. Its public setters still appear on, and chain from, each public `Builder`. Shared setters return `(BuilderType) this` under method-level `@SuppressWarnings("unchecked")`. Subclass builders are `public static class Builder extends BaseBuilder<Sub, Builder>`, add their own fields/setters, and implement `build()` via `doBuild(...)` with a constructor reference or lambda. Panel subclass constructors are private and take the full base parameter list first.
 
 ```java
 public static class Builder extends BaseBuilder<ModalPopup, Builder> {
@@ -46,7 +46,7 @@ public Builder barColor(Color barColor) {
 }
 
 public Builder barColor(Supplier<Color> barColor) {
-    this.barColor = barColor;
+    this.barColor = Objects.requireNonNull(barColor, "barColor");
     return this;
 }
 ```

@@ -1,11 +1,21 @@
 package com.ivan1pl.lorisui.jme3;
 
-import com.ivan1pl.lorisui.imgui.ImGuiState;
+import com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer;
 import com.jme3.input.RawInputListener;
-import com.jme3.input.event.*;
-import imgui.ImGui;
+import com.jme3.input.event.JoyAxisEvent;
+import com.jme3.input.event.JoyButtonEvent;
+import com.jme3.input.event.KeyInputEvent;
+import com.jme3.input.event.MouseButtonEvent;
+import com.jme3.input.event.MouseMotionEvent;
+import com.jme3.input.event.TouchEvent;
 
-public class ImGuiInputSystem implements RawInputListener {
+final class ImGuiInputSystem implements RawInputListener {
+    private final ImGuiOpenGlRenderer renderer;
+
+    ImGuiInputSystem(ImGuiOpenGlRenderer renderer) {
+        this.renderer = renderer;
+    }
+
     @Override
     public void beginInput() {
     }
@@ -26,21 +36,21 @@ public class ImGuiInputSystem implements RawInputListener {
 
     @Override
     public void onMouseMotionEvent(MouseMotionEvent evt) {
-        if (ImGui.getIO().getWantCaptureMouse() && (evt.getDeltaWheel() == 0 || ImGuiState.hoveringScrollableWindow)) {
+        if (renderer.wantsMouseInput() && (evt.getDeltaWheel() == 0 || renderer.isHoveringScrollablePanel())) {
             evt.setConsumed();
         }
     }
 
     @Override
     public void onMouseButtonEvent(MouseButtonEvent evt) {
-        if (ImGui.getIO().getWantCaptureMouse()) {
+        if (renderer.wantsMouseInput()) {
             evt.setConsumed();
         }
     }
 
     @Override
     public void onKeyEvent(KeyInputEvent evt) {
-        if (ImGui.getIO().getWantCaptureKeyboard()) {
+        if (renderer.wantsKeyboardInput()) {
             evt.setConsumed();
         }
     }
