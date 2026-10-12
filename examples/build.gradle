@@ -1,3 +1,6 @@
+import java.nio.file.Files
+import javax.inject.Inject
+
 plugins {
     id 'java'
 }
@@ -20,53 +23,129 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.register('runJme3Example', JavaExec) {
-    group = 'application'
-    description = 'Runs the LorisUI example in a jMonkeyEngine 3 application with jME\'s default renderer ' +
-            '(OpenGL ES 3 through ANGLE).'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.ivan1pl.lorisui.example.jme3.LorisJme3Example'
-    jvmArgs '--enable-native-access=ALL-UNNAMED'
+def exampleRunTasks = [
+        [name       : 'runJme3Example',
+         mainClass  : 'com.ivan1pl.lorisui.example.jme3.LorisJme3Example',
+         description: 'Runs the LorisUI example in a jMonkeyEngine 3 application with jME\'s default renderer ' +
+                 '(OpenGL ES 3 through ANGLE).',
+         gpuDebug   : false],
+        [name       : 'runJme3Gl3Example',
+         mainClass  : 'com.ivan1pl.lorisui.example.jme3.LorisJme3Gl3Example',
+         description: 'Runs the LorisUI example in a jMonkeyEngine 3 application with jME\'s OpenGL 3.3 renderer.',
+         gpuDebug   : false],
+        [name       : 'runLwjglSdlGl3Example',
+         mainClass  : 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGl3Example',
+         description: 'Runs the LorisUI example in a plain LWJGL SDL3 window with OpenGL 3.',
+         gpuDebug   : false],
+        [name       : 'runLwjglGlfwGl3Example',
+         mainClass  : 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglGlfwGl3Example',
+         description: 'Runs the LorisUI example in a plain LWJGL GLFW window with OpenGL 3.',
+         gpuDebug   : false],
+        [name       : 'runLwjglSdlGpuExample',
+         mainClass  : 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGpuExample',
+         description: 'Runs the LorisUI example in a plain LWJGL SDL3 window with SDL_GPU.',
+         gpuDebug   : true],
+        [name       : 'runLwjglSdlVulkanExample',
+         mainClass  : 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlVulkanExample',
+         description: 'Runs the LorisUI example in a plain LWJGL SDL3 window with Vulkan.',
+         gpuDebug   : true],
+]
+
+def gpuDebugProperty = providers.systemProperty('lorisui.example.gpuDebug').orElse('false')
+
+exampleRunTasks.each { example ->
+    tasks.register(example.name, JavaExec) {
+        group = 'application'
+        description = example.description
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = example.mainClass
+        jvmArgs '--enable-native-access=ALL-UNNAMED'
+        if (example.gpuDebug) {
+            systemProperty 'lorisui.example.gpuDebug', gpuDebugProperty.get()
+        }
+    }
 }
 
-tasks.register('runJme3Gl3Example', JavaExec) {
-    group = 'application'
-    description = 'Runs the LorisUI example in a jMonkeyEngine 3 application with jME\'s OpenGL 3.3 renderer.'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.ivan1pl.lorisui.example.jme3.LorisJme3Gl3Example'
-    jvmArgs '--enable-native-access=ALL-UNNAMED'
+abstract class RunExamplesInParallel extends DefaultTask {
+
+    @Inject
+    abstract ExecOperations getExecOperations()
+
+    @Inject
+    abstract FileSystemOperations getFileSystemOperations()
+
+    @Classpath
+    abstract ConfigurableFileCollection getClasspath()
+
+    @Nested
+    abstract Property<JavaLauncher> getLauncher()
+
+    @Input
+    abstract ListProperty<Map<String, Object>> getExamples()
+
+    @Input
+    abstract Property<String> getGpuDebug()
+
+    @Internal
+    abstract DirectoryProperty getWorkingDir()
+
+    @TaskAction
+    void runAll() {
+        String executable = launcher.get().executablePath.asFile.absolutePath
+        FileCollection runtimeClasspath = classpath
+        File dir = workingDir.get().asFile
+        String gpuDebugValue = gpuDebug.get()
+        File nativesRoot = temporaryDir
+        List<String> failures = Collections.synchronizedList(new ArrayList<String>())
+        List<Thread> threads = examples.get().collect { example ->
+            Thread thread = new Thread({
+                try {
+                    // LWJGL's shared extraction directory is not safe for JVMs that start at the same moment
+                    File nativesDir = Files.createTempDirectory(nativesRoot.toPath(), "${example.name}-").toFile()
+                    try {
+                        execOperations.javaexec { spec ->
+                            spec.executable = executable
+                            spec.classpath = runtimeClasspath
+                            spec.mainClass.set(example.mainClass as String)
+                            spec.workingDir = dir
+                            spec.jvmArgs '--enable-native-access=ALL-UNNAMED'
+                            spec.systemProperty 'org.lwjgl.system.SharedLibraryExtractPath', nativesDir.absolutePath
+                            if (example.gpuDebug) {
+                                spec.systemProperty 'lorisui.example.gpuDebug', gpuDebugValue
+                            }
+                        }
+                    } finally {
+                        fileSystemOperations.delete { spec -> spec.delete(nativesDir) }
+                    }
+                } catch (Throwable t) {
+                    failures.add("${example.name}: ${t.message ?: t.class.name}".toString())
+                }
+            } as Runnable, "runAllExamples-${example.name}")
+            thread.daemon = true
+            thread.start()
+            thread
+        }
+        try {
+            for (Thread thread : threads) {
+                thread.join()
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt()
+            throw new GradleException('runAllExamples was interrupted; examples that are still running keep ' +
+                    'their windows open until they are closed.', e)
+        }
+        if (!failures.isEmpty()) {
+            throw new GradleException("Examples failed:\n" + failures.join('\n'))
+        }
+    }
 }
 
-tasks.register('runLwjglSdlGl3Example', JavaExec) {
+tasks.register('runAllExamples', RunExamplesInParallel) {
     group = 'application'
-    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window with OpenGL 3.'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGl3Example'
-    jvmArgs '--enable-native-access=ALL-UNNAMED'
-}
-
-tasks.register('runLwjglGlfwGl3Example', JavaExec) {
-    group = 'application'
-    description = 'Runs the LorisUI example in a plain LWJGL GLFW window with OpenGL 3.'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglGlfwGl3Example'
-    jvmArgs '--enable-native-access=ALL-UNNAMED'
-}
-
-tasks.register('runLwjglSdlGpuExample', JavaExec) {
-    group = 'application'
-    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window with SDL_GPU.'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGpuExample'
-    jvmArgs '--enable-native-access=ALL-UNNAMED'
-    systemProperty 'lorisui.example.gpuDebug', providers.systemProperty('lorisui.example.gpuDebug').getOrElse('false')
-}
-
-tasks.register('runLwjglSdlVulkanExample', JavaExec) {
-    group = 'application'
-    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window with Vulkan.'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlVulkanExample'
-    jvmArgs '--enable-native-access=ALL-UNNAMED'
-    systemProperty 'lorisui.example.gpuDebug', providers.systemProperty('lorisui.example.gpuDebug').getOrElse('false')
+    description = 'Runs all six LorisUI examples at the same time, each in its own JVM.'
+    classpath.from(sourceSets.main.runtimeClasspath)
+    launcher = javaToolchains.launcherFor(java.toolchain)
+    examples = exampleRunTasks
+    gpuDebug = gpuDebugProperty
+    workingDir = layout.projectDirectory
 }

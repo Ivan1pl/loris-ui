@@ -49,8 +49,8 @@ public final class ImGuiSdlGles3Renderer extends ImGuiRenderer {
      * ImGui, SDL or OpenGL ES state is touched until the renderer is {@linkplain #initialize() initialized}.
      *
      * @param backend   backend that draws the screen's components and creates OpenGL ES textures, such as an
-     *                  {@link com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlEsBackend ImGuiOpenGlEsBackend}; must not
-     *                  be null
+     *                  {@link com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlEsBackend ImGuiOpenGlEsBackend}, not used
+     *                  by any other renderer; must not be null
      * @param sdlWindow native handle of the SDL3 window to render into ({@code SDL_Window*}); must not be {@code 0}
      * @throws NullPointerException     if {@code backend} is {@code null}
      * @throws IllegalArgumentException if {@code sdlWindow} is {@code 0}

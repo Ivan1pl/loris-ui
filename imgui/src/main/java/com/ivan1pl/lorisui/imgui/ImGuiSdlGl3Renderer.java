@@ -40,7 +40,7 @@ public final class ImGuiSdlGl3Renderer extends ImGuiRenderer {
      * Creates a renderer that draws with the given backend into the given SDL3 window. Nothing is drawn and no Dear
      * ImGui, SDL or OpenGL state is touched until the renderer is {@linkplain #initialize() initialized}.
      *
-     * @param backend   backend that draws the screen's components; must not be null
+     * @param backend   backend that draws the screen's components, not used by any other renderer; must not be null
      * @param sdlWindow native handle of the SDL3 window to render into ({@code SDL_Window*})
      * @throws NullPointerException if {@code backend} is {@code null}
      */

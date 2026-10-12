@@ -15,7 +15,10 @@ import java.util.function.Supplier;
  * <p>A button is a {@link Panel}: its content, for example a {@link Text} label, is laid out like a panel's, and it
  * supports the same position, size, background, tooltip and style settings. In addition, a button can show a
  * different background while the pointer is over it (hovered), while it is being pressed (active) and while it is
- * disabled; each of these falls back to the base background when unset. A disabled button ignores clicks.
+ * disabled; each of these falls back to the base background when unset. A button can also run an action when the
+ * pointer starts hovering it. A disabled button ignores clicks and hovers. While another control holds the pointer,
+ * for example while a scroll bar is being dragged, the button neither starts hovering nor accepts the press that
+ * begins a click.
  *
  * <p>Create a button with {@link #buttonBuilder(String)} or {@link #buttonBuilder(Supplier)}. Its ID follows the
  * same rules as a {@link Panel} ID.
@@ -26,18 +29,21 @@ public class Button extends Panel {
     private final Supplier<Background> disabledBackground;
     private final Supplier<Boolean> enabled;
     private final Runnable action;
+    private final Runnable hoverAction;
 
     private Button(Supplier<String> id, IntBinaryOperator x, IntBinaryOperator y, IntBinaryOperator width,
                    IntBinaryOperator height, Layout layout, Supplier<Background> background, Supplier<Boolean> open,
                    List<IntBiFunction<Component>> content, List<Style> styles, Supplier<Panel> tooltip,
                    boolean scrollable, Supplier<Background> activeBackground, Supplier<Background> hoveredBackground,
-                   Supplier<Background> disabledBackground, Supplier<Boolean> enabled, Runnable action) {
+                   Supplier<Background> disabledBackground, Supplier<Boolean> enabled, Runnable action,
+                   Runnable hoverAction) {
         super(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable);
         this.activeBackground = activeBackground;
         this.hoveredBackground = hoveredBackground;
         this.disabledBackground = disabledBackground;
         this.enabled = enabled;
         this.action = action;
+        this.hoverAction = hoverAction;
     }
 
     /**
@@ -69,7 +75,7 @@ public class Button extends Panel {
     }
 
     /**
-     * Returns whether the button currently accepts clicks, evaluated on each call.
+     * Returns whether the button currently accepts clicks and runs its hover action, evaluated on each call.
      *
      * @return {@code true} when the button is enabled
      */
@@ -85,6 +91,17 @@ public class Button extends Panel {
     public void click() {
         if (isEnabled()) {
             action.run();
+        }
+    }
+
+    /**
+     * Runs the button's hover action if the button is currently {@link #isEnabled() enabled}; does nothing otherwise.
+     * Backends call this when the pointer starts hovering the button. Applications may call it on the host's UI
+     * thread to trigger the hover action as if the pointer had started hovering the button.
+     */
+    public void hover() {
+        if (isEnabled()) {
+            hoverAction.run();
         }
     }
 
@@ -142,7 +159,7 @@ public class Button extends Panel {
      *
      * <p>{@link #size(int, int) size(...)} is required and is checked by {@link #build()}. All other properties are
      * optional and default as for a {@link Panel.Builder}; in addition the button has no hovered, active or disabled
-     * background, is enabled and does nothing when clicked.
+     * background, is enabled and does nothing when clicked or hovered.
      */
     public static class Builder extends BaseBuilder<Button, Builder> {
         private Supplier<Background> activeBackground = () -> null;
@@ -150,6 +167,7 @@ public class Button extends Panel {
         private Supplier<Background> disabledBackground = () -> null;
         private Supplier<Boolean> enabled = () -> true;
         private Runnable action = () -> {};
+        private Runnable hoverAction = () -> {};
 
         private Builder(Supplier<String> id) {
             super(id);
@@ -325,7 +343,7 @@ public class Button extends Panel {
         }
 
         /**
-         * Sets whether the button accepts clicks. Defaults to {@code true}.
+         * Sets whether the button accepts clicks and runs its hover action. Defaults to {@code true}.
          *
          * @param enabled {@code true} to enable the button
          * @return this builder
@@ -335,7 +353,8 @@ public class Button extends Panel {
         }
 
         /**
-         * Sets whether the button accepts clicks from a supplier, evaluated each time the button is drawn or clicked.
+         * Sets whether the button accepts clicks and runs its hover action from a supplier, evaluated each time the
+         * button is drawn, clicked or hovered.
          *
          * @param enabled supplies whether the button is enabled; must not be null and must not return {@code null}
          * @return this builder
@@ -347,8 +366,8 @@ public class Button extends Panel {
         }
 
         /**
-         * Sets the action run when the user clicks the enabled button. It runs on the host's UI thread. By default
-         * clicking does nothing.
+         * Sets the action run when the user clicks the enabled button. It runs on the host's UI thread. An exception
+         * thrown by the action propagates to the caller of the host's render call. By default clicking does nothing.
          *
          * @param action the action; must not be null
          * @return this builder
@@ -359,11 +378,27 @@ public class Button extends Panel {
             return this;
         }
 
+        /**
+         * Sets the action run when the pointer starts hovering the enabled button. It runs once each time the pointer
+         * starts hovering the button, but not again when the pointer leaves and re-enters the button while the button
+         * is held down. It runs on the host's UI thread. An exception thrown by the hover action propagates to the
+         * caller of the host's render call, and a click completed in the same frame is then not run. By default
+         * hovering does nothing.
+         *
+         * @param hoverAction the hover action; must not be null
+         * @return this builder
+         * @throws NullPointerException if {@code hoverAction} is {@code null}
+         */
+        public Builder hoverAction(Runnable hoverAction) {
+            this.hoverAction = Objects.requireNonNull(hoverAction, "hoverAction");
+            return this;
+        }
+
         @Override
         public Button build() {
             return doBuild((id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable) ->
                     new Button(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable,
-                            activeBackground, hoveredBackground, disabledBackground, enabled, action));
+                            activeBackground, hoveredBackground, disabledBackground, enabled, action, hoverAction));
         }
     }
 }

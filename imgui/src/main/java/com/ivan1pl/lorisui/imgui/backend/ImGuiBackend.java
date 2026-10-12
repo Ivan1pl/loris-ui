@@ -54,6 +54,11 @@ import java.util.Set;
  * displays for OpenGL use an {@code ImGuiOpenGlBackend}, the LWJGL display for SDL_GPU uses an
  * {@code ImGuiSdlGpuBackend}, and the LWJGL display for Vulkan uses an {@code ImGuiVulkanBackend}.
  *
+ * <p><b>One renderer per backend.</b> A backend must be used by one renderer only and is not shared between renderers
+ * or Dear ImGui contexts, because it keeps the UI's input state, such as button presses and hovers, from one frame to
+ * the next. Give each renderer its own backend, as the bundled hosts do. Re-initializing the same renderer with its
+ * backend is fine.
+ *
  * <p>The backend is used on the host's UI thread only.
  */
 public abstract class ImGuiBackend implements Backend, RendererProvider {

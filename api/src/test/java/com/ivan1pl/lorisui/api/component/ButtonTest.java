@@ -42,12 +42,13 @@ class ButtonTest {
     }
 
     @Test
-    void shouldRejectNullActionEnabledAndStateBackgroundImage() {
+    void shouldRejectNullCallbacksEnabledAndStateBackgroundImage() {
         Button.Builder builder = Button.buttonBuilder("button");
         ImageMode mode = ImageMode.fit();
 
         Assertions.assertAll(
                 () -> assertNullPointer("action", () -> builder.action(null)),
+                () -> assertNullPointer("hoverAction", () -> builder.hoverAction(null)),
                 () -> assertNullPointer("enabled", () -> builder.enabled((Supplier<Boolean>) null)),
                 () -> assertNullPointer("image", () -> builder.activeBackgroundImage(null, mode)),
                 () -> assertNullPointer("imageMode", () -> builder.activeBackgroundImage("bg.png", null)),
@@ -88,6 +89,35 @@ class ButtonTest {
 
         Assertions.assertFalse(button.isEnabled());
         Mockito.verifyNoInteractions(action);
+    }
+
+    @Test
+    void shouldRunHoverActionWhenHoveredWhileEnabled() {
+        Runnable hoverAction = Mockito.mock(Runnable.class);
+        Button button = Button.buttonBuilder("button")
+                .size(10, 10)
+                .hoverAction(hoverAction)
+                .build();
+
+        button.hover();
+
+        Assertions.assertTrue(button.isEnabled());
+        Mockito.verify(hoverAction, Mockito.times(1)).run();
+    }
+
+    @Test
+    void shouldNotRunHoverActionWhenHoveredWhileDisabled() {
+        Runnable hoverAction = Mockito.mock(Runnable.class);
+        Button button = Button.buttonBuilder("button")
+                .size(10, 10)
+                .enabled(() -> false)
+                .hoverAction(hoverAction)
+                .build();
+
+        button.hover();
+
+        Assertions.assertFalse(button.isEnabled());
+        Mockito.verifyNoInteractions(hoverAction);
     }
 
     private static void assertNullPointer(String expectedMessage, Executable executable) {

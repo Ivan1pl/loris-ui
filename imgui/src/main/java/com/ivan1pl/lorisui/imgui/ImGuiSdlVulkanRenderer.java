@@ -83,7 +83,7 @@ public final class ImGuiSdlVulkanRenderer extends ImGuiRenderer {
      * {@linkplain #initialize() initialized}.
      *
      * @param backend               backend that draws the screen's components and whose device and queue the renderer
-     *                              uses; must not be null
+     *                              uses, not used by any other renderer; must not be null
      * @param sdlWindow             native handle of the SDL3 window to render into ({@code SDL_Window*}), created
      *                              with {@code SDL_WINDOW_VULKAN}; must not be {@code 0}
      * @param colorAttachmentFormat {@code VkFormat} of the images the renderer draws into, usually the swapchain's

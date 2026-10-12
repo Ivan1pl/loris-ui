@@ -63,8 +63,8 @@ public final class ImGuiSdlGpuRenderer extends ImGuiRenderer {
      * Nothing is drawn and no Dear ImGui or SDL state is touched until the renderer is
      * {@linkplain #initialize() initialized}.
      *
-     * @param backend   backend that draws the screen's components and whose GPU device the renderer uses; must not
-     *                  be null
+     * @param backend   backend that draws the screen's components and whose GPU device the renderer uses, not used
+     *                  by any other renderer; must not be null
      * @param sdlWindow native handle of the SDL3 window to render into ({@code SDL_Window*}); must not be {@code 0}
      * @throws NullPointerException     if {@code backend} is {@code null}
      * @throws IllegalArgumentException if {@code sdlWindow} is {@code 0}

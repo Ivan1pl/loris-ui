@@ -41,6 +41,7 @@ public class PanelRenderer extends Renderer<Panel> {
 
     private final StyleStack styleStack = new StyleStack();
     private final ImBoolean modalPopupOpen = new ImBoolean();
+    private final ButtonInputTracker buttonInputTracker = new ButtonInputTracker();
 
     @Override
     public void render(Panel component, int w, int h, RendererProvider rendererProvider,
@@ -54,6 +55,7 @@ public class PanelRenderer extends Renderer<Panel> {
         }
         try {
             String id = component.getId() + "_panel";
+            int imGuiId = component instanceof Button ? ImGui.getID(id) : 0;
             if (component instanceof ModalPopup || component instanceof Popup) {
                 if (component instanceof ModalPopup modalPopup && modalPopup.isOpen() && !ImGui.isPopupOpen(id)) {
                     ImGui.openPopup(id, ImGuiPopupFlags.MouseButtonLeft);
@@ -116,17 +118,13 @@ public class PanelRenderer extends Renderer<Panel> {
             if (component instanceof Button button) {
                 ImGui.dummy(component.getWidth(w, h), component.getHeight(w, h));
                 ImGui.setCursorPos(posX, posY);
-                boolean hovered = false;
-                boolean active = false;
-                if (ImGui.isWindowHovered(ImGuiHoveredFlags.ChildWindows)) {
-                    hovered = true;
-                    if (ImGui.isKeyDown(ImGuiKey.MouseLeft)) {
-                        active = true;
-                    } else if (ImGui.isKeyReleased(ImGuiKey.MouseLeft)) {
-                        //TODO check if this is the same button that received down
-                        button.click();
-                    }
-                }
+                boolean hovered = ImGui.isWindowHovered(ImGuiHoveredFlags.ChildWindows);
+                boolean mouseClicked = ImGui.isMouseClicked(ImGuiMouseButton.Left);
+                boolean mouseDown = ImGui.isKeyDown(ImGuiKey.MouseLeft);
+                boolean mouseReleased = ImGui.isKeyReleased(ImGuiKey.MouseLeft);
+                int frame = ImGui.getFrameCount();
+                boolean active = buttonInputTracker.update(button, imGuiId, frame, hovered, mouseClicked, mouseDown,
+                        mouseReleased);
                 background = button.getBackground(hovered, active);
             } else {
                 background = component.getBackground();

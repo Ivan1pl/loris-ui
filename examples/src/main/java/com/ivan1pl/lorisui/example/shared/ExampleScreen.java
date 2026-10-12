@@ -89,6 +89,7 @@ public class ExampleScreen extends LorisScreen {
     private float progress = 0f;
     private String textInputContent = "Text input";
     private int numberInputContent = 1;
+    private int hoverCount;
 
     public ExampleScreen(Font font, Runnable hideUiAction) {
         Objects.requireNonNull(hideUiAction, "hideUiAction");
@@ -136,6 +137,7 @@ public class ExampleScreen extends LorisScreen {
                                                 .disabledBackgroundImage("/textures/textures.png", IMAGE_MODE_BUTTON_D)
                                                 .enabled(() -> progress > 0f)
                                                 .action(() -> progress = Math.max(0f, progress - 0.1f))
+                                                .hoverAction(() -> hoverCount++)
                                                 .addContent(Text.builder()
                                                         .width(30)
                                                         .align(Text.Align.CENTER)
@@ -158,6 +160,7 @@ public class ExampleScreen extends LorisScreen {
                                                 .disabledBackgroundImage("/textures/textures.png", IMAGE_MODE_BUTTON_D)
                                                 .enabled(() -> progress < 1f)
                                                 .action(() -> progress = Math.min(1f, progress + 0.1f))
+                                                .hoverAction(() -> hoverCount++)
                                                 .addContent(Text.builder()
                                                         .width(30)
                                                         .align(Text.Align.CENTER)
@@ -177,6 +180,7 @@ public class ExampleScreen extends LorisScreen {
                                         .addContent(Button.buttonBuilder("progress_reset")
                                                 .size(90, 30)
                                                 .action(() -> progress = 0f)
+                                                .hoverAction(() -> hoverCount++)
                                                 .addContent(Text.builder()
                                                         .width(90)
                                                         .align(Text.Align.CENTER)
@@ -215,6 +219,7 @@ public class ExampleScreen extends LorisScreen {
                                         .addContent(Button.buttonBuilder("hide_ui")
                                                 .size(90, 30)
                                                 .action(hideUiAction)
+                                                .hoverAction(() -> hoverCount++)
                                                 .addContent(Text.builder()
                                                         .width(90)
                                                         .align(Text.Align.CENTER)
@@ -250,6 +255,15 @@ public class ExampleScreen extends LorisScreen {
                                                 .font(font)
                                                 .color(Color.GREEN)
                                                 .text(() -> numberInputContent + "/99")
+                                                .build())
+                                        .addContent(Spacer.builder()
+                                                .width(10)
+                                                .build())
+                                        .addContent(Text.builder()
+                                                .width(90)
+                                                .font(font)
+                                                .color(Color.GREEN)
+                                                .text(() -> "Hovers: " + hoverCount)
                                                 .build())
                                         .build())
                                 .addContent(Spacer.builder()

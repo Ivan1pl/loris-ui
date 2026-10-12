@@ -200,23 +200,58 @@ tasks.named('jar', Jar) {
 ```
 
 ### Example Run Tasks
-The `examples` module registers one `JavaExec` task per example entry point, six in all (`runJme3Example`, `runJme3Gl3Example`, `runLwjglSdlGl3Example`, `runLwjglGlfwGl3Example`, `runLwjglSdlGpuExample`, `runLwjglSdlVulkanExample`), instead of applying the `application` plugin. Each sets `group = 'application'`, a description, `classpath = sourceSets.main.runtimeClasspath` and the main class, and passes `--enable-native-access=ALL-UNNAMED` so imgui-java and LWJGL load native code without restricted-method warnings on JDK 25. The tasks use the Java 25 toolchain by convention. A system property that an example reads is passed through explicitly with `systemProperty` and `providers.systemProperty(...)`, because `JavaExec` does not inherit the Gradle JVM's properties: `runLwjglSdlGpuExample` and `runLwjglSdlVulkanExample` pass `lorisui.example.gpuDebug` (default `false`), so `./gradlew :examples:runLwjglSdlGpuExample -Dlorisui.example.gpuDebug=true` creates the SDL_GPU device in debug mode, with validation, and the same property on `runLwjglSdlVulkanExample` enables `VK_LAYER_KHRONOS_validation` (which needs the Vulkan SDK). Each jME task's description names the jME renderer it runs with (`runJme3Example`: jME's default renderer, OpenGL ES 3 through ANGLE; `runJme3Gl3Example`: jME's OpenGL 3.3 renderer).
+The `examples` module registers one `JavaExec` task per example entry point, six in all (`runJme3Example`, `runJme3Gl3Example`, `runLwjglSdlGl3Example`, `runLwjglGlfwGl3Example`, `runLwjglSdlGpuExample`, `runLwjglSdlVulkanExample`), instead of applying the `application` plugin. The tasks are registered in a loop over one shared list, `exampleRunTasks` (entries with `name`, `mainClass`, `description` and a `gpuDebug` flag), which `runAllExamples` reads too, so an example is added in one place. Each sets `group = 'application'`, a description, `classpath = sourceSets.main.runtimeClasspath` and the main class, and passes `--enable-native-access=ALL-UNNAMED` so imgui-java and LWJGL load native code without restricted-method warnings on JDK 25. The tasks use the Java 25 toolchain by convention. A system property that an example reads is passed through explicitly with `systemProperty` and `providers.systemProperty(...)`, because `JavaExec` does not inherit the Gradle JVM's properties: `runLwjglSdlGpuExample` and `runLwjglSdlVulkanExample` (the entries with `gpuDebug: true`) pass `lorisui.example.gpuDebug` (default `false`), so `./gradlew :examples:runLwjglSdlGpuExample -Dlorisui.example.gpuDebug=true` creates the SDL_GPU device in debug mode, with validation, and the same property on `runLwjglSdlVulkanExample` enables `VK_LAYER_KHRONOS_validation` (which needs the Vulkan SDK). Each jME task's description names the jME renderer it runs with (`runJme3Example`: jME's default renderer, OpenGL ES 3 through ANGLE; `runJme3Gl3Example`: jME's OpenGL 3.3 renderer).
+
+`runAllExamples` (group `application`) starts all six examples at once, each in its own JVM. It is not a `dependsOn` aggregate, because a `JavaExec` task blocks until its window closes and the tasks of one project run one after another, and it cannot use `project.javaexec`, which was removed in Gradle 9. Its type `RunExamplesInParallel` is an abstract `DefaultTask` declared in `examples/build.gradle`. Every property is annotated, because Gradle rejects unannotated task properties:
+- `@Inject` `ExecOperations` and `FileSystemOperations`, with `import javax.inject.Inject` and `import java.nio.file.Files` at the top of the script (neither is a default import; `org.gradle.process.*`, `org.gradle.api.file.*` and `org.gradle.jvm.toolchain.*` are);
+- `@Classpath` classpath from `sourceSets.main.runtimeClasspath`, which carries the build dependency, so `examples` compiles first;
+- `@Nested` `Property<JavaLauncher>` from `javaToolchains.launcherFor(java.toolchain)`, set explicitly because `ExecOperations.javaexec` does not apply the toolchain convention (Java 25 stays defined only in the root build);
+- `@Input` example list (the shared list) and gpuDebug value (the same provider as the individual tasks);
+- `@Internal` working directory, the project directory, as `JavaExec` uses.
+
+The task declares no outputs, so it always runs. Its action runs one `javaexec` per example on its own daemon thread, with the launcher's executable, the classpath, the main class, the working directory, `--enable-native-access=ALL-UNNAMED`, `org.lwjgl.system.SharedLibraryExtractPath` and, for the `gpuDebug` entries, the gpuDebug property. The extract path is a fresh `Files.createTempDirectory` under the task's `temporaryDir` (`build/tmp/runAllExamples`), one per example, deleted with `FileSystemOperations.delete` in a `finally` once the example exits: LWJGL's shared extraction directory (`/tmp/lwjgl_<user>`) is probed through one fixed test file, so JVMs that start together make each other's probe fail and fall back to `.lwjgl` in the working directory. `File.deleteOnExit` is not used, because it removes only empty directories and runs when the long-lived Gradle daemon exits. Each thread records its example's failure (a non-zero exit, a launch error or any other `Throwable`), so one failing example does not stop the others; the task joins all threads and then throws a `GradleException` listing every failed example. Interrupting the task restores the interrupt flag and fails, but does not end the children: `ExecOperations` returns no process handle, so running examples keep their windows open until closed. Child output goes to the Gradle console, interleaved. The task class is not repeated here; `examples/build.gradle` is its single source.
 
 ```groovy
-tasks.register('runLwjglSdlGl3Example', JavaExec) {
-    group = 'application'
-    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window with OpenGL 3.'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGl3Example'
-    jvmArgs '--enable-native-access=ALL-UNNAMED'
+import javax.inject.Inject
+
+def exampleRunTasks = [
+        [name       : 'runLwjglSdlGl3Example',
+         mainClass  : 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGl3Example',
+         description: 'Runs the LorisUI example in a plain LWJGL SDL3 window with OpenGL 3.',
+         gpuDebug   : false],
+        [name       : 'runLwjglSdlGpuExample',
+         mainClass  : 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGpuExample',
+         description: 'Runs the LorisUI example in a plain LWJGL SDL3 window with SDL_GPU.',
+         gpuDebug   : true],
+        // ... one entry per example, six in all
+]
+
+def gpuDebugProperty = providers.systemProperty('lorisui.example.gpuDebug').orElse('false')
+
+exampleRunTasks.each { example ->
+    tasks.register(example.name, JavaExec) {
+        group = 'application'
+        description = example.description
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = example.mainClass
+        jvmArgs '--enable-native-access=ALL-UNNAMED'
+        if (example.gpuDebug) {
+            systemProperty 'lorisui.example.gpuDebug', gpuDebugProperty.get()
+        }
+    }
 }
 
-tasks.register('runLwjglSdlGpuExample', JavaExec) {
+abstract class RunExamplesInParallel extends DefaultTask {
+    // annotated properties as listed above; the full task action is in examples/build.gradle
+}
+
+tasks.register('runAllExamples', RunExamplesInParallel) {
     group = 'application'
-    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window with SDL_GPU.'
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGpuExample'
-    jvmArgs '--enable-native-access=ALL-UNNAMED'
-    systemProperty 'lorisui.example.gpuDebug', providers.systemProperty('lorisui.example.gpuDebug').getOrElse('false')
+    description = 'Runs all six LorisUI examples at the same time, each in its own JVM.'
+    classpath.from(sourceSets.main.runtimeClasspath)
+    launcher = javaToolchains.launcherFor(java.toolchain)
+    examples = exampleRunTasks
+    gpuDebug = gpuDebugProperty
+    workingDir = layout.projectDirectory
 }
 ```

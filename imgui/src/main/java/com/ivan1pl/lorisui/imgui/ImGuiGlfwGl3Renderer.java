@@ -50,7 +50,8 @@ public final class ImGuiGlfwGl3Renderer extends ImGuiRenderer {
      * Creates a renderer that draws with the given backend into the given GLFW window. Nothing is drawn and no Dear
      * ImGui, GLFW or OpenGL state is touched until the renderer is {@linkplain #initialize() initialized}.
      *
-     * @param backend    backend that draws the screen's components; must not be null
+     * @param backend    backend that draws the screen's components, not used by any other renderer; must not be
+     *                   null
      * @param glfwWindow native handle of the GLFW window to render into ({@code GLFWwindow*}); must not be {@code 0}
      * @throws NullPointerException     if {@code backend} is {@code null}
      * @throws IllegalArgumentException if {@code glfwWindow} is {@code 0}
