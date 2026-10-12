@@ -50,3 +50,23 @@ public Builder barColor(Supplier<Color> barColor) {
     return this;
 }
 ```
+
+### Event Callbacks and Trigger Methods
+Event callbacks are `Runnable` properties (`Button`'s `action` and `hoverAction`) that default to a no-op `() -> {}` and are set with a single `requireNonNull` setter (no constant overload, no null-as-unset). The component exposes a public trigger method per event (`click()`, `hover()`) that runs the callback only when `isEnabled()` is true; backends call the trigger, never the raw `Runnable`, so the enabled gate lives in one place and applications can trigger the event themselves. The setter's Javadoc states that the callback runs on the host's UI thread and that an exception it throws propagates to the caller of the host's render call; the trigger's Javadoc states when backends call it and that applications may call it on the host's UI thread.
+
+```java
+// Button.Builder
+private Runnable hoverAction = () -> {};
+
+public Builder hoverAction(Runnable hoverAction) {
+    this.hoverAction = Objects.requireNonNull(hoverAction, "hoverAction");
+    return this;
+}
+
+// Button
+public void hover() {
+    if (isEnabled()) {
+        hoverAction.run();
+    }
+}
+```
