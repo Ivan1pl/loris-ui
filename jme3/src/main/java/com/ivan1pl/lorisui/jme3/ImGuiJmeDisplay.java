@@ -3,13 +3,17 @@ package com.ivan1pl.lorisui.jme3;
 import com.ivan1pl.lorisui.api.component.Component;
 import com.ivan1pl.lorisui.api.component.style.Style;
 import com.ivan1pl.lorisui.api.font.Font;
+import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
 import com.ivan1pl.lorisui.api.resolver.ResourceBundleKeyResolver;
 import com.ivan1pl.lorisui.api.screen.DeferredRelease;
 import com.ivan1pl.lorisui.api.screen.LorisScreen;
 import com.ivan1pl.lorisui.api.screen.ScreenManager;
 import com.ivan1pl.lorisui.imgui.ImGuiRenderer;
 import com.ivan1pl.lorisui.imgui.ImGuiSdlGl3Renderer;
+import com.ivan1pl.lorisui.imgui.ImGuiSdlGles3Renderer;
+import com.ivan1pl.lorisui.imgui.backend.ImGuiBackend;
 import com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlBackend;
+import com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlEsBackend;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
 import com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier;
 import com.jme3.input.InputManager;
@@ -39,6 +43,13 @@ import java.util.Objects;
  * the application's input manager, it consumes the mouse and keyboard events that the UI uses, so that they do not
  * reach the application's own input mappings.
  *
+ * <h2>Renderers</h2>
+ * The display draws with the graphics API of the renderer selected in the application's {@code AppSettings}. With
+ * {@code AppSettings.ANGLE_GLES3}, jME's default, it draws with OpenGL ES 3 through ANGLE, using
+ * {@link ImGuiOpenGlEsBackend} and {@link ImGuiSdlGles3Renderer}. With any {@code AppSettings.LWJGL_OPENGL*}
+ * renderer, it draws with OpenGL, using {@link ImGuiOpenGlBackend} and {@link ImGuiSdlGl3Renderer}; jME itself
+ * accepts only the OpenGL 3.2 and later ones. Other renderers are rejected when the display is created.
+ *
  * <h2>Lifecycle</h2>
  * <ul>
  *     <li>Create the display; register fonts, custom renderers and style appliers, and resource bundles; add screens
@@ -55,8 +66,8 @@ import java.util.Objects;
  *     initialized.</li>
  *     <li>jME calls {@link #cleanup} when the display is removed from its viewport ({@link ViewPort#removeProcessor}
  *     or {@link ViewPort#clearProcessors}). The current screen's {@link LorisScreen#onEndScreen()} fires, the display
- *     releases its Dear ImGui, OpenGL and SDL resources, including every texture it loaded, and the background work
- *     that computes screen layouts stops until a screen is drawn again.</li>
+ *     releases its Dear ImGui, OpenGL or OpenGL ES and SDL resources, including every texture it loaded, and the
+ *     background work that computes screen layouts stops until a screen is drawn again.</li>
  *     <li>A removed display can be added to a viewport again. It then sets up Dear ImGui again, restores the
  *     registered fonts (the {@link Font} instances returned at registration stay valid) and starts the current screen
  *     again. Screens, resource bundles, renderers and style appliers stay registered. Dear ImGui UI state, such as
@@ -84,7 +95,7 @@ import java.util.Objects;
  * <p>
  * jME does <em>not</em> call {@link #cleanup} on application exit. Applications remove the display themselves, for
  * example in an overridden {@code destroy()}, so that {@link LorisScreen#onEndScreen()} fires, the Dear ImGui, OpenGL
- * and SDL resources are released while the window still exists, and the layout work stops:
+ * or OpenGL ES and SDL resources are released while the window still exists, and the layout work stops:
  * <pre>
  * &#64;Override
  * public void destroy() {
@@ -109,12 +120,13 @@ import java.util.Objects;
  * hooks run on that thread.
  */
 public class ImGuiJmeDisplay implements SceneProcessor {
-    private final ImGuiOpenGlBackend backend = new ImGuiOpenGlBackend();
+    private final ImGuiBackend backend;
     private final ScreenManager screenManager = new ScreenManager();
     private final ResourceBundleKeyResolver resolver = new ResourceBundleKeyResolver();
     private final LwjglWindow window;
     private final InputManager inputManager;
-    private final ImGuiSdlGl3Renderer renderer;
+    private final ImGuiRenderer renderer;
+    private final ScreenDrawer screenDrawer;
     private final ImGuiInputSystem inputSys;
     private final SdlEventListener sdlEventListener;
     // Removal requested during a frame, a screen switch or a hook is deferred until the outermost one returns, so the
@@ -132,21 +144,28 @@ public class ImGuiJmeDisplay implements SceneProcessor {
      * {@code simpleInitApp()}. The display shows nothing until it is added to a viewport.
      *
      * @param context      the application's context; must not be null and must be an LWJGL3 window
-     *                     ({@link LwjglWindow}), so the application must use jME's LWJGL3 renderer
+     *                     ({@link LwjglWindow}) using {@code AppSettings.ANGLE_GLES3} (jME's default) or an
+     *                     {@code AppSettings.LWJGL_OPENGL*} renderer
      * @param inputManager the application's input manager, used to consume the mouse and keyboard events that the UI
      *                     uses; or {@code null} to leave all input events to the application
      * @param viewport     the viewport the display will be added to; must not be null
-     * @throws NullPointerException if {@code context} or {@code viewport} is null
-     * @throws ClassCastException   if {@code context} is not an LWJGL3 window
+     * @throws NullPointerException  if {@code context} or {@code viewport} is null
+     * @throws ClassCastException    if {@code context} is not an LWJGL3 window
+     * @throws IllegalStateException if the renderer of {@code context} is neither {@code AppSettings.ANGLE_GLES3} nor
+     *                               an {@code AppSettings.LWJGL_OPENGL*} renderer
      */
     public ImGuiJmeDisplay(JmeContext context, InputManager inputManager, ViewPort viewport) {
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(viewport, "viewport");
         this.window = (LwjglWindow) context;
+        ImGuiJmeGraphicsApi graphicsApi = ImGuiJmeGraphicsApi.forRenderer(context.getSettings().getRenderer());
+        RendererSetup setup = createRendererSetup(graphicsApi, window.getWindowHandle());
+        this.backend = setup.backend();
+        this.renderer = setup.renderer();
+        this.screenDrawer = setup.screenDrawer();
+        this.sdlEventListener = setup.sdlEventListener();
         this.inputManager = inputManager;
-        this.renderer = new ImGuiSdlGl3Renderer(backend, window.getWindowHandle());
         this.inputSys = new ImGuiInputSystem(renderer);
-        this.sdlEventListener = event -> renderer.processSdlEvent(event.address());
         this.vp = viewport;
     }
 
@@ -411,9 +430,9 @@ public class ImGuiJmeDisplay implements SceneProcessor {
 
     /**
      * Stops the display and fires {@link LorisScreen#onEndScreen()} on the current screen, if that screen's
-     * {@link LorisScreen#onStartScreen()} returned normally. Then releases the display's Dear ImGui, OpenGL and SDL
-     * resources, including every texture it loaded, and stops the background work that computes screen layouts until
-     * a screen is drawn again. jME calls this method when the display is removed from its viewport
+     * {@link LorisScreen#onStartScreen()} returned normally. Then releases the display's Dear ImGui, OpenGL or
+     * OpenGL ES and SDL resources, including every texture it loaded, and stops the background work that computes
+     * screen layouts until a screen is drawn again. jME calls this method when the display is removed from its viewport
      * ({@link ViewPort#removeProcessor} or {@link ViewPort#clearProcessors}), but not on application exit; see the
      * class description for the exit pattern.
      * <p>
@@ -548,7 +567,7 @@ public class ImGuiJmeDisplay implements SceneProcessor {
         Camera camera = vp.getCamera();
         renderManager.setCamera(camera, true);
         try {
-            renderer.render(screenManager.getCurrentScreen(), width, height, resolver);
+            screenDrawer.draw(screenManager.getCurrentScreen(), width, height, resolver);
         } finally {
             renderManager.setCamera(camera, false);
         }
@@ -574,4 +593,30 @@ public class ImGuiJmeDisplay implements SceneProcessor {
         }
         window.removeSdlEventListener(sdlEventListener);
     }
+
+    private static RendererSetup createRendererSetup(ImGuiJmeGraphicsApi graphicsApi, long windowHandle) {
+        return switch (graphicsApi) {
+            case OPENGL -> {
+                ImGuiOpenGlBackend openGlBackend = new ImGuiOpenGlBackend();
+                ImGuiSdlGl3Renderer gl3Renderer = new ImGuiSdlGl3Renderer(openGlBackend, windowHandle);
+                yield new RendererSetup(openGlBackend, gl3Renderer, gl3Renderer::render,
+                        event -> gl3Renderer.processSdlEvent(event.address()));
+            }
+            case OPENGL_ES -> {
+                ImGuiOpenGlEsBackend openGlEsBackend = new ImGuiOpenGlEsBackend();
+                ImGuiSdlGles3Renderer gles3Renderer = new ImGuiSdlGles3Renderer(openGlEsBackend, windowHandle);
+                yield new RendererSetup(openGlEsBackend, gles3Renderer, gles3Renderer::render,
+                        event -> gles3Renderer.processSdlEvent(event.address()));
+            }
+        };
+    }
+
+    // The renderer variants share no render method, so the selected variant's one is captured at construction
+    @FunctionalInterface
+    private interface ScreenDrawer {
+        void draw(LorisScreen screen, int width, int height, BundleKeyResolver resolver);
+    }
+
+    private record RendererSetup(ImGuiBackend backend, ImGuiRenderer renderer, ScreenDrawer screenDrawer,
+                                 SdlEventListener sdlEventListener) {}
 }

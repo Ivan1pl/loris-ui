@@ -36,6 +36,25 @@ allprojects {
             withJavadocJar()
         }
 
+        Provider<Map> projectLicense = project.provider {
+            Map license = project.ext.has('license') ? project.ext.license : [
+                    name: 'Apache License, Version 2.0',
+                    url : 'https://www.apache.org/licenses/LICENSE-2.0',
+                    file: rootProject.file('LICENSE'),
+            ]
+            if (!license.file.isFile()) {
+                throw new GradleException("Project ${project.path} declares the license file ${license.file}, " +
+                        'which does not exist')
+            }
+            license
+        }
+
+        tasks.withType(Jar).named { it in ['jar', 'sourcesJar'] }.configureEach {
+            metaInf {
+                from projectLicense.map { it.file }
+            }
+        }
+
         publishing {
             publications {
                 maven(MavenPublication) {
@@ -58,8 +77,8 @@ allprojects {
                         url = 'https://github.com/Ivan1pl/loris-ui'
                         licenses {
                             license {
-                                name = 'Apache License, Version 2.0'
-                                url = 'https://www.apache.org/licenses/LICENSE-2.0'
+                                name = projectLicense.map { it.name }
+                                url = projectLicense.map { it.url }
                             }
                         }
                         developers {

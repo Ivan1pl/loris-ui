@@ -3,6 +3,10 @@ include 'api'
 project(":api").name = "loris-ui-api"
 include 'imgui'
 project(":imgui").name = "loris-ui-imgui"
+include 'imgui-gles3'
+project(":imgui-gles3").name = "loris-ui-imgui-gles3"
+include 'imgui-vulkan'
+project(":imgui-vulkan").name = "loris-ui-imgui-vulkan"
 include 'jme3'
 project(":jme3").name = "loris-ui-jme3"
 include 'lwjgl'

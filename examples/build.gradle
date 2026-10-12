@@ -12,6 +12,9 @@ dependencies {
     implementation "org.lwjgl:lwjgl-sdl:${rootProject.ext.lwjglVersion}"
     implementation "org.lwjgl:lwjgl-glfw:${rootProject.ext.lwjglVersion}"
     implementation "org.lwjgl:lwjgl-opengl:${rootProject.ext.lwjglVersion}"
+    implementation "org.lwjgl:lwjgl-vulkan:${rootProject.ext.lwjglVersion}"
+    runtimeOnly "org.lwjgl:lwjgl-vulkan:${rootProject.ext.lwjglVersion}:natives-macos"
+    runtimeOnly "org.lwjgl:lwjgl-vulkan:${rootProject.ext.lwjglVersion}:natives-macos-arm64"
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -19,9 +22,18 @@ dependencies {
 
 tasks.register('runJme3Example', JavaExec) {
     group = 'application'
-    description = 'Runs the LorisUI example in a jMonkeyEngine 3 application.'
+    description = 'Runs the LorisUI example in a jMonkeyEngine 3 application with jME\'s default renderer ' +
+            '(OpenGL ES 3 through ANGLE).'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.ivan1pl.lorisui.example.jme3.LorisJme3Example'
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+
+tasks.register('runJme3Gl3Example', JavaExec) {
+    group = 'application'
+    description = 'Runs the LorisUI example in a jMonkeyEngine 3 application with jME\'s OpenGL 3.3 renderer.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.ivan1pl.lorisui.example.jme3.LorisJme3Gl3Example'
     jvmArgs '--enable-native-access=ALL-UNNAMED'
 }
 
@@ -46,6 +58,15 @@ tasks.register('runLwjglSdlGpuExample', JavaExec) {
     description = 'Runs the LorisUI example in a plain LWJGL SDL3 window with SDL_GPU.'
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGpuExample'
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    systemProperty 'lorisui.example.gpuDebug', providers.systemProperty('lorisui.example.gpuDebug').getOrElse('false')
+}
+
+tasks.register('runLwjglSdlVulkanExample', JavaExec) {
+    group = 'application'
+    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window with Vulkan.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlVulkanExample'
     jvmArgs '--enable-native-access=ALL-UNNAMED'
     systemProperty 'lorisui.example.gpuDebug', providers.systemProperty('lorisui.example.gpuDebug').getOrElse('false')
 }

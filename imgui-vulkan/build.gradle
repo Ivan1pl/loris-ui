@@ -1,0 +1,29 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+description = 'Dear ImGui Vulkan renderer port used by the LorisUI Dear ImGui backend.'
+ext.pomName = 'LorisUI Dear ImGui Vulkan renderer port'
+ext.license = [
+        name: 'The MIT License',
+        url : 'https://opensource.org/license/mit',
+        file: file('LICENSE'),
+]
+
+dependencies {
+    implementation project(':loris-ui-api')
+    compileOnly "io.github.spair:imgui-java-app:${rootProject.ext.imguiVersion}"
+    compileOnly "org.lwjgl:lwjgl-vulkan:${rootProject.ext.lwjglVersion}"
+
+    testImplementation platform('org.junit:junit-bom:6.0.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testCompileOnly "org.lwjgl:lwjgl-vulkan:${rootProject.ext.lwjglVersion}"
+    testRuntimeOnly "org.lwjgl:lwjgl-vulkan:${rootProject.ext.lwjglVersion}"
+}
+
+tasks.named('javadoc', Javadoc) {
+    exclude 'com/ivan1pl/lorisui/imgui/vulkan/**'
+    options.addPathOption('sourcepath').value = sourceSets.main.java.srcDirs.toList()
+}

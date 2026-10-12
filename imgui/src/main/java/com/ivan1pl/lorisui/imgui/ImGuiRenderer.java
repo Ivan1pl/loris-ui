@@ -28,9 +28,11 @@ import java.util.Objects;
  *
  * <p>The renderer is the entry point for host integrations, such as the jMonkeyEngine host. A host constructs the
  * variant that matches its window and graphics API: {@link ImGuiSdlGl3Renderer} for an SDL3 window with an OpenGL
- * context, {@link ImGuiGlfwGl3Renderer} for a GLFW window with an OpenGL context, or {@link ImGuiSdlGpuRenderer} for
- * an SDL3 window claimed for an SDL_GPU device. The renderer owns its own Dear ImGui context and releases everything
- * it created when it is disposed.
+ * context, {@link ImGuiGlfwGl3Renderer} for a GLFW window with an OpenGL context, {@link ImGuiSdlGles3Renderer} for an
+ * SDL3 window with an OpenGL ES 3.0 context, such as jMonkeyEngine's ANGLE renderer, {@link ImGuiSdlGpuRenderer} for
+ * an SDL3 window claimed for an SDL_GPU device, or {@link ImGuiSdlVulkanRenderer} for an SDL3 window created with
+ * {@code SDL_WINDOW_VULKAN} and a Vulkan 1.3 device. The renderer owns its own Dear ImGui context and releases
+ * everything it created when it is disposed.
  *
  * <h2>Lifecycle</h2>
  * <ol>
@@ -75,7 +77,9 @@ import java.util.Objects;
  * The renderer is not thread-safe. All methods must be called on the host's UI thread, the thread that owns the
  * window and its graphics context.
  */
-public abstract sealed class ImGuiRenderer permits ImGuiSdlGl3Renderer, ImGuiGlfwGl3Renderer, ImGuiSdlGpuRenderer {
+public abstract sealed class ImGuiRenderer
+        permits ImGuiSdlGl3Renderer, ImGuiGlfwGl3Renderer, ImGuiSdlGpuRenderer, ImGuiSdlGles3Renderer,
+        ImGuiSdlVulkanRenderer {
     // Dear ImGui asserts that font data is longer than this, and a failed assertion terminates the JVM
     private static final int MAX_REJECTED_FONT_DATA_SIZE = 100;
 
@@ -189,9 +193,9 @@ public abstract sealed class ImGuiRenderer permits ImGuiSdlGl3Renderer, ImGuiGlf
     /**
      * Prepares Dear ImGui for rendering into the window: creates the renderer's Dear ImGui context, loads the
      * registered fonts, initializes the variant's Dear ImGui platform and renderer backends and applies the LorisUI
-     * default style. Call it once the window's graphics context is ready, as the variant describes (for an OpenGL
-     * variant, with the window's OpenGL context current; for the SDL_GPU variant, with the window claimed for the GPU
-     * device), before the first frame is rendered. After {@link #dispose()} it can be called again.
+     * default style. Call it once the window's graphics context is ready, as the variant describes (with an OpenGL or
+     * OpenGL ES context current; for SDL_GPU with the window claimed for the GPU device; for Vulkan with the device
+     * alive), before the first frame is rendered. After {@link #dispose()} it can be called again.
      *
      * <p>If initialization fails, everything it had set up is released again and the renderer stays uninitialized, so
      * the call can be retried, for example after a transient windowing or graphics failure. A failure caused by a
@@ -318,7 +322,9 @@ public abstract sealed class ImGuiRenderer permits ImGuiSdlGl3Renderer, ImGuiGlf
     /**
      * Releases everything the renderer set up in {@link #initialize()}: every texture the backend has loaded, the
      * platform and graphics resources of Dear ImGui, and the renderer's Dear ImGui context. Call it with the window's
-     * graphics context ready, as for {@link #initialize()}, before the window or its graphics context is destroyed.
+     * graphics context ready, as for {@link #initialize()} (with an OpenGL or OpenGL ES context current; for SDL_GPU
+     * with the window claimed for the GPU device; for Vulkan with the device alive), before the window or its graphics
+     * context is destroyed.
      * Afterwards the renderer can be initialized again, and the registered fonts stay valid.
      *
      * <p>Does nothing if the renderer is not initialized. Every release step runs even when an earlier one fails, and
@@ -341,6 +347,10 @@ public abstract sealed class ImGuiRenderer permits ImGuiSdlGl3Renderer, ImGuiGlf
 
     long getWindowHandle() {
         return windowHandle;
+    }
+
+    boolean isRendering() {
+        return rendering;
     }
 
     void makeContextCurrent() {

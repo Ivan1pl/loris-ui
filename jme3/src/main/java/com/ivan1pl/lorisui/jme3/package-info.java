@@ -3,8 +3,10 @@
  * <p>
  * {@link com.ivan1pl.lorisui.jme3.ImGuiJmeDisplay} is a jME {@link com.jme3.post.SceneProcessor} that draws the
  * current {@link com.ivan1pl.lorisui.api.screen.LorisScreen} with the Dear ImGui backend on top of a viewport,
- * usually the GUI viewport. It requires jME's LWJGL3 renderer. A typical setup, done on the jME application thread
- * (for example in {@code SimpleApplication.simpleInitApp()}):
+ * usually the GUI viewport. It requires jME's LWJGL3 backend with its default {@code ANGLE_GLES3} renderer or any
+ * {@code AppSettings.LWJGL_OPENGL*} renderer (jME itself accepts only the OpenGL 3.2 and later ones). A typical
+ * setup, done on the jME application thread (for example in
+ * {@code SimpleApplication.simpleInitApp()}):
  * <ol>
  *     <li>create the display;</li>
  *     <li>register fonts, custom renderers and style appliers, and resource bundles;</li>
@@ -18,7 +20,7 @@
  * <p>
  * <b>Runtime requirements.</b> The library does not bring jMonkeyEngine with it: the application declares
  * {@code jme3-core} and {@code jme3-lwjgl3}, and any other jME modules it uses, as its own dependencies. The library
- * brings the Dear ImGui backend and imgui-java at runtime; LWJGL and its SDL bindings come with jME's LWJGL3 renderer.
+ * brings the Dear ImGui backend and imgui-java at runtime; LWJGL and its SDL bindings come with jME's LWJGL3 backend.
  * The display needs jMonkeyEngine 3.10 or later, whose {@code jme3-lwjgl3} window is based on SDL3, running on
  * LWJGL 3.4.x, the LWJGL version the Dear ImGui backend uses at runtime. On JDK 25, imgui-java and LWJGL load
  * native code, so run the application with {@code --enable-native-access} ({@code ALL-UNNAMED} on the class path,

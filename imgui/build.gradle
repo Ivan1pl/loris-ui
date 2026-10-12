@@ -3,14 +3,18 @@ plugins {
     id 'maven-publish'
 }
 
-description = 'Renders LorisUI screens with Dear ImGui on OpenGL 3 or SDL_GPU.'
+description = 'Renders LorisUI screens with Dear ImGui on OpenGL 3, OpenGL ES 3, SDL_GPU or Vulkan.'
 ext.pomName = 'LorisUI Dear ImGui backend'
 
 dependencies {
     api project(':loris-ui-api')
+    implementation project(':loris-ui-imgui-gles3')
+    implementation project(':loris-ui-imgui-vulkan')
     implementation "org.lwjgl:lwjgl-stb:${rootProject.ext.lwjglVersion}"
     compileOnly "io.github.spair:imgui-java-app:${rootProject.ext.imguiVersion}"
+    compileOnly "org.lwjgl:lwjgl-opengles:${rootProject.ext.lwjglVersion}"
     compileOnly "org.lwjgl:lwjgl-sdl:${rootProject.ext.lwjglVersion}"
+    compileOnly "org.lwjgl:lwjgl-vulkan:${rootProject.ext.lwjglVersion}"
 
     runtimeOnly('io.github.spair:imgui-java-app') {
         version {
@@ -26,6 +30,9 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testCompileOnly "org.lwjgl:lwjgl-vulkan:${rootProject.ext.lwjglVersion}"
+    testRuntimeOnly "org.lwjgl:lwjgl-opengles:${rootProject.ext.lwjglVersion}"
+    testRuntimeOnly "org.lwjgl:lwjgl-vulkan:${rootProject.ext.lwjglVersion}"
 }
 
 tasks.named('javadoc', Javadoc) {

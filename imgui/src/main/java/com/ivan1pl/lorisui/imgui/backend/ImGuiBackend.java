@@ -42,13 +42,17 @@ import java.util.Set;
  *
  * <p><b>Backends and renderers.</b> Each backend matches the graphics API of a renderer variant:
  * {@link ImGuiOpenGlBackend} is used with {@link com.ivan1pl.lorisui.imgui.ImGuiSdlGl3Renderer} and
- * {@link com.ivan1pl.lorisui.imgui.ImGuiGlfwGl3Renderer}, and {@link ImGuiSdlGpuBackend} with
- * {@link com.ivan1pl.lorisui.imgui.ImGuiSdlGpuRenderer}. Both are final. A custom subclass of this class, which
+ * {@link com.ivan1pl.lorisui.imgui.ImGuiGlfwGl3Renderer}, {@link ImGuiOpenGlEsBackend} with
+ * {@link com.ivan1pl.lorisui.imgui.ImGuiSdlGles3Renderer}, {@link ImGuiSdlGpuBackend} with
+ * {@link com.ivan1pl.lorisui.imgui.ImGuiSdlGpuRenderer}, and {@link ImGuiVulkanBackend} with
+ * {@link com.ivan1pl.lorisui.imgui.ImGuiSdlVulkanRenderer}. All four are final. A custom subclass of this class, which
  * implements {@link #createTexture} and {@link #deleteTexture}, for example to load textures differently on OpenGL,
- * works only with the OpenGL renderers, because the textures it creates must be OpenGL texture names. Supporting
- * another graphics API needs a new renderer variant inside this module, so it is not an extension point. The bundled
- * hosts always use their own backend: the jMonkeyEngine display and the LWJGL displays for OpenGL use an
- * {@code ImGuiOpenGlBackend}, and the LWJGL display for SDL_GPU uses an {@code ImGuiSdlGpuBackend}.
+ * pairs with the OpenGL 3 or OpenGL ES 3 renderers, because the textures it creates must be texture names of the
+ * renderer's OpenGL or OpenGL ES context. Supporting another graphics API needs a new renderer variant inside this
+ * module, so it is not an extension point. The bundled hosts always use their own backend: the jMonkeyEngine display
+ * uses an {@code ImGuiOpenGlBackend} or an {@code ImGuiOpenGlEsBackend}, matching jMonkeyEngine's renderer, the LWJGL
+ * displays for OpenGL use an {@code ImGuiOpenGlBackend}, the LWJGL display for SDL_GPU uses an
+ * {@code ImGuiSdlGpuBackend}, and the LWJGL display for Vulkan uses an {@code ImGuiVulkanBackend}.
  *
  * <p>The backend is used on the host's UI thread only.
  */
@@ -249,8 +253,9 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
      *
      * <p>Textures cannot be unloaded while a frame is being drawn, for example from a component callback, because the
      * frame may still draw them. Must be called on the host's UI thread with the window's graphics context ready: for
-     * the OpenGL renderers, the window's OpenGL context current; for the SDL_GPU renderer, its GPU device not yet
-     * destroyed.
+     * the OpenGL renderers, the window's OpenGL context current; for the OpenGL ES renderer, the window's OpenGL ES
+     * context current; for the SDL_GPU renderer, its GPU device not yet destroyed; for the Vulkan renderer, its device
+     * not yet destroyed.
      *
      * @throws IllegalStateException if called while the backend is drawing a frame; no texture is released then
      * @throws RuntimeException      the first failure of releasing a texture, after all other textures have been

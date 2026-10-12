@@ -1,17 +1,22 @@
 /**
- * Renders LorisUI screens with Dear ImGui on OpenGL 3 or SDL_GPU.
+ * Renders LorisUI screens with Dear ImGui on OpenGL 3, OpenGL ES 3, SDL_GPU or Vulkan.
  *
  * <p>The module provides the backends, which turn the components of a
  * {@link com.ivan1pl.lorisui.api.screen.LorisScreen LorisScreen} into Dear ImGui widgets, and the frame drivers that a
  * host (a game engine integration or an application's own SDL3 or GLFW loop) calls each frame. The frame driver is an
- * {@link com.ivan1pl.lorisui.imgui.ImGuiRenderer ImGuiRenderer}, whose three variants each pair a windowing library
- * with a graphics API and are used with the backend for that API:
+ * {@link com.ivan1pl.lorisui.imgui.ImGuiRenderer ImGuiRenderer}, whose five variants each pair a windowing library
+ * with a graphics API and are used with one of the four backends, the one for that API:
  * <ul>
  *     <li>{@link com.ivan1pl.lorisui.imgui.ImGuiSdlGl3Renderer ImGuiSdlGl3Renderer} (SDL3 with OpenGL 3) and
  *     {@link com.ivan1pl.lorisui.imgui.ImGuiGlfwGl3Renderer ImGuiGlfwGl3Renderer} (GLFW with OpenGL 3), with an
  *     {@link com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlBackend ImGuiOpenGlBackend};</li>
+ *     <li>{@link com.ivan1pl.lorisui.imgui.ImGuiSdlGles3Renderer ImGuiSdlGles3Renderer} (SDL3 with OpenGL ES 3, such
+ *     as jMonkeyEngine's ANGLE renderer), with an
+ *     {@link com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlEsBackend ImGuiOpenGlEsBackend};</li>
  *     <li>{@link com.ivan1pl.lorisui.imgui.ImGuiSdlGpuRenderer ImGuiSdlGpuRenderer} (SDL3 with SDL_GPU), with an
- *     {@link com.ivan1pl.lorisui.imgui.backend.ImGuiSdlGpuBackend ImGuiSdlGpuBackend}.</li>
+ *     {@link com.ivan1pl.lorisui.imgui.backend.ImGuiSdlGpuBackend ImGuiSdlGpuBackend};</li>
+ *     <li>{@link com.ivan1pl.lorisui.imgui.ImGuiSdlVulkanRenderer ImGuiSdlVulkanRenderer} (SDL3 with Vulkan 1.3), with
+ *     an {@link com.ivan1pl.lorisui.imgui.backend.ImGuiVulkanBackend ImGuiVulkanBackend}.</li>
  * </ul>
  *
  * <p><b>Renderer lifecycle and fonts.</b> An {@code ImGuiRenderer} owns its Dear ImGui context. It is constructed
@@ -32,11 +37,15 @@
  * {@link com.ivan1pl.lorisui.imgui.backend.ImGuiBackend#registerStyleApplier(Class,
  * com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier) registerStyleApplier}, on the backend or through a host
  * display; a registration also replaces a built-in one. Renderers load and draw textures through the
- * {@link com.ivan1pl.lorisui.imgui.renderer.RendererProvider RendererProvider} they receive. Both bundled backends
- * are final. A custom {@link com.ivan1pl.lorisui.imgui.backend.ImGuiBackend ImGuiBackend} subclass, which implements
- * its protected {@code createTexture} and {@code deleteTexture} methods, for example to load textures differently on
- * OpenGL, works only with the OpenGL renderers, because its textures must be OpenGL texture names. Supporting another
- * graphics API needs a new renderer variant inside this module, so it is not an extension point.
+ * {@link com.ivan1pl.lorisui.imgui.renderer.RendererProvider RendererProvider} they receive. All four bundled
+ * backends are final. A custom {@link com.ivan1pl.lorisui.imgui.backend.ImGuiBackend ImGuiBackend} subclass, which
+ * implements its protected {@code createTexture} and {@code deleteTexture} methods, for example to load textures
+ * differently on OpenGL, pairs with the GL3 or GLES3 renderers, because its textures must be texture names of the
+ * renderer's OpenGL or OpenGL ES context. Supporting another graphics API needs a new renderer variant inside this
+ * module, so it is not an extension point.
+ *
+ * <p><b>OpenGL ES vertex limit.</b> The OpenGL ES 3 renderer limits the number of vertices of a single Dear ImGui
+ * window, as described for {@link com.ivan1pl.lorisui.imgui.ImGuiSdlGles3Renderer ImGuiSdlGles3Renderer}.
  *
  * <p><b>Runtime requirement.</b> The module needs imgui-java 1.92.x, version 1.92.7.1 or later within 1.92 (the
  * {@code imgui.binding} and {@code imgui.lwjgl3} modules), at runtime. The library declares it as a runtime
@@ -49,6 +58,24 @@
  * ({@code org.lwjgl.sdl}), which imgui-java supplies, so on the module path it must be present at runtime for every
  * host, even one that never uses SDL, such as a jME or GLFW host. The module reads {@code lorisui.api} transitively,
  * so the API types are available to every module that requires this one.
+ *
+ * <p><b>Ported renderer modules.</b> The OpenGL ES 3 and Vulkan variants draw with Java ports of Dear ImGui's renderer
+ * backends, which live in two internal modules, {@code lorisui.imgui.gles3} and {@code lorisui.imgui.vulkan} (the
+ * {@code loris-ui-imgui-gles3} and {@code loris-ui-imgui-vulkan} artifacts), distributed under the MIT License. They
+ * export nothing to applications. The library declares them as runtime dependencies, and this module requires them,
+ * so on the module path both must be present at runtime for every host, even one that uses neither variant.
+ *
+ * <p><b>OpenGL ES and Vulkan bindings.</b> LWJGL's OpenGL ES binding ({@code org.lwjgl.opengles}) and Vulkan binding
+ * ({@code org.lwjgl.vulkan}) are optional: each is needed, at compile time and at runtime, only by the variant and
+ * backend that use it, so applications that use only the OpenGL or SDL_GPU variants need neither. The application
+ * supplies them; jMonkeyEngine brings the OpenGL ES binding for its ANGLE renderer. This module and the ported
+ * renderer modules read them only optionally and neither pass them on nor add them to the module graph, so on the
+ * module path an application that uses one of these variants makes sure that its binding is resolved at runtime: a
+ * modular application that uses the Vulkan variant declares {@code requires org.lwjgl.vulkan}, and a modular
+ * jMonkeyEngine application that runs with jMonkeyEngine's default ANGLE renderer declares
+ * {@code requires org.lwjgl.opengles} or is started with {@code --add-modules org.lwjgl.opengles}, as jMonkeyEngine
+ * itself needs under that renderer. Neither needs to require the ported renderer modules. At compile time an
+ * application needs a binding only if its own code uses that binding's types.
  *
  * <p><b>Dear ImGui assertions.</b> A failed Dear ImGui assertion terminates the JVM: imgui-java reports it and then
  * calls {@code System.exit(1)}. The renderer disables the assertions of Dear ImGui's error recovery, so exceptions
@@ -64,7 +91,11 @@ module lorisui.imgui {
     requires transitive lorisui.api;
     requires imgui.binding;
     requires imgui.lwjgl3;
+    requires lorisui.imgui.gles3;
+    requires lorisui.imgui.vulkan;
     requires org.lwjgl.opengl;
+    requires static org.lwjgl.opengles;
     requires org.lwjgl.sdl;
     requires org.lwjgl.stb;
+    requires static org.lwjgl.vulkan;
 }

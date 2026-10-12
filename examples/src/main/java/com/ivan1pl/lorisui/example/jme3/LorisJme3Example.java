@@ -65,20 +65,24 @@ public class LorisJme3Example extends SimpleApplication {
         return imGuiJmeDisplay != null && guiViewPort.getProcessors().contains(imGuiJmeDisplay);
     }
 
-    private static AppSettings createDefaultSettings() {
+    static AppSettings createDefaultSettings() {
         AppSettings settings = new AppSettings(true);
         settings.setHeight(ExampleSettings.WINDOW_HEIGHT);
         settings.setWidth(ExampleSettings.WINDOW_WIDTH);
         settings.setFullscreen(false);
-        settings.setRenderer(AppSettings.LWJGL_OPENGL33);
+        settings.setTitle("LorisUI jME3 Example (OpenGL ES 3 / ANGLE)");
         return settings;
     }
 
-    static void main() {
+    static void start(AppSettings settings) {
         Locale.setDefault(ExampleSettings.LOCALE);
         var app = new LorisJme3Example();
         app.setShowSettings(false);
-        app.setSettings(createDefaultSettings());
+        app.setSettings(settings);
         app.start();
+    }
+
+    static void main() {
+        start(createDefaultSettings());
     }
 }

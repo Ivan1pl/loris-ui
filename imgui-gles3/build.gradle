@@ -1,0 +1,22 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+description = 'Dear ImGui OpenGL ES 3 renderer port used by the LorisUI Dear ImGui backend.'
+ext.pomName = 'LorisUI Dear ImGui OpenGL ES 3 renderer port'
+ext.license = [
+        name: 'The MIT License',
+        url : 'https://opensource.org/license/mit',
+        file: file('LICENSE'),
+]
+
+dependencies {
+    compileOnly "io.github.spair:imgui-java-app:${rootProject.ext.imguiVersion}"
+    compileOnly "org.lwjgl:lwjgl-opengles:${rootProject.ext.lwjglVersion}"
+}
+
+tasks.named('javadoc', Javadoc) {
+    exclude 'com/ivan1pl/lorisui/imgui/gles3/**'
+    options.addPathOption('sourcepath').value = sourceSets.main.java.srcDirs.toList()
+}
