@@ -1,6 +1,6 @@
 package com.ivan1pl.lorisui.jme3;
 
-import com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer;
+import com.ivan1pl.lorisui.imgui.ImGuiSdlGl3Renderer;
 import com.jme3.input.RawInputListener;
 import com.jme3.input.event.JoyAxisEvent;
 import com.jme3.input.event.JoyButtonEvent;
@@ -10,9 +10,9 @@ import com.jme3.input.event.MouseMotionEvent;
 import com.jme3.input.event.TouchEvent;
 
 final class ImGuiInputSystem implements RawInputListener {
-    private final ImGuiOpenGlRenderer renderer;
+    private final ImGuiSdlGl3Renderer renderer;
 
-    ImGuiInputSystem(ImGuiOpenGlRenderer renderer) {
+    ImGuiInputSystem(ImGuiSdlGl3Renderer renderer) {
         this.renderer = renderer;
     }
 

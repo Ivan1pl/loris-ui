@@ -3,13 +3,14 @@ plugins {
     id 'maven-publish'
 }
 
-description = 'Renders LorisUI screens with Dear ImGui on OpenGL.'
+description = 'Renders LorisUI screens with Dear ImGui on OpenGL 3 or SDL_GPU.'
 ext.pomName = 'LorisUI Dear ImGui backend'
 
 dependencies {
     api project(':loris-ui-api')
     implementation "org.lwjgl:lwjgl-stb:${rootProject.ext.lwjglVersion}"
     compileOnly "io.github.spair:imgui-java-app:${rootProject.ext.imguiVersion}"
+    compileOnly "org.lwjgl:lwjgl-sdl:${rootProject.ext.lwjglVersion}"
 
     runtimeOnly('io.github.spair:imgui-java-app') {
         version {

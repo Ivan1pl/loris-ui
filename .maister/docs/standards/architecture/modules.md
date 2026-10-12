@@ -14,11 +14,11 @@ A new backend module depends only on `loris-ui-api`; a new host module depends o
 All code lives under `com.ivan1pl.lorisui.<module>.<area>` (e.g. `api.component`, `api.component.style`, `imgui.renderer`, `imgui.renderer.style`); the examples module uses `com.ivan1pl.lorisui.example`. Concrete implementations and internal helpers that are not public API go into an `impl` subpackage (`imgui.impl`, `backend.impl`, `renderer.impl`, `renderer.style.impl`). The Maven group is `com.ivan1pl.loris-ui`.
 
 ### JPMS Module Naming
-Library modules declare a `module-info.java` named `lorisui.<module>` — **no `.main` suffix** (`lorisui.api`, `lorisui.imgui`, `lorisui.lwjgl`). Dependent modules `requires` siblings by that name, with `requires transitive` when the sibling's types appear in their exported signatures (`lorisui.imgui` requires `lorisui.api` transitively, `lorisui.lwjgl` requires `lorisui.imgui` transitively). Toolkit modules used only internally are plain `requires` (`requires org.lwjgl.sdl;` in `lorisui.lwjgl`).
+Library modules declare a `module-info.java` named `lorisui.<module>` — **no `.main` suffix** (`lorisui.api`, `lorisui.imgui`, `lorisui.lwjgl`). Dependent modules `requires` siblings by that name, with `requires transitive` when the sibling's types appear in their exported signatures (`lorisui.imgui` requires `lorisui.api` transitively, `lorisui.lwjgl` requires `lorisui.imgui` transitively). Toolkit modules used only internally are plain `requires` (`requires org.lwjgl.sdl;` in `lorisui.imgui` for SDL_GPU and in `lorisui.lwjgl`, `requires org.lwjgl.glfw;` in `lorisui.lwjgl`).
 A module that can't be a named module because its dependencies split packages (`jme3`, against the jME3 jars) has no `module-info.java`; its jar declares `Automatic-Module-Name: lorisui.<module>` instead (see `build/gradle.md`).
 
 ### Internal `impl` Packages Are Not Exported
-`module-info.java` exports only public contract packages, each listed explicitly. `impl` subpackages are never exported. When adding a new public package, add an `exports` line (and a `package-info.java`, see `global/commenting.md`); keep implementation classes in `impl`.
+`module-info.java` exports only public contract packages, each listed explicitly. `impl` subpackages are never exported. When adding a new public package, add an `exports` line (and a `package-info.java`, see `global/commenting.md`); keep implementation classes in `impl`. Host-internal logic shared by the classes of one exported package (the LWJGL displays' `ImGuiLwjglDisplayBase` and `ImGuiLwjglSdlInput`) may instead be package-private in that package, which keeps it out of the API without an `impl` package.
 
 ```java
 module lorisui.imgui {
@@ -28,11 +28,13 @@ module lorisui.imgui {
     exports com.ivan1pl.lorisui.imgui.renderer.style;
     // com.ivan1pl.lorisui.imgui.impl and com.ivan1pl.lorisui.imgui.renderer.impl are NOT exported
     requires transitive lorisui.api;
+    requires org.lwjgl.sdl;
 }
 
 module lorisui.lwjgl {
     exports com.ivan1pl.lorisui.lwjgl;
     requires transitive lorisui.imgui;
+    requires org.lwjgl.glfw;
     requires org.lwjgl.sdl;
 }
 ```

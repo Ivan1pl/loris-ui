@@ -1,18 +1,26 @@
 /**
- * Renders LorisUI screens with Dear ImGui on OpenGL.
+ * Renders LorisUI screens with Dear ImGui on OpenGL 3 or SDL_GPU.
  *
- * <p>The module provides the {@link com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlBackend backend}, which turns the
- * components of a {@link com.ivan1pl.lorisui.api.screen.LorisScreen LorisScreen} into Dear ImGui widgets, and the
- * {@link com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer frame driver} that a host (a game engine integration or an
- * application's own SDL3 loop) calls each frame.
+ * <p>The module provides the backends, which turn the components of a
+ * {@link com.ivan1pl.lorisui.api.screen.LorisScreen LorisScreen} into Dear ImGui widgets, and the frame drivers that a
+ * host (a game engine integration or an application's own SDL3 or GLFW loop) calls each frame. The frame driver is an
+ * {@link com.ivan1pl.lorisui.imgui.ImGuiRenderer ImGuiRenderer}, whose three variants each pair a windowing library
+ * with a graphics API and are used with the backend for that API:
+ * <ul>
+ *     <li>{@link com.ivan1pl.lorisui.imgui.ImGuiSdlGl3Renderer ImGuiSdlGl3Renderer} (SDL3 with OpenGL 3) and
+ *     {@link com.ivan1pl.lorisui.imgui.ImGuiGlfwGl3Renderer ImGuiGlfwGl3Renderer} (GLFW with OpenGL 3), with an
+ *     {@link com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlBackend ImGuiOpenGlBackend};</li>
+ *     <li>{@link com.ivan1pl.lorisui.imgui.ImGuiSdlGpuRenderer ImGuiSdlGpuRenderer} (SDL3 with SDL_GPU), with an
+ *     {@link com.ivan1pl.lorisui.imgui.backend.ImGuiSdlGpuBackend ImGuiSdlGpuBackend}.</li>
+ * </ul>
  *
- * <p><b>Renderer lifecycle and fonts.</b> An {@link com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer ImGuiOpenGlRenderer}
- * owns its Dear ImGui context. It is constructed without touching native state,
- * {@linkplain com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer#initialize() initialized} once the window's OpenGL context
- * exists, and {@linkplain com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer#dispose() disposed} before that context goes
- * away, which also releases every texture the backend has loaded. A disposed renderer can be initialized again. Fonts
- * are registered with the renderer (or through a host display) before it is initialized; each registration returns an
- * {@link com.ivan1pl.lorisui.imgui.ImGuiFont ImGuiFont} that stays valid across disposal and re-initialization.
+ * <p><b>Renderer lifecycle and fonts.</b> An {@code ImGuiRenderer} owns its Dear ImGui context. It is constructed
+ * without touching native state, {@linkplain com.ivan1pl.lorisui.imgui.ImGuiRenderer#initialize() initialized} once
+ * the window's graphics context is ready, and {@linkplain com.ivan1pl.lorisui.imgui.ImGuiRenderer#dispose() disposed}
+ * before that context goes away, which also releases every texture the backend has loaded. A disposed renderer can be
+ * initialized again. Fonts are registered with the renderer (or through a host display) before it is initialized;
+ * each registration returns an {@link com.ivan1pl.lorisui.imgui.ImGuiFont ImGuiFont} that stays valid across disposal
+ * and re-initialization.
  *
  * <p><b>Extension SPI.</b> Each component type is drawn by a
  * {@link com.ivan1pl.lorisui.imgui.renderer.Renderer Renderer} and each style type is applied by a
@@ -24,10 +32,11 @@
  * {@link com.ivan1pl.lorisui.imgui.backend.ImGuiBackend#registerStyleApplier(Class,
  * com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier) registerStyleApplier}, on the backend or through a host
  * display; a registration also replaces a built-in one. Renderers load and draw textures through the
- * {@link com.ivan1pl.lorisui.imgui.renderer.RendererProvider RendererProvider} they receive. Supporting a graphics API
- * other than OpenGL means extending {@link com.ivan1pl.lorisui.imgui.backend.ImGuiBackend ImGuiBackend} and
- * implementing its protected {@code createTexture} and {@code deleteTexture} methods;
- * {@link com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlBackend ImGuiOpenGlBackend} is final.
+ * {@link com.ivan1pl.lorisui.imgui.renderer.RendererProvider RendererProvider} they receive. Both bundled backends
+ * are final. A custom {@link com.ivan1pl.lorisui.imgui.backend.ImGuiBackend ImGuiBackend} subclass, which implements
+ * its protected {@code createTexture} and {@code deleteTexture} methods, for example to load textures differently on
+ * OpenGL, works only with the OpenGL renderers, because its textures must be OpenGL texture names. Supporting another
+ * graphics API needs a new renderer variant inside this module, so it is not an extension point.
  *
  * <p><b>Runtime requirement.</b> The module needs imgui-java 1.92.x, version 1.92.7.1 or later within 1.92 (the
  * {@code imgui.binding} and {@code imgui.lwjgl3} modules), at runtime. The library declares it as a runtime
@@ -36,8 +45,10 @@
  * custom {@link com.ivan1pl.lorisui.imgui.renderer.Renderer Renderer}, must add imgui-java to its own build and, on
  * the module path, {@code requires imgui.binding}. On JDK 25, imgui-java and LWJGL load native code, so run the
  * application with {@code --enable-native-access} ({@code ALL-UNNAMED} on the class path, the names of those modules
- * on the module path) to avoid restricted-method warnings. The module reads {@code lorisui.api} transitively, so the
- * API types are available to every module that requires this one.
+ * on the module path) to avoid restricted-method warnings. The module also requires LWJGL's SDL3 binding
+ * ({@code org.lwjgl.sdl}), which imgui-java supplies, so on the module path it must be present at runtime for every
+ * host, even one that never uses SDL, such as a jME or GLFW host. The module reads {@code lorisui.api} transitively,
+ * so the API types are available to every module that requires this one.
  *
  * <p><b>Dear ImGui assertions.</b> A failed Dear ImGui assertion terminates the JVM: imgui-java reports it and then
  * calls {@code System.exit(1)}. The renderer disables the assertions of Dear ImGui's error recovery, so exceptions
@@ -54,5 +65,6 @@ module lorisui.imgui {
     requires imgui.binding;
     requires imgui.lwjgl3;
     requires org.lwjgl.opengl;
+    requires org.lwjgl.sdl;
     requires org.lwjgl.stb;
 }

@@ -1,7 +1,7 @@
 # Technology Stack
 
 ## Overview
-This document describes the technology choices and rationale for LorisUI, a multi-module Java UI library. A toolkit-agnostic API is rendered through Dear ImGui and hosted in jMonkeyEngine 3 or in an application's own LWJGL/SDL3 loop.
+This document describes the technology choices and rationale for LorisUI, a multi-module Java UI library. A toolkit-agnostic API is rendered through Dear ImGui and hosted in jMonkeyEngine 3 or in an application's own LWJGL loop (SDL3 with OpenGL 3 or SDL_GPU, or GLFW with OpenGL 3).
 
 ## Languages
 
@@ -10,11 +10,11 @@ This document describes the technology choices and rationale for LorisUI, a mult
 - **Rationale**: modern language features and a JPMS module system. Policy: **track the latest LTS release** and never target non-LTS versions.
 - **Key Features Used**:
   - Records (`TextureData` in `imgui.backend`, `ComboBox.Item`)
-  - Sealed class hierarchies (`ImageMode` and its final nested variants)
+  - Sealed class hierarchies (`ImageMode` and its final nested variants; the top-level `ImGuiRenderer` with its three final variants)
   - Pattern-matching `switch`, including unnamed patterns `_` (Java 22+)
-  - Instance/static `main()` without arguments (final in Java 25), used in `LorisJme3Example` and `LorisLwjglExample`
+  - Instance/static `main()` without arguments (final in Java 25), used in `LorisJme3Example`, `LorisLwjglSdlGl3Example`, `LorisLwjglGlfwGl3Example` and `LorisLwjglSdlGpuExample`
   - `var`, lambdas, generics with self-typed builders (`BaseBuilder<PanelType, BuilderType>`)
-  - JPMS `module-info.java` in `api` (`lorisui.api`), `imgui` (`lorisui.imgui`, `requires transitive lorisui.api`) and `lwjgl` (`lorisui.lwjgl`, `requires transitive lorisui.imgui`); `jme3` is an automatic module (`Automatic-Module-Name: lorisui.jme3`)
+  - JPMS `module-info.java` in `api` (`lorisui.api`), `imgui` (`lorisui.imgui`, `requires transitive lorisui.api`, `requires org.lwjgl.sdl`) and `lwjgl` (`lorisui.lwjgl`, `requires transitive lorisui.imgui`, `requires org.lwjgl.glfw` and `org.lwjgl.sdl`); `jme3` is an automatic module (`Automatic-Module-Name: lorisui.jme3`)
 - **Toolchain**: root `allprojects` sets a Java 25 Gradle toolchain for every module with the `java` plugin, so the JDK that runs Gradle does not matter. A JDK 25 must be installed locally: there is no foojay resolver, so Gradle does not download JDKs.
   - If Gradle selects a JDK it auto-provisioned earlier (under `~/.gradle/jdks`), it prints a Gradle 10 deprecation warning about auto-provisioning without toolchain repositories. Fix it by deleting that JDK from `~/.gradle/jdks`; Gradle then auto-detects the system JDK 25.
 
@@ -24,17 +24,17 @@ This document describes the technology choices and rationale for LorisUI, a mult
 ## Frameworks
 
 ### UI Toolkit
-- **Dear ImGui** via `io.github.spair:imgui-java-app` **1.92.7.1**: immediate-mode GUI used by the `imgui` backend. LorisUI uses the SDL3 and OpenGL 3 platform/renderer implementations (`imgui.gl3`, `imgui.sdl3`), wrapped in `ImGuiOpenGlRenderer`.
+- **Dear ImGui** via `io.github.spair:imgui-java-app` **1.92.7.1**: immediate-mode GUI used by the `imgui` backend. LorisUI uses three of its platform/renderer pairs, each wrapped in a final variant of the sealed `ImGuiRenderer`: SDL3 + OpenGL 3 (`imgui.sdl3.ImGuiImplSdl3`, `imgui.gl3.ImGuiImplGl3`) in `ImGuiSdlGl3Renderer`, GLFW + OpenGL 3 (`imgui.glfw.ImGuiImplGlfw`, `ImGuiImplGl3`) in `ImGuiGlfwGl3Renderer`, and SDL3 + SDL_GPU (`ImGuiImplSdl3`, `imgui.sdl3.ImGuiImplSdlGpu3`) in `ImGuiSdlGpuRenderer`.
   - No ImGui type appears in an exported signature, so `loris-ui-imgui` compiles against the pinned version (`compileOnly`) and declares a `runtimeOnly` rich-version range (`require "[1.92.7.1,1.93)"`, `prefer "1.92.7.1"`). The range is capped below the next minor because imgui-java is not semver and a published POM carries only the range (Maven ignores `prefer`); raise the cap when moving to a new imgui-java minor. Consumers get imgui-java at runtime but not on their compile classpath; the version is `ext.imguiVersion`.
   - Code that calls Dear ImGui directly (a custom `Renderer`) adds imgui-java to its own build and, on the module path, `requires imgui.binding`.
   - On JDK 25, imgui-java and LWJGL load native code, so applications pass `--enable-native-access` to avoid restricted-method warnings.
   - **Offline builds**: the range needs network access the first time runtime classpaths resolve it; see "Dependency Scopes for Toolkit Libraries" in `standards/build/gradle.md`.
 
 ### Graphics / Native
-- **LWJGL** **3.4.1**: `lwjgl-stb` (an `implementation` dependency of `loris-ui-imgui`, so consumers get it at runtime only) for image decoding when loading textures, plus the OpenGL and SDL bindings (through imgui-java). `lwjgl-stb` native classifiers for Windows, Linux, macOS and macOS arm64 (`natives-windows`, `natives-linux`, `natives-macos`, `natives-macos-arm64`) are declared as `runtimeOnly`.
+- **LWJGL** **3.4.1**: `lwjgl-stb` (an `implementation` dependency of `loris-ui-imgui`, so consumers get it at runtime only) for image decoding when loading textures, plus the OpenGL, SDL and GLFW bindings (through imgui-java). `loris-ui-imgui` also compiles against `lwjgl-sdl` as `compileOnly`, for the SDL_GPU calls of `ImGuiSdlGpuRenderer` and `ImGuiSdlGpuBackend`; at runtime it comes with imgui-java. `lwjgl-stb` native classifiers for Windows, Linux, macOS and macOS arm64 (`natives-windows`, `natives-linux`, `natives-macos`, `natives-macos-arm64`) are declared as `runtimeOnly`.
   - `loris-ui-jme3` compiles against `lwjgl` and `lwjgl-sdl` as `compileOnly`, because jME's `SdlEventListener` signature uses `SDL_Event`; at runtime the application's `jme3-lwjgl3` supplies them.
-  - `loris-ui-lwjgl` compiles against `lwjgl` and `lwjgl-sdl` as `compileOnly` (it reads SDL event types); at runtime they come with imgui-java, whose POM brings `lwjgl`, `lwjgl-sdl` and `lwjgl-opengl` with their natives.
-  - `examples` declares `lwjgl`, `lwjgl-sdl` and `lwjgl-opengl` as `implementation`, because `LorisLwjglExample` creates its own SDL window and OpenGL context.
+  - `loris-ui-lwjgl` compiles against `lwjgl`, `lwjgl-sdl` and `lwjgl-glfw` as `compileOnly` (it reads SDL event types and chains GLFW callbacks); at runtime they come with imgui-java, whose POM brings `lwjgl`, `lwjgl-sdl`, `lwjgl-glfw` and `lwjgl-opengl` with their natives (GLFW and SDL natives only for Linux, macOS, macOS arm64 and Windows).
+  - `examples` declares `lwjgl`, `lwjgl-sdl`, `lwjgl-glfw` and `lwjgl-opengl` as `implementation`, because the LWJGL examples create their own SDL or GLFW window and OpenGL context or SDL_GPU device.
 
 ### Game Engine Host
 - **jMonkeyEngine** **3.10.0-SNAPSHOT**: `jme3-core` and `jme3-lwjgl3`, non-transitive `compileOnly` in `jme3`, so the published `loris-ui-jme3` carries no jME dependency and the application declares the jME modules it uses; `examples` declares `jme3-core`, `jme3-lwjgl3` and `jme3-desktop` as `implementation`. LorisUI integrates as a `SceneProcessor` (`ImGuiJmeDisplay`).
@@ -42,12 +42,12 @@ This document describes the technology choices and rationale for LorisUI, a mult
   - jME3 jars split packages, so `loris-ui-jme3` stays on the classpath (no `module-info.java`) and sets `Automatic-Module-Name: lorisui.jme3` in its jar manifest.
 
 ### Standalone Host
-- **LWJGL SDL3** (no engine): `loris-ui-lwjgl` (`ImGuiLwjglDisplay`) is embedded in an application that owns the SDL window, its OpenGL context and the loop. It is a named module (`lorisui.lwjgl`) and depends only on `loris-ui-imgui`.
+- **LWJGL** (no engine): `loris-ui-lwjgl` is embedded in an application that owns the window, its OpenGL context or GPU device, and the loop. It offers one display per platform/renderer pair: `ImGuiLwjglSdlGl3Display` (SDL3 + OpenGL 3), `ImGuiLwjglGlfwGl3Display` (GLFW + OpenGL 3, chaining the window's GLFW input callbacks) and `ImGuiLwjglSdlGpuDisplay` (SDL3 + SDL_GPU, drawing into the application's command buffer and target texture). It is a named module (`lorisui.lwjgl`) and depends only on `loris-ui-imgui`.
 
 ### Testing
 - **JUnit 6.0.0** (Jupiter) through `junit-bom`, with `junit-platform-launcher`, declared in every Java module. The JUnit Platform is enabled for all `Test` tasks by the lazy `tasks.withType(Test).configureEach { useJUnitPlatform() }` hook in root `allprojects`.
 - **Mockito 5.24.0** (`mockito-core`, version in root `ext`) declared only in `api`, whose tests use it for callbacks. `api` loads Mockito as a `-javaagent` from a non-transitive `mockitoAgent` configuration, avoiding the JDK 21+ dynamic-agent warning. `imgui` and `lwjgl` use JUnit only, with hand-written fakes.
-- **Status**: unit tests exist in `api` (builders, styles, `Color`, `ImageMode`, `LorisScreen`, `ScreenManager` including two-phase deactivation, `DeferredRelease`, `ResourceBundleKeyResolver`), `imgui` (`ImGuiBackend` lookup and registration, the per-backend texture cache and unload, texture masking, class-path resource lookup, native-free `ImGuiOpenGlRenderer` gating, `ImGuiFont` glyph-range validation) and `lwjgl` (native-free `ImGuiLwjglDisplay` gating). They don't need a GL context or imgui-java on the test compile classpath. `jme3` and `examples` have no tests; the native lifecycle is verified manually by running the examples.
+- **Status**: unit tests exist in `api` (builders, styles, `Color`, `ImageMode`, `LorisScreen`, `ScreenManager` including two-phase deactivation, `DeferredRelease`, `ResourceBundleKeyResolver`), `imgui` (`ImGuiBackend` lookup and registration, the per-backend texture cache and unload, texture masking, Repeat tile spans (`TextureTiling`), missing-resource `DecodedImage`, class-path resource lookup, native-free gating of the three renderer variants and `ImGuiSdlGpuBackend`, `ImGuiFont` glyph-range validation) and `lwjgl` (native-free gating of the three displays, and the GLFW display's callback-dispatch rules through a package-private seam). They don't need a GL context or imgui-java on the test compile classpath. `jme3` and `examples` have no tests; the native lifecycle is verified manually by running the examples.
 
 ## Database
 None. LorisUI is a client-side UI library.
@@ -60,7 +60,7 @@ None. LorisUI is a client-side UI library.
 - Group `com.ivan1pl.loris-ui`, version `1.0-SNAPSHOT`
 - Shared versions are set as root `ext` properties (`jmonkeyVersion`, `lwjglVersion`, `mockitoVersion`, `imguiVersion`, `checkstyleVersion`) and referenced as `rootProject.ext.<name>`. There is no version catalog.
 - Root `allprojects` also sets the Java 25 toolchain, Checkstyle, the JUnit Platform, publishing and the Javadoc gate through lazy hooks (`plugins.withId('java')`, `plugins.withId('maven-publish')`, `tasks.withType(Test).configureEach`)
-- Running the examples: `./gradlew :examples:runJme3Example` and `./gradlew :examples:runLwjglExample` (`JavaExec` tasks in the `application` group, on the Java 25 toolchain, passing `--enable-native-access=ALL-UNNAMED`). On macOS the SDL-based examples may need `-XstartOnFirstThread`, which the tasks don't pass.
+- Running the examples: `./gradlew :examples:runJme3Example`, `:examples:runLwjglSdlGl3Example`, `:examples:runLwjglGlfwGl3Example` and `:examples:runLwjglSdlGpuExample` (`JavaExec` tasks in the `application` group, on the Java 25 toolchain, passing `--enable-native-access=ALL-UNNAMED`). `runLwjglSdlGpuExample` passes the `lorisui.example.gpuDebug` system property through, so `-Dlorisui.example.gpuDebug=true` creates the SDL_GPU device in debug mode. On macOS the SDL- and GLFW-based examples may need `-XstartOnFirstThread`, which the tasks don't pass.
 
 ## Infrastructure
 
@@ -95,7 +95,9 @@ Provided by the Java compiler. No nullability annotations or static analysers ar
 |---|---|---|---|
 | `io.github.spair:imgui-java-app` | 1.92.7.1 (runtime: `[1.92.7.1,1.93)`, prefer 1.92.7.1) | imgui | compileOnly + runtimeOnly |
 | `org.lwjgl:lwjgl-stb` (+ natives) | 3.4.1 | imgui | implementation / runtimeOnly |
+| `org.lwjgl:lwjgl-sdl` | 3.4.1 | imgui | compileOnly |
 | `org.lwjgl:lwjgl`, `org.lwjgl:lwjgl-sdl` | 3.4.1 | jme3, lwjgl | compileOnly |
+| `org.lwjgl:lwjgl-glfw` | 3.4.1 | lwjgl / examples | compileOnly / implementation |
 | `org.lwjgl:lwjgl`, `org.lwjgl:lwjgl-sdl`, `org.lwjgl:lwjgl-opengl` | 3.4.1 | examples | implementation |
 | `org.jmonkeyengine:jme3-core` | 3.10.0-SNAPSHOT | jme3 / examples | compileOnly / implementation |
 | `org.jmonkeyengine:jme3-lwjgl3` | 3.10.0-SNAPSHOT | jme3 / examples | compileOnly / implementation |
@@ -112,6 +114,6 @@ Provided by the Java compiler. No nullability annotations or static analysers ar
 - Java: latest LTS (currently 25). Upgrade when the next LTS ships (expected: Java 29).
 
 ---
-*Last Updated*: 2026-10-11
+*Last Updated*: 2026-10-12
 *Auto-detected*: languages, versions, modules, dependencies, build config, testing setup (from build files and sources)
 *User-provided*: LTS-only Java policy, dependency-free `api` constraint, publishing goal

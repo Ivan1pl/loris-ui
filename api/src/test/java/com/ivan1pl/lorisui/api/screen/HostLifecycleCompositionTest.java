@@ -81,8 +81,8 @@ class HostLifecycleCompositionTest {
         Assertions.assertFalse(host.deferredRelease.isPending());
     }
 
-    // Mirrors ImGuiLwjglDisplay and ImGuiJmeDisplay without the renderer and input handling: every operation that can
-    // call application code runs through deferredRelease, and close() begins the deactivation before the request
+    // Mirrors the LWJGL displays and ImGuiJmeDisplay without the renderer and input handling: every operation that
+    // can call application code runs through deferredRelease, and close() begins the deactivation before the request
     private final class Host {
         private final ScreenManager screenManager = new ScreenManager();
         private final DeferredRelease deferredRelease = new DeferredRelease(this::release);

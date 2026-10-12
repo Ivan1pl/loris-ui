@@ -6,9 +6,10 @@ package com.ivan1pl.lorisui.imgui.backend;
  * {@link com.ivan1pl.lorisui.imgui.renderer.RendererProvider#renderTexture RendererProvider.renderTexture}. The texture
  * belongs to the backend that loaded it and stays valid until {@link ImGuiBackend#unloadTextures} releases it.
  *
- * @param id     texture ID used to draw the texture
+ * @param id     texture ID used to draw the texture: a backend-specific handle, such as an OpenGL texture name or an
+ *               {@code SDL_GPUTexture*} pointer
  * @param width  width of the texture in pixels
  * @param height height of the texture in pixels
  */
-public record TextureData(int id, int width, int height) {
+public record TextureData(long id, int width, int height) {
 }

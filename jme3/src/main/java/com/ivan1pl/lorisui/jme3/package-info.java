@@ -23,6 +23,6 @@
  * LWJGL 3.4.x, the LWJGL version the Dear ImGui backend uses at runtime. On JDK 25, imgui-java and LWJGL load
  * native code, so run the application with {@code --enable-native-access} ({@code ALL-UNNAMED} on the class path,
  * the names of those modules on the module path) to avoid restricted-method warnings. A failed Dear ImGui assertion
- * terminates the JVM; see {@link com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer}.
+ * terminates the JVM; see {@link com.ivan1pl.lorisui.imgui.ImGuiRenderer}.
  */
 package com.ivan1pl.lorisui.jme3;

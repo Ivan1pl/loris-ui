@@ -130,13 +130,14 @@ The range needs Gradle's version listing, and only runtime classpaths resolve it
 
 Libraries that the consuming application (or another runtime dependency) already supplies at runtime are `compileOnly` only. The `jme3` host compiles against jMonkeyEngine this way (`jme3-core` and `jme3-lwjgl3`), so its published POM and Gradle module metadata carry no jME dependency. Both are non-transitive (`transitive = false`), so jME's own dependencies stay off the host's compile and Javadoc classpath, and the LWJGL modules the host compiles against are declared explicitly; the application declares the jME modules it uses (`jme3-core`, `jme3-lwjgl3`, `jme3-desktop`) itself, as `examples` does with `implementation`.
 
-Both host modules compile against LWJGL the same way: `jme3` against `lwjgl` and `lwjgl-sdl` (jME's `SdlEventListener` signature uses `SDL_Event`), which the application's `jme3-lwjgl3` provides; `lwjgl` against `lwjgl` and `lwjgl-sdl`, which arrive at runtime with imgui-java. An application that calls LWJGL itself (the LWJGL example creates its window and GL context) declares the LWJGL modules it compiles against as `implementation`.
+Both host modules compile against LWJGL the same way: `jme3` against `lwjgl` and `lwjgl-sdl` (jME's `SdlEventListener` signature uses `SDL_Event`), which the application's `jme3-lwjgl3` provides; `lwjgl` against `lwjgl`, `lwjgl-sdl` and `lwjgl-glfw` (SDL events and GLFW callbacks), which arrive at runtime with imgui-java. `imgui` compiles against `lwjgl-sdl` as `compileOnly` too, for its SDL_GPU renderer and texture backend; it also arrives with imgui-java. An application that calls LWJGL itself (the LWJGL examples create their SDL or GLFW window and their GL context or GPU device) declares the LWJGL modules it compiles against as `implementation` (`lwjgl`, `lwjgl-sdl`, `lwjgl-glfw` and `lwjgl-opengl` in `examples`).
 
 ```groovy
 compileOnly("org.jmonkeyengine:jme3-core:${rootProject.ext.jmonkeyVersion}") { transitive = false }
 compileOnly("org.jmonkeyengine:jme3-lwjgl3:${rootProject.ext.jmonkeyVersion}") { transitive = false }
 compileOnly "org.lwjgl:lwjgl:${rootProject.ext.lwjglVersion}"
 compileOnly "org.lwjgl:lwjgl-sdl:${rootProject.ext.lwjglVersion}"
+// lwjgl only: compileOnly "org.lwjgl:lwjgl-glfw:${rootProject.ext.lwjglVersion}"
 ```
 
 Native libraries are `runtimeOnly` with one declaration per platform classifier: `natives-windows`, `natives-linux`, `natives-macos` and `natives-macos-arm64`.
@@ -165,14 +166,23 @@ tasks.named('jar', Jar) {
 ```
 
 ### Example Run Tasks
-The `examples` module registers one `JavaExec` task per example (`runJme3Example`, `runLwjglExample`) instead of applying the `application` plugin. Each sets `group = 'application'`, a description, `classpath = sourceSets.main.runtimeClasspath` and the main class, and passes `--enable-native-access=ALL-UNNAMED` so imgui-java and LWJGL load native code without restricted-method warnings on JDK 25. The tasks use the Java 25 toolchain by convention.
+The `examples` module registers one `JavaExec` task per example (`runJme3Example`, `runLwjglSdlGl3Example`, `runLwjglGlfwGl3Example`, `runLwjglSdlGpuExample`) instead of applying the `application` plugin. Each sets `group = 'application'`, a description, `classpath = sourceSets.main.runtimeClasspath` and the main class, and passes `--enable-native-access=ALL-UNNAMED` so imgui-java and LWJGL load native code without restricted-method warnings on JDK 25. The tasks use the Java 25 toolchain by convention. A system property that an example reads is passed through explicitly with `systemProperty` and `providers.systemProperty(...)`, because `JavaExec` does not inherit the Gradle JVM's properties: `runLwjglSdlGpuExample` passes `lorisui.example.gpuDebug` (default `false`), so `./gradlew :examples:runLwjglSdlGpuExample -Dlorisui.example.gpuDebug=true` creates the SDL_GPU device in debug mode, with validation.
 
 ```groovy
-tasks.register('runLwjglExample', JavaExec) {
+tasks.register('runLwjglSdlGl3Example', JavaExec) {
     group = 'application'
-    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window.'
+    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window with OpenGL 3.'
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglExample'
+    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGl3Example'
     jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+
+tasks.register('runLwjglSdlGpuExample', JavaExec) {
+    group = 'application'
+    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window with SDL_GPU.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGpuExample'
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    systemProperty 'lorisui.example.gpuDebug', providers.systemProperty('lorisui.example.gpuDebug').getOrElse('false')
 }
 ```

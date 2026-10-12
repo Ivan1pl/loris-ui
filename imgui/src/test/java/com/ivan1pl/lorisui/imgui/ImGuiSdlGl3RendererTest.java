@@ -16,7 +16,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-class ImGuiOpenGlRendererTest {
+class ImGuiSdlGl3RendererTest {
     private static final long WINDOW_HANDLE = 1L;
     // 28 bytes, too short to be accepted as font data
     private static final String TEST_RESOURCE = "classpath-resources-test.txt";
@@ -33,7 +33,19 @@ class ImGuiOpenGlRendererTest {
             throw new UnsupportedOperationException();
         }
     };
-    private final ImGuiOpenGlRenderer renderer = new ImGuiOpenGlRenderer(backend, WINDOW_HANDLE);
+    private final ImGuiSdlGl3Renderer renderer = new ImGuiSdlGl3Renderer(backend, WINDOW_HANDLE);
+
+    @Test
+    void shouldRejectNullBackend() {
+        Assertions.assertThrows(NullPointerException.class, () -> new ImGuiSdlGl3Renderer(null, WINDOW_HANDLE));
+    }
+
+    @Test
+    void shouldAcceptZeroWindowHandleAndIgnoreDispose() {
+        ImGuiSdlGl3Renderer withoutWindow = new ImGuiSdlGl3Renderer(backend, 0L);
+
+        Assertions.assertDoesNotThrow(withoutWindow::dispose);
+    }
 
     @Test
     void shouldRejectInvalidFontRegistrationArguments() {

@@ -5,6 +5,7 @@ import com.ivan1pl.lorisui.api.component.*;
 import com.ivan1pl.lorisui.api.component.style.*;
 import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
+import com.ivan1pl.lorisui.imgui.backend.impl.TextureTiling;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
 import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
 import com.ivan1pl.lorisui.imgui.renderer.impl.*;
@@ -36,12 +37,18 @@ import java.util.Set;
  * <p><b>Textures.</b> Renderers draw images with {@link #loadTexture(String)} and {@link #renderTexture}. Each backend
  * owns the textures it loads and returns the same texture for the same image resource and masks until
  * {@link #unloadTextures} releases them all; textures requested afterwards are loaded again. Textures cannot be
- * unloaded while a frame is being drawn, for example from a component callback.
+ * unloaded while a frame is being drawn, for example from a component callback. {@link ImageMode.Repeat} images are
+ * drawn as a grid of texture tiles, cut at the right and bottom edges, so textures need no repeating wrap mode.
  *
- * <p>A backend for another graphics API subclasses this class and implements {@link #createTexture} and
- * {@link #deleteTexture}; {@link ImGuiOpenGlBackend}, the OpenGL implementation, is final. A host passes the backend to
- * {@link com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer}; the bundled jMonkeyEngine and LWJGL hosts always use their
- * own {@code ImGuiOpenGlBackend}.
+ * <p><b>Backends and renderers.</b> Each backend matches the graphics API of a renderer variant:
+ * {@link ImGuiOpenGlBackend} is used with {@link com.ivan1pl.lorisui.imgui.ImGuiSdlGl3Renderer} and
+ * {@link com.ivan1pl.lorisui.imgui.ImGuiGlfwGl3Renderer}, and {@link ImGuiSdlGpuBackend} with
+ * {@link com.ivan1pl.lorisui.imgui.ImGuiSdlGpuRenderer}. Both are final. A custom subclass of this class, which
+ * implements {@link #createTexture} and {@link #deleteTexture}, for example to load textures differently on OpenGL,
+ * works only with the OpenGL renderers, because the textures it creates must be OpenGL texture names. Supporting
+ * another graphics API needs a new renderer variant inside this module, so it is not an extension point. The bundled
+ * hosts always use their own backend: the jMonkeyEngine display and the LWJGL displays for OpenGL use an
+ * {@code ImGuiOpenGlBackend}, and the LWJGL display for SDL_GPU uses an {@code ImGuiSdlGpuBackend}.
  *
  * <p>The backend is used on the host's UI thread only.
  */
@@ -241,7 +248,9 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
      * forgets all textures even when releasing one of them fails.
      *
      * <p>Textures cannot be unloaded while a frame is being drawn, for example from a component callback, because the
-     * frame may still draw them. Must be called on the host's UI thread with the graphics context current.
+     * frame may still draw them. Must be called on the host's UI thread with the window's graphics context ready: for
+     * the OpenGL renderers, the window's OpenGL context current; for the SDL_GPU renderer, its GPU device not yet
+     * destroyed.
      *
      * @throws IllegalStateException if called while the backend is drawing a frame; no texture is released then
      * @throws RuntimeException      the first failure of releasing a texture, after all other textures have been
@@ -287,7 +296,7 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
      * every pixel is recolored with {@link Color#mask(Color, Color, Color) Color.mask(maskedR, maskedG, maskedB)}; when
      * all masks are {@code null}, the image is loaded unchanged.
      *
-     * <p>Called on the host's UI thread, with the graphics context current.
+     * <p>Called on the host's UI thread, with the window's graphics context ready, as for {@link #unloadTextures()}.
      *
      * @param resourcePath class-path resource name of the image, without a leading {@code /}; never {@code null}
      * @param maskedR      color replacing the red channel, or {@code null} to keep it
@@ -302,14 +311,15 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
 
     /**
      * Releases a texture created by {@link #createTexture}. Called once per texture by {@link #unloadTextures}, on the
-     * host's UI thread with the graphics context current.
+     * host's UI thread with the window's graphics context ready.
      *
      * @param texture texture to release; never {@code null}
      */
     protected abstract void deleteTexture(TextureData texture);
 
     @Override
-    public void renderTexture(int id, ImageMode imageMode, int width, int height, int textureWidth, int textureHeight) {
+    public void renderTexture(long id, ImageMode imageMode, int width, int height, int textureWidth,
+                              int textureHeight) {
         switch (imageMode) {
             case ImageMode.Repeat _ -> renderTextureRepeat(id, width, height, textureWidth, textureHeight);
             case ImageMode.Fit _ -> renderTextureFit(id, width, height);
@@ -331,17 +341,28 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
         return mask == null ? NO_COLOR_KEY : mask;
     }
 
-    private void renderTextureRepeat(int id, int width, int height, int textureWidth, int textureHeight) {
-        ImGui.image(id, width, height, 0f, 0f,
-                ((float) width) / ((float) textureWidth),
-                ((float) height) / ((float) textureHeight));
+    private void renderTextureRepeat(long id, int width, int height, int textureWidth, int textureHeight) {
+        int[] columns = TextureTiling.spans(width, textureWidth);
+        int[] rows = TextureTiling.spans(height, textureHeight);
+        for (int rowHeight : rows) {
+            float v1 = (float) rowHeight / (float) textureHeight;
+            int x = 0;
+            for (int column = 0; column < columns.length; column++) {
+                int columnWidth = columns[column];
+                if (column > 0) {
+                    ImGui.sameLine(x, 0);
+                }
+                ImGui.image(id, columnWidth, rowHeight, 0f, 0f, (float) columnWidth / (float) textureWidth, v1);
+                x += columnWidth;
+            }
+        }
     }
 
-    private void renderTextureFit(int id, int width, int height) {
+    private void renderTextureFit(long id, int width, int height) {
         ImGui.image(id, width, height, 0f, 0f, 1f, 1f);
     }
 
-    private void renderTextureSubImage(ImageMode.SubImage subImage, int id, int width, int height, int textureWidth,
+    private void renderTextureSubImage(ImageMode.SubImage subImage, long id, int width, int height, int textureWidth,
                                        int textureHeight) {
         ImGui.image(id, width, height,
                 (float) subImage.getFromX() / (float) textureWidth,
@@ -350,7 +371,7 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
                 (float) (subImage.getToY() + 1) / (float) textureHeight);
     }
 
-    private void renderTextureSprite(ImageMode.Sprite sprite, int id, int width, int height, int textureWidth,
+    private void renderTextureSprite(ImageMode.Sprite sprite, long id, int width, int height, int textureWidth,
                                      int textureHeight) {
         int columns = textureWidth / sprite.getSpriteWidth();
         int row = (sprite.getSpriteIndex() - 1) / columns;
@@ -364,7 +385,7 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
         ImGui.image(id, width, height, u0, v0, u1, v1);
     }
 
-    private void renderTextureSpriteResize(ImageMode.SpriteResize spriteResize, int id, int width, int height,
+    private void renderTextureSpriteResize(ImageMode.SpriteResize spriteResize, long id, int width, int height,
                                            int textureWidth, int textureHeight) {
         int columns = textureWidth / spriteResize.getSpriteWidth();
         int row = (spriteResize.getSpriteIndex() - 1) / columns;
@@ -409,7 +430,7 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
         ImGui.image(id, spriteResize.getX9(), spriteResize.getY3(), u8, v2, u9, v3);
     }
 
-    private void renderTextureSubImageResize(ImageMode.SubImageResize subImageResize, int id, int width, int height,
+    private void renderTextureSubImageResize(ImageMode.SubImageResize subImageResize, long id, int width, int height,
                                              int textureWidth, int textureHeight) {
         float u0 = (float) subImageResize.getFromX() / (float) textureWidth;
         float v0 = (float) subImageResize.getFromY() / (float) textureHeight;

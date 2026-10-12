@@ -3,7 +3,7 @@ package com.ivan1pl.lorisui.example.lwjgl;
 import com.ivan1pl.lorisui.api.font.Font;
 import com.ivan1pl.lorisui.example.shared.ExampleScreen;
 import com.ivan1pl.lorisui.example.shared.ExampleSettings;
-import com.ivan1pl.lorisui.lwjgl.ImGuiLwjglDisplay;
+import com.ivan1pl.lorisui.lwjgl.ImGuiLwjglSdlGl3Display;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL30;
@@ -18,8 +18,8 @@ import java.io.IOException;
 import java.nio.IntBuffer;
 import java.util.Locale;
 
-public class LorisLwjglExample {
-    private static final String WINDOW_TITLE = "LorisUI LWJGL Example";
+public class LorisLwjglSdlGl3Example {
+    private static final String WINDOW_TITLE = "LorisUI LWJGL SDL3 + OpenGL 3 Example";
 
     private boolean uiClosed = false;
 
@@ -29,7 +29,8 @@ public class LorisLwjglExample {
         try {
             setGlAttributes();
             long window = SDLVideo.SDL_CreateWindow(WINDOW_TITLE, ExampleSettings.WINDOW_WIDTH,
-                    ExampleSettings.WINDOW_HEIGHT, SDLVideo.SDL_WINDOW_OPENGL | SDLVideo.SDL_WINDOW_HIGH_PIXEL_DENSITY);
+                    ExampleSettings.WINDOW_HEIGHT, SDLVideo.SDL_WINDOW_OPENGL | SDLVideo.SDL_WINDOW_RESIZABLE
+                            | SDLVideo.SDL_WINDOW_HIGH_PIXEL_DENSITY);
             checkSdl(window != 0, "create the window");
             try {
                 long glContext = SDLVideo.SDL_GL_CreateContext(window);
@@ -54,7 +55,7 @@ public class LorisLwjglExample {
 
     // The display is closed when this method returns, while the OpenGL context and the window still exist
     private void runUi(long window) throws IOException {
-        try (ImGuiLwjglDisplay display = new ImGuiLwjglDisplay(window)) {
+        try (ImGuiLwjglSdlGl3Display display = new ImGuiLwjglSdlGl3Display(window)) {
             display.setResourceBundle(ExampleSettings.BUNDLE_NAME, ExampleSettings.BUNDLE_PATH);
             Font font = display.registerFontFromResources(ExampleSettings.FONT_PATH, ExampleSettings.FONT_SIZE);
             display.addScreen(ExampleSettings.SCREEN_NAME, new ExampleScreen(font, () -> {
@@ -67,7 +68,7 @@ public class LorisLwjglExample {
         }
     }
 
-    private void runLoop(long window, ImGuiLwjglDisplay display) {
+    private void runLoop(long window, ImGuiLwjglSdlGl3Display display) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             SDL_Event event = SDL_Event.calloc(stack);
             IntBuffer windowWidth = stack.mallocInt(1);
@@ -91,7 +92,7 @@ public class LorisLwjglExample {
 
     // Returns false once the application should quit. The example has no input handling of its own, so it ignores
     // whether the UI consumed an event.
-    private static boolean processEvents(SDL_Event event, ImGuiLwjglDisplay display) {
+    private static boolean processEvents(SDL_Event event, ImGuiLwjglSdlGl3Display display) {
         while (SDLEvents.SDL_PollEvent(event)) {
             int type = event.type();
             if (type == SDLEvents.SDL_EVENT_QUIT || type == SDLEvents.SDL_EVENT_WINDOW_CLOSE_REQUESTED) {

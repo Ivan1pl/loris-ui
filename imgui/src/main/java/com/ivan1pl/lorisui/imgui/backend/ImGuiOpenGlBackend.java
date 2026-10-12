@@ -1,22 +1,18 @@
 package com.ivan1pl.lorisui.imgui.backend;
 
 import com.ivan1pl.lorisui.api.core.Color;
-import com.ivan1pl.lorisui.imgui.backend.impl.TextureMasking;
-import com.ivan1pl.lorisui.imgui.impl.ClassPathResources;
+import com.ivan1pl.lorisui.imgui.backend.impl.DecodedImage;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL21;
-import org.lwjgl.stb.STBImage;
-import org.lwjgl.system.MemoryStack;
-import org.lwjgl.system.MemoryUtil;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
 
 /**
  * The OpenGL implementation of {@link ImGuiBackend}, which loads textures from class-path resources into OpenGL
  * textures and deletes them when they are unloaded. Hosts that render with
- * {@link com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer} use this backend.
+ * {@link com.ivan1pl.lorisui.imgui.ImGuiSdlGl3Renderer} or {@link com.ivan1pl.lorisui.imgui.ImGuiGlfwGl3Renderer}
+ * use this backend.
  */
 public final class ImGuiOpenGlBackend extends ImGuiBackend {
     /**
@@ -44,61 +40,22 @@ public final class ImGuiOpenGlBackend extends ImGuiBackend {
     @Override
     protected TextureData createTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB)
             throws IOException {
-        ByteBuffer encoded = null;
-        ByteBuffer pixels = null;
+        try (DecodedImage image = DecodedImage.load(resourcePath, maskedR, maskedG, maskedB)) {
+            int texture = GL11.glGenTextures();
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
 
-        try (InputStream in = ClassPathResources.open(resourcePath)) {
-            if (in == null) {
-                throw new IOException("Image not found: " + resourcePath);
-            }
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
 
-            byte[] bytes = in.readAllBytes();
-            encoded = MemoryUtil.memAlloc(bytes.length);
-            encoded.put(bytes).flip();
+            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+            GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
 
-            try (MemoryStack stack = MemoryStack.stackPush()) {
-                var width = stack.mallocInt(1);
-                var height = stack.mallocInt(1);
-                var channels = stack.mallocInt(1);
+            GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL21.GL_SRGB_ALPHA,
+                    image.getWidth(), image.getHeight(), 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, image.getPixels());
 
-                // Force RGBA output, regardless of source format.
-                pixels = STBImage.stbi_load_from_memory(encoded, width, height, channels, STBImage.STBI_rgb_alpha);
-
-                if (pixels == null) {
-                    throw new IOException(
-                            "Failed to decode image: " + resourcePath + ": " + STBImage.stbi_failure_reason());
-                }
-
-                int w = width.get(0);
-                int h = height.get(0);
-
-                if (maskedR != null || maskedG != null || maskedB != null) {
-                    TextureMasking.apply(pixels, w, h, maskedR, maskedG, maskedB);
-                }
-
-                int texture = GL11.glGenTextures();
-                GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
-
-                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_REPEAT);
-                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL11.GL_REPEAT);
-                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
-
-                GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
-                GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
-
-                GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL21.GL_SRGB_ALPHA,
-                        w, h, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, pixels);
-
-                return new TextureData(texture, w, h);
-            }
-        } finally {
-            if (pixels != null) {
-                STBImage.stbi_image_free(pixels);
-            }
-            if (encoded != null) {
-                MemoryUtil.memFree(encoded);
-            }
+            return new TextureData(texture, image.getWidth(), image.getHeight());
         }
     }
 
@@ -109,6 +66,6 @@ public final class ImGuiOpenGlBackend extends ImGuiBackend {
      */
     @Override
     protected void deleteTexture(TextureData texture) {
-        GL11.glDeleteTextures(texture.id());
+        GL11.glDeleteTextures((int) texture.id());
     }
 }

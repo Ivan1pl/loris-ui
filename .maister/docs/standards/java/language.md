@@ -5,6 +5,7 @@ Target the latest Java LTS release — currently **Java 25**. Never target non-L
 
 ### Modern Java Features
 - Closed variant sets: `sealed abstract class` with a private constructor, lowercase static factories (`ImageMode.sprite(...)`, `Background.color(...)`) and nested `public static final class` variants with private constructors.
+- A sealed hierarchy of top-level classes in one package (`public abstract sealed class ImGuiRenderer permits ImGuiSdlGl3Renderer, ImGuiGlfwGl3Renderer, ImGuiSdlGpuRenderer`, each variant `final`) uses a package-private constructor and package-private hooks (`abstract void initBackends()`, ...), so the variants share the base's lifecycle while the hooks stay out of the public API.
 - Dispatch with an exhaustive pattern `switch` (no `default` branch); order subclass cases before parent cases.
 - Use `instanceof` patterns (`x instanceof Button button`) instead of explicit casts.
 - Records only for small immutable data carriers with no behaviour (`TextureData` in `imgui.backend`, `ComboBox.Item`); anything with builders, suppliers or getters is a regular class.

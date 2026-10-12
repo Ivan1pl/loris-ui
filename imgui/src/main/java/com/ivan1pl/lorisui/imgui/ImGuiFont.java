@@ -9,10 +9,10 @@ import imgui.ImGui;
 import java.util.Objects;
 
 /**
- * A TrueType font registered with an {@link ImGuiOpenGlRenderer}, either directly or through a host display.
+ * A TrueType font registered with an {@link ImGuiRenderer}, either directly or through a host display.
  *
  * <p>The font belongs to the renderer it was registered with and works only with that renderer. It stays valid across
- * {@linkplain ImGuiOpenGlRenderer#dispose() disposing} and {@linkplain ImGuiOpenGlRenderer#initialize() initializing}
+ * {@linkplain ImGuiRenderer#dispose() disposing} and {@linkplain ImGuiRenderer#initialize() initializing}
  * the renderer again, so the same instance can be kept in components for the renderer's whole life. For that, the
  * renderer keeps the font's TrueType data in memory for its whole life, which matters for large fonts. The font can
  * be used only while that renderer is initialized. Fonts work only with the Dear ImGui backend; components drawn by

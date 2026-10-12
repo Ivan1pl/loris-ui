@@ -15,18 +15,19 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-class ImGuiLwjglDisplayTest {
+class ImGuiLwjglSdlGl3DisplayTest {
     private static final long WINDOW_HANDLE = 1L;
     // Never dereferenced: every case returns or throws before the display reads an event
     private static final long EVENT_POINTER = 8L;
     private static final String FONT_RESOURCE = "/fonts/missing-display-test-font.ttf";
+    private static final String CLOSED_MESSAGE = "Display is closed; create a new display to show UI again";
 
     private final List<String> events = new ArrayList<>();
-    private final ImGuiLwjglDisplay display = new ImGuiLwjglDisplay(WINDOW_HANDLE);
+    private final ImGuiLwjglSdlGl3Display display = new ImGuiLwjglSdlGl3Display(WINDOW_HANDLE);
 
     @Test
     void shouldRejectNullWindowHandle() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new ImGuiLwjglDisplay(0L));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new ImGuiLwjglSdlGl3Display(0L));
     }
 
     @Test
@@ -80,6 +81,38 @@ class ImGuiLwjglDisplayTest {
 
         display.addScreen("other", new RecordingScreen("other"));
         display.setCurrentScreen("other");
+        Assertions.assertEquals(List.of(), events);
+    }
+
+    @Test
+    void shouldRejectRenderAfterCloseWithClassNeutralMessage() {
+        display.addScreen("main", new RecordingScreen("main"));
+        display.setCurrentScreen("main");
+        display.close();
+
+        IllegalStateException thrown = Assertions.assertThrows(IllegalStateException.class,
+                () -> display.render(800, 600));
+
+        Assertions.assertEquals(CLOSED_MESSAGE, thrown.getMessage());
+        Assertions.assertEquals(List.of(), events);
+    }
+
+    @Test
+    void shouldRejectBaseRegistrationAfterCloseButRecordScreens() {
+        display.close();
+
+        IllegalStateException fontFailure = Assertions.assertThrows(IllegalStateException.class,
+                () -> display.registerFontFromResources(FONT_RESOURCE, 16, new short[] { 0x0020, 0x007F, 0 }));
+        IllegalStateException rendererFailure = Assertions.assertThrows(IllegalStateException.class,
+                () -> display.registerRenderer(Text.class, new NoOpRenderer()));
+        IllegalStateException initializeFailure = Assertions.assertThrows(IllegalStateException.class,
+                display::initialize);
+
+        Assertions.assertEquals(CLOSED_MESSAGE, fontFailure.getMessage());
+        Assertions.assertEquals(CLOSED_MESSAGE, rendererFailure.getMessage());
+        Assertions.assertEquals(CLOSED_MESSAGE, initializeFailure.getMessage());
+        display.addScreen("main", new RecordingScreen("main"));
+        display.setCurrentScreen("main");
         Assertions.assertEquals(List.of(), events);
     }
 

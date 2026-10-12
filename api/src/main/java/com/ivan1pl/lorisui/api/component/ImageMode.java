@@ -28,6 +28,8 @@ public sealed abstract class ImageMode {
 
     /**
      * Creates a mode that tiles the image at its native pixel size, starting at the top-left corner of the area.
+     * A backend may draw every tile separately, so the cost of drawing grows with the number of tiles; prefer images
+     * that are not much smaller than the area they cover.
      *
      * @return a {@link Repeat} mode
      */
@@ -130,7 +132,8 @@ public sealed abstract class ImageMode {
     }
 
     /**
-     * Tiles the image at its native pixel size. Created by {@link ImageMode#repeat()}.
+     * Tiles the image at its native pixel size. Created by {@link ImageMode#repeat()}. A backend may draw every tile
+     * separately, so prefer images that are not much smaller than the area they cover.
      */
     public static final class Repeat extends ImageMode {
         private Repeat() {}

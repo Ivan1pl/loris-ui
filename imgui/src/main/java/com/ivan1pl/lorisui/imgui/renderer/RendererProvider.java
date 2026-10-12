@@ -45,7 +45,7 @@ public interface RendererProvider {
      * the resource must be outside any Java package of a named module, or in a package that the application module
      * opens unconditionally ({@code opens pkg;}). A qualified {@code opens pkg to ...} is not enough.
      *
-     * <p>Must be called on the host's UI thread with the graphics context current, typically from
+     * <p>Must be called on the host's UI thread with the window's graphics context ready, typically from
      * {@link Renderer#render}.
      *
      * @param resourcePath class-path resource name of the image; must not be null
@@ -69,7 +69,7 @@ public interface RendererProvider {
      * the resource must be outside any Java package of a named module, or in a package that the application module
      * opens unconditionally ({@code opens pkg;}). A qualified {@code opens pkg to ...} is not enough.
      *
-     * <p>Must be called on the host's UI thread with the graphics context current, typically from
+     * <p>Must be called on the host's UI thread with the window's graphics context ready, typically from
      * {@link Renderer#render}.
      *
      * @param resourcePath class-path resource name of the image; must not be null
@@ -85,8 +85,11 @@ public interface RendererProvider {
 
     /**
      * Draws a texture as a {@code width} by {@code height} pixel image at the current Dear ImGui cursor position, using
-     * the given image mode to choose which part of the texture is shown and how it is scaled. Must be called on the
-     * host's UI thread, from a renderer while it draws.
+     * the given image mode to choose which part of the texture is shown and how it is scaled. An
+     * {@link ImageMode.Repeat} image is drawn as a grid of texture tiles at their native size, cut at the right and
+     * bottom edges, so it looks the same with every graphics API. Every tile is a separate Dear ImGui item, so the cost
+     * grows with the number of tiles; prefer textures that are not much smaller than the area they cover. Must be
+     * called on the host's UI thread, from a renderer while it draws.
      *
      * @param id            texture ID, as returned in {@link TextureData#id()}
      * @param imageMode     how the texture is mapped onto the image; must not be null
@@ -94,6 +97,8 @@ public interface RendererProvider {
      * @param height        height of the drawn image in pixels
      * @param textureWidth  full width of the texture in pixels
      * @param textureHeight full height of the texture in pixels
+     * @throws IllegalArgumentException if {@code imageMode} is {@link ImageMode.Repeat} and {@code textureWidth} or
+     *                                  {@code textureHeight} is {@code 0} or less; nothing is drawn then
      */
-    void renderTexture(int id, ImageMode imageMode, int width, int height, int textureWidth, int textureHeight);
+    void renderTexture(long id, ImageMode imageMode, int width, int height, int textureWidth, int textureHeight);
 }

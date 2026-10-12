@@ -15,7 +15,7 @@ private Builder() {}
 ```
 
 ### Import Layout
-IntelliJ default layout: one sorted block of project and third-party imports, a blank line, then `java.*` imports. Within each block, imports are sorted in ASCII order, which is case-sensitive (`com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer` before `com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlBackend`, because uppercase letters sort before lowercase). No static imports. Single-type imports are the default; wildcard imports are acceptable (for example `api.component.*` in `ImGuiBackend`) and need not be expanded.
+IntelliJ default layout: one sorted block of project and third-party imports, a blank line, then `java.*` imports. Within each block, imports are sorted in ASCII order, which is case-sensitive (`com.ivan1pl.lorisui.imgui.ImGuiSdlGl3Renderer` before `com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlBackend`, because uppercase letters sort before lowercase). No static imports. Single-type imports are the default; wildcard imports are acceptable (for example `api.component.*` in `ImGuiBackend`) and need not be expanded.
 
 ```java
 import com.ivan1pl.lorisui.api.component.TextInput;

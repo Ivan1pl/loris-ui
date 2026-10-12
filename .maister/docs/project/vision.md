@@ -1,7 +1,7 @@
 # Project Vision
 
 ## Pitch
-LorisUI is a declarative Java UI library that helps game developers build in-game menus, HUDs and tool screens by describing them as plain component trees (panels, buttons, text, inputs, images, popups) and rendering them through a pluggable backend. Today that backend is Dear ImGui, hosted in jMonkeyEngine 3 or in an application's own LWJGL/SDL3 loop.
+LorisUI is a declarative Java UI library that helps game developers build in-game menus, HUDs and tool screens by describing them as plain component trees (panels, buttons, text, inputs, images, popups) and rendering them through a pluggable backend. Today that backend is Dear ImGui, rendering with OpenGL 3 or SDL_GPU, hosted in jMonkeyEngine 3 or in an application's own LWJGL loop with SDL3 or GLFW.
 
 ## Problem Statement
 Immediate-mode GUI libraries such as Dear ImGui are fast and flexible. But using them directly couples game UI code to the toolkit's API, the render loop and its global state. Retained-mode alternatives tied to a particular engine are hard to move between engines and are usually heavyweight.
@@ -10,16 +10,16 @@ LorisUI separates *what* the UI is (a toolkit-agnostic component model in `loris
 
 ## Target Users
 - **Primary**: the author's own game projects. LorisUI was extracted from a game codebase.
-- **Secondary**: Java game developers, especially jMonkeyEngine users and developers with their own LWJGL/SDL3 loop, who want a lightweight, themeable UI layer built on modern Java.
+- **Secondary**: Java game developers, especially jMonkeyEngine users and developers with their own LWJGL loop on SDL3 or GLFW, who want a lightweight, themeable UI layer built on modern Java.
 - **Future**: developers on other Java hosts and renderers once more backends exist.
 
 ## Key Features
 - **Toolkit-agnostic component model** (`api` module, zero external dependencies): `Panel`, `Button`, `Text`, `Image`, `TextInput`, `NumberInput`, `ComboBox`, `ProgressBar`, `TabbedPanel`, `Popup`/`ModalPopup`, `Spacer`, plus layout, background and style types.
 - **Builder-based, declarative screens**: subclass `LorisScreen`, implement `layout()`, and return a `List<Component>`. Layout is recomputed off the render thread when invalidated.
-- **Pluggable backend** (`Backend` interface): the port is a single toolkit-neutral `render` call that receives the screen's components; textures, fonts and input capture belong to the backend and its host. The ImGui/OpenGL backend is included. Each component type has its own renderer and each style type has its own style applier, both looked up in registries with superclass fallback; custom components and styles plug in by registering their renderers and style appliers on the backend or on a host display, which also replaces built-in ones.
+- **Pluggable backend** (`Backend` interface): the port is a single toolkit-neutral `render` call that receives the screen's components; textures, fonts and input capture belong to the backend and its host. The Dear ImGui backend is included, rendering with OpenGL 3 (SDL3 or GLFW windows) or SDL_GPU (SDL3 windows). Each component type has its own renderer and each style type has its own style applier, both looked up in registries with superclass fallback; custom components and styles plug in by registering their renderers and style appliers on the backend or on a host display, which also replaces built-in ones.
 - **Rich image handling**: a sealed `ImageMode` (repeat, fit, sub-image, sprite, nine-slice-style resize variants) and RGB-channel colour masking for recolourable textures.
 - **i18n**: text is resolved through `BundleKeyResolver` using `ResourceBundle`s.
-- **Engine and loop integration**: `ImGuiJmeDisplay` plugs into jMonkeyEngine as a `SceneProcessor`, and `ImGuiLwjglDisplay` embeds into an application's own LWJGL SDL3 window and loop. Both provide input routing, screen lifecycle hooks (through the host-neutral `ScreenManager`), font registration, and a release-and-reuse lifecycle: a jME display can be removed and attached again, and either display can be torn down safely from inside a frame or a screen hook.
+- **Engine and loop integration**: `ImGuiJmeDisplay` plugs into jMonkeyEngine as a `SceneProcessor`, and three LWJGL displays embed into an application's own window and loop: `ImGuiLwjglSdlGl3Display` (SDL3 + OpenGL 3), `ImGuiLwjglGlfwGl3Display` (GLFW + OpenGL 3, chaining the window's input callbacks) and `ImGuiLwjglSdlGpuDisplay` (SDL3 + SDL_GPU, drawing into the application's command buffer). All provide input routing, screen lifecycle hooks (through the host-neutral `ScreenManager`), font registration, and a release-and-reuse lifecycle: a jME display can be removed and attached again, and every display can be torn down safely from inside a frame or a screen hook.
 
 ## Success Criteria
 - The author's game(s) use LorisUI as their only UI layer, without workarounds.
@@ -38,4 +38,4 @@ LorisUI separates *what* the UI is (a toolkit-agnostic component model in `loris
 - **Solo developer**: keep process, tooling and CI lightweight.
 
 ---
-*Generated during Maister initialization on 2026-10-10 from codebase analysis and maintainer input; updated 2026-10-11.*
+*Generated during Maister initialization on 2026-10-10 from codebase analysis and maintainer input; updated 2026-10-11 and 2026-10-12.*

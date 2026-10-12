@@ -4,6 +4,7 @@
 - Programming/lifecycle errors (missing renderer registration, registering fonts after initialisation, initializing or disposing the renderer inside a frame, switching screens from inside a screen hook): unchecked `IllegalStateException` with a descriptive message, thrown before any state change.
 - Resource loading: declare and throw checked `IOException`, including the resource path in the message.
 - Where `IOException` cannot propagate (render loops, framework callbacks): wrap it in `new RuntimeException(e)`.
+- Native handles that must not be `0` (a GLFW or SDL window, an SDL_GPU device, a frame's command buffer) throw `IllegalArgumentException` from the constructor or method, checked before any state check or native call.
 - Close resources with try-with-resources; keep ImGui push/pop state balanced in `try/finally`.
 - No custom exception classes unless callers need to handle them distinctly.
 
@@ -15,7 +16,7 @@ throw new IllegalStateException("Missing renderer for class: " + component.getCl
 A release that consists of several steps (screen end hook, textures, platform and renderer objects, context, background work) runs every step even when an earlier one throws. Use `DeferredRelease.runAll(...)` (in `api.screen`) instead of hand-written loops:
 - The first failure propagates after all steps have run; later failures are added to it with `addSuppressed`, never the same exception to itself. An `Error` propagates at once.
 - `null` steps are rejected with `NullPointerException` before any step runs.
-- Release only what was successfully set up. Keep a native or toolkit object in a field only after its initialization succeeded (create imgui-java `ImGuiImplSdl3`/`ImGuiImplGl3` objects fresh on each initialize, and shut down only the kept ones), and skip the release step of anything that is not there.
+- Release only what was successfully set up. Keep a native or toolkit object in a field only after its initialization succeeded (create every imgui-java Impl object, `ImGuiImplSdl3`, `ImGuiImplGlfw`, `ImGuiImplGl3` and `ImGuiImplSdlGpu3`, fresh on each initialize, and shut down only the kept ones), and skip the release step of anything that is not there. The one documented exception is a failed `ImGuiImplSdlGpu3.init`: it may already have created shaders or the pipeline, so the failed instance is shut down on the spot with `DeferredRelease.runAfterFailure(failure, gpu3::shutdown)` and still not kept in the field.
 - A failed setup or frame runs its cleanup with `DeferredRelease.runAfterFailure(failure, cleanup)`, then rethrows the original exception; cleanup failures are added to it as suppressed.
 - The object ends in a consistent state (uninitialized, fields cleared) whether or not a step failed.
 
@@ -39,6 +40,10 @@ Teardown requested while a frame is being drawn or a screen hook is running (a "
 - A teardown request stops the display at once (it reports not initialized, stops consuming input), calls `screenManager.beginDeactivation()` and then `deferredRelease.request()`. With no operation running the release runs immediately; otherwise `isPending()` turns `true` and the release runs once, after the outermost operation.
 - The release calls `screenManager.deactivate()` as its first step, which fires `onEndScreen()` on the screen that was started at the request. Screen switches made while the teardown is pending only record the choice; the recorded screen becomes current and starts on the next activation.
 - If the outermost operation is already throwing, release failures are added to its exception as suppressed; otherwise they propagate from it.
+
+A host whose input arrives through native callbacks (`ImGuiLwjglGlfwGl3Display` and GLFW) adds two rules, because no Java exception may cross into native code and GLFW forbids destroying cursors inside a callback:
+- `close()` called during one of the display's callback dispatches throws `IllegalStateException` before any state change, so the release never runs inside a callback. The application requests the close there (for example with a flag) and calls `close()` after `glfwPollEvents` returns. Closing from a component callback during `render()` is still deferred as above.
+- Each dispatch catches the first `Throwable`, from LorisUI or from the application's chained callback, and keeps it; later dispatches do nothing until it is rethrown. The next `render()` (before drawing) or `close()` (after closing, with a release failure added as suppressed) clears it and rethrows it: a `RuntimeException` or `Error` as-is, anything else wrapped in `new RuntimeException(failure)`.
 
 ### Input Validation
 Malformed arguments that are not lifecycle errors throw `IllegalArgumentException` with the offending value or index in the message, checked at registration before anything is stored (for example glyph ranges with no range, no terminating `0`, a missing last code point or a first code point above the last). Data that is only rejected by the toolkit later (for example a font file that Dear ImGui cannot load at `initialize()`) throws `IllegalStateException` naming the source. Data on which the toolkit would fail a plain assertion, which ends the JVM, is rejected when it is read instead: font data of 100 bytes or less (Dear ImGui asserts `font_data_size > 100`) throws the registration's `IOException` naming the file or resource.

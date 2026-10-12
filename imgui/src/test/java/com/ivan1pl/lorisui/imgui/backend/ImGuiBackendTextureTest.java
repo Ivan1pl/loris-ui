@@ -160,7 +160,8 @@ class ImGuiBackendTextureTest {
             if (failCreate) {
                 throw new IOException("Image not found: " + resourcePath);
             }
-            TextureData texture = new TextureData(created.size() + 1, 16, 16);
+            // IDs above the int range, as SDL_GPU texture pointers are
+            TextureData texture = new TextureData(Integer.MAX_VALUE + 1L + created.size(), 16, 16);
             created.add(texture);
             return texture;
         }

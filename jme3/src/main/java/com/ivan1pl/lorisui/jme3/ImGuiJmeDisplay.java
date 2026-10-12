@@ -7,7 +7,8 @@ import com.ivan1pl.lorisui.api.resolver.ResourceBundleKeyResolver;
 import com.ivan1pl.lorisui.api.screen.DeferredRelease;
 import com.ivan1pl.lorisui.api.screen.LorisScreen;
 import com.ivan1pl.lorisui.api.screen.ScreenManager;
-import com.ivan1pl.lorisui.imgui.ImGuiOpenGlRenderer;
+import com.ivan1pl.lorisui.imgui.ImGuiRenderer;
+import com.ivan1pl.lorisui.imgui.ImGuiSdlGl3Renderer;
 import com.ivan1pl.lorisui.imgui.backend.ImGuiOpenGlBackend;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
 import com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier;
@@ -43,7 +44,7 @@ import java.util.Objects;
  *     <li>Create the display; register fonts, custom renderers and style appliers, and resource bundles; add screens
  *     and set the current screen. Then add the display to a viewport with {@link ViewPort#addProcessor}. Creating a
  *     display does not affect a display that is already attached. Register only fonts from trusted sources, as
- *     described for {@link ImGuiOpenGlRenderer#registerFontFromFile(String, int)}.</li>
+ *     described for {@link ImGuiRenderer#registerFontFromFile(String, int)}.</li>
  *     <li>jME calls {@link #initialize} lazily, on the first frame (or window resize) after the display is added to a
  *     viewport. The display then sets up Dear ImGui with the registered fonts, and the current screen's
  *     {@link LorisScreen#onStartScreen()} fires.</li>
@@ -98,6 +99,9 @@ import java.util.Objects;
  * displays. The display's viewport must therefore render to the window: offscreen viewports, such as one rendering to
  * a texture or one with a {@code FilterPostProcessor}, are not supported. jME's emulated display-scale modes, set with
  * an {@code AppSettings} display-scale mode above 1, are not supported either.
+ * <p>
+ * Images are uploaded as sRGB textures and need an sRGB framebuffer to show their true colors; jME's gamma
+ * correction, which is on by default ({@code AppSettings.setGammaCorrection}), provides it.
  *
  * <h2>Threading</h2>
  * The display is not thread-safe. Call its methods on the jME application (render) thread, for example from
@@ -110,7 +114,7 @@ public class ImGuiJmeDisplay implements SceneProcessor {
     private final ResourceBundleKeyResolver resolver = new ResourceBundleKeyResolver();
     private final LwjglWindow window;
     private final InputManager inputManager;
-    private final ImGuiOpenGlRenderer renderer;
+    private final ImGuiSdlGl3Renderer renderer;
     private final ImGuiInputSystem inputSys;
     private final SdlEventListener sdlEventListener;
     // Removal requested during a frame, a screen switch or a hook is deferred until the outermost one returns, so the
@@ -140,7 +144,7 @@ public class ImGuiJmeDisplay implements SceneProcessor {
         Objects.requireNonNull(viewport, "viewport");
         this.window = (LwjglWindow) context;
         this.inputManager = inputManager;
-        this.renderer = new ImGuiOpenGlRenderer(backend, window.getWindowHandle());
+        this.renderer = new ImGuiSdlGl3Renderer(backend, window.getWindowHandle());
         this.inputSys = new ImGuiInputSystem(renderer);
         this.sdlEventListener = event -> renderer.processSdlEvent(event.address());
         this.vp = viewport;

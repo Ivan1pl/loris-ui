@@ -10,6 +10,7 @@ dependencies {
     implementation "org.jmonkeyengine:jme3-lwjgl3:${rootProject.ext.jmonkeyVersion}"
     implementation "org.lwjgl:lwjgl:${rootProject.ext.lwjglVersion}"
     implementation "org.lwjgl:lwjgl-sdl:${rootProject.ext.lwjglVersion}"
+    implementation "org.lwjgl:lwjgl-glfw:${rootProject.ext.lwjglVersion}"
     implementation "org.lwjgl:lwjgl-opengl:${rootProject.ext.lwjglVersion}"
     testImplementation platform('org.junit:junit-bom:6.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -24,10 +25,27 @@ tasks.register('runJme3Example', JavaExec) {
     jvmArgs '--enable-native-access=ALL-UNNAMED'
 }
 
-tasks.register('runLwjglExample', JavaExec) {
+tasks.register('runLwjglSdlGl3Example', JavaExec) {
     group = 'application'
-    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window.'
+    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window with OpenGL 3.'
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglExample'
+    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGl3Example'
     jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+
+tasks.register('runLwjglGlfwGl3Example', JavaExec) {
+    group = 'application'
+    description = 'Runs the LorisUI example in a plain LWJGL GLFW window with OpenGL 3.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglGlfwGl3Example'
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+}
+
+tasks.register('runLwjglSdlGpuExample', JavaExec) {
+    group = 'application'
+    description = 'Runs the LorisUI example in a plain LWJGL SDL3 window with SDL_GPU.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.ivan1pl.lorisui.example.lwjgl.LorisLwjglSdlGpuExample'
+    jvmArgs '--enable-native-access=ALL-UNNAMED'
+    systemProperty 'lorisui.example.gpuDebug', providers.systemProperty('lorisui.example.gpuDebug').getOrElse('false')
 }
