@@ -56,8 +56,8 @@
  * application with {@code --enable-native-access} ({@code ALL-UNNAMED} on the class path, the names of those modules
  * on the module path) to avoid restricted-method warnings. The module also requires LWJGL's SDL3 binding
  * ({@code org.lwjgl.sdl}), which imgui-java supplies, so on the module path it must be present at runtime for every
- * host, even one that never uses SDL, such as a jME or GLFW host. The module reads {@code lorisui.api} transitively,
- * so the API types are available to every module that requires this one.
+ * host, even one that never uses SDL, such as a GLFW host. The module reads {@code lorisui.api} transitively, so the
+ * API types are available to every module that requires this one.
  *
  * <p><b>Ported renderer modules.</b> The OpenGL ES 3 and Vulkan variants draw with Java ports of Dear ImGui's renderer
  * backends, which live in two internal modules, {@code lorisui.imgui.gles3} and {@code lorisui.imgui.vulkan} (the

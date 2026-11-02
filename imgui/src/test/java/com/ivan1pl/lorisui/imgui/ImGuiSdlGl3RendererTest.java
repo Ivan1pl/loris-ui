@@ -128,7 +128,6 @@ class ImGuiSdlGl3RendererTest {
     void shouldReportNoInputCaptureBeforeInitialize() {
         Assertions.assertFalse(renderer.wantsMouseInput());
         Assertions.assertFalse(renderer.wantsKeyboardInput());
-        Assertions.assertFalse(renderer.wantsTextInput());
         Assertions.assertFalse(renderer.isHoveringScrollablePanel());
     }
 

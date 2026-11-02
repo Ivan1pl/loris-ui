@@ -92,7 +92,7 @@ public final class ImGuiLwjglSdlGpuDisplay extends ImGuiLwjglDisplayBase<ImGuiSd
         }
         ImGuiSdlGpuBackend backend = new ImGuiSdlGpuBackend(gpuDevice);
         super(backend, new ImGuiSdlGpuRenderer(backend, sdlWindow));
-        this.sdlInput = new ImGuiLwjglSdlInput(sdlWindow, getRenderer());
+        this.sdlInput = new ImGuiLwjglSdlInput(getRenderer());
     }
 
     /**
@@ -159,11 +159,11 @@ public final class ImGuiLwjglSdlGpuDisplay extends ImGuiLwjglDisplayBase<ImGuiSd
      * it is {@code 0}, for example because the window is minimized, the frame is still built, so the UI keeps
      * processing input and running its callbacks, but nothing is drawn.
      * <p>
-     * At the end of the frame, the display starts SDL text input for the window when a LorisUI text or number input
-     * has gained keyboard focus, so that typed characters arrive as {@code SDL_EVENT_TEXT_INPUT} events, and stops it
-     * when the focus has left. An application that starts or stops SDL text input for the same window itself
-     * interferes with typing into the UI. If SDL fails to start text input, the frame is still drawn without an error
-     * and the display tries again after the next frame.
+     * At the end of the frame, the display's renderer starts SDL text input for the window when a LorisUI text or
+     * number input has gained keyboard focus, so that typed characters arrive as {@code SDL_EVENT_TEXT_INPUT} events,
+     * and stops it when the focus has left. An application that starts or stops SDL text input for the same window
+     * itself interferes with typing into the UI. If SDL fails to start text input, the frame is still drawn without an
+     * error and the renderer tries again after the next frame.
      * <p>
      * If the display is closed during the frame, for example from a component callback, the release completes when
      * the frame has been built, before the application submits the command buffer; a failure of the release then
@@ -185,13 +185,8 @@ public final class ImGuiLwjglSdlGpuDisplay extends ImGuiLwjglDisplayBase<ImGuiSd
         if (commandBuffer == 0) {
             throw new IllegalArgumentException("commandBuffer must be the handle of an SDL_GPU command buffer, not 0");
         }
-        renderFrame(() -> {
-            getRenderer().render(getScreenManager().getCurrentScreen(), width, height, getResolver(), commandBuffer,
-                    targetTexture);
-            if (isInitialized()) {
-                sdlInput.updateTextInput();
-            }
-        });
+        renderFrame(() -> getRenderer().render(getScreenManager().getCurrentScreen(), width, height, getResolver(),
+                commandBuffer, targetTexture));
     }
 
     /**
@@ -202,10 +197,10 @@ public final class ImGuiLwjglSdlGpuDisplay extends ImGuiLwjglDisplayBase<ImGuiSd
      * <p>
      * If the display is initialized, it then fires {@link LorisScreen#onEndScreen()} on the current screen, if that
      * screen's {@link LorisScreen#onStartScreen()} returned normally, stops SDL text input for the window if the
-     * display started it, waits until the GPU device is idle, releases its Dear ImGui, SDL_GPU and SDL resources,
-     * including every texture it loaded, and stops the background work that computes screen layouts until a screen is
-     * drawn again. Call it before the window is released from the GPU device or destroyed, and before the device is
-     * destroyed.
+     * display's renderer started it, waits until the GPU device is idle, releases its Dear ImGui, SDL_GPU and SDL
+     * resources, including every texture it loaded, and stops the background work that computes screen layouts until a
+     * screen is drawn again. Call it before the window is released from the GPU device or destroyed, and before the
+     * device is destroyed.
      * <p>
      * When called during a frame, for example from a component callback, or during a screen switch or a screen's
      * lifecycle hook, the release, including {@link LorisScreen#onEndScreen()}, runs when that frame, switch or hook
@@ -228,10 +223,5 @@ public final class ImGuiLwjglSdlGpuDisplay extends ImGuiLwjglDisplayBase<ImGuiSd
     @Override
     void setUp() {
         getRenderer().initialize();
-    }
-
-    @Override
-    void releaseInput() {
-        sdlInput.stopTextInputIfStarted();
     }
 }

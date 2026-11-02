@@ -295,7 +295,8 @@ abstract class ImGuiLwjglDisplayBase<RendererType extends ImGuiRenderer> {
 
     abstract void setUp();
 
-    abstract void releaseInput();
+    // Displays that hook into the window's input, such as the GLFW display's chained callbacks, undo it here
+    void releaseInput() {}
 
     private void checkNotClosed() {
         if (closed) {

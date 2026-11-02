@@ -15,7 +15,7 @@ project(":foo").name = "loris-ui-foo"
 Library modules apply `java-library` and then `maven-publish`, in that order: the root publishing hook runs when `maven-publish` is applied and needs the `java` extension and `components.java`, which `java-library` creates. The non-published demo module applies only `java`. The root project has no sources and applies no plugin (`checkstyle` is applied to every Java project from root `allprojects`).
 
 ### Shared Configuration in `allprojects`
-Group (`com.ivan1pl.loris-ui`), version, repositories (`mavenLocal()` first — needed for the jME 3.10.0-SNAPSHOT — then `mavenCentral()`), the Java toolchain, Checkstyle, the JUnit Platform, the publishing configuration (see Publishing) and the Javadoc gate (see Javadoc Gate) are set once in root `allprojects`. Subprojects must not redeclare them.
+Group (`com.ivan1pl.loris-ui`), version, repositories (`mavenCentral()` only), the Java toolchain, Checkstyle, the JUnit Platform, the publishing configuration (see Publishing) and the Javadoc gate (see Javadoc Gate) are set once in root `allprojects`. Subprojects must not redeclare them.
 
 The toolchain, Checkstyle, test, publishing and Javadoc gate settings use lazy hooks, because `allprojects` runs before the subprojects apply their plugins. A plain `java { }` or `test { }` block there fails for any subproject, since its `java` extension and `test` task don't exist yet when the root script runs. Use `plugins.withId('java')` (it also fires for `java-library`), `plugins.withId('maven-publish')` and `tasks.withType(Test).configureEach`:
 
@@ -93,8 +93,8 @@ Versions used by more than one module or declaration (jMonkeyEngine, LWJGL, Mock
 
 ```groovy
 ext {
-    jmonkeyVersion = '3.10.0-SNAPSHOT'
-    lwjglVersion = '3.4.1'
+    jmonkeyVersion = '3.10.0-beta3'
+    lwjglVersion = '3.4.3'
     mockitoVersion = '5.24.0'
     imguiVersion = '1.92.7.1'
     checkstyleVersion = '14.3.0'
@@ -130,7 +130,7 @@ The range needs Gradle's version listing, and only runtime classpaths resolve it
 
 Libraries that the consuming application (or another runtime dependency) already supplies at runtime are `compileOnly` only. The `jme3` host compiles against jMonkeyEngine this way (`jme3-core` and `jme3-lwjgl3`), so its published POM and Gradle module metadata carry no jME dependency. Both are non-transitive (`transitive = false`), so jME's own dependencies stay off the host's compile and Javadoc classpath, and the LWJGL modules the host compiles against are declared explicitly; the application declares the jME modules it uses (`jme3-core`, `jme3-lwjgl3`, `jme3-desktop`) itself, as `examples` does with `implementation`.
 
-Both host modules compile against LWJGL the same way: `jme3` against `lwjgl` and `lwjgl-sdl` (jME's `SdlEventListener` signature uses `SDL_Event`), which the application's `jme3-lwjgl3` provides; `lwjgl` against `lwjgl`, `lwjgl-sdl` and `lwjgl-glfw` (SDL events and GLFW callbacks), which arrive at runtime with imgui-java. `imgui` compiles against `lwjgl-sdl` as `compileOnly` too, for its SDL_GPU renderer and texture backend; it also arrives with imgui-java. An application that calls LWJGL itself (the LWJGL examples create their SDL or GLFW window and their GL context, GPU device or Vulkan device) declares the LWJGL modules it compiles against as `implementation` (`lwjgl`, `lwjgl-sdl`, `lwjgl-glfw`, `lwjgl-opengl` and `lwjgl-vulkan` in `examples`).
+Both host modules compile against LWJGL the same way: `jme3` against `lwjgl` and `lwjgl-sdl` (jME's `SdlEventListener` signature uses `SDL_Event`), which the application's `jme3-lwjgl3` provides; `lwjgl` against `lwjgl`, `lwjgl-sdl` and `lwjgl-glfw` (SDL events and GLFW callbacks), which arrive at runtime with imgui-java. `imgui` compiles against `lwjgl-sdl` as `compileOnly` too, for its SDL_GPU renderer and texture backend and the SDL variants' text input; it also arrives with imgui-java. An application that calls LWJGL itself (the LWJGL examples create their SDL or GLFW window and their GL context, GPU device or Vulkan device) declares the LWJGL modules it compiles against as `implementation` (`lwjgl`, `lwjgl-sdl`, `lwjgl-glfw`, `lwjgl-opengl` and `lwjgl-vulkan` in `examples`).
 
 ```groovy
 compileOnly("org.jmonkeyengine:jme3-core:${rootProject.ext.jmonkeyVersion}") { transitive = false }

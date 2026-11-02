@@ -77,7 +77,7 @@ public final class ImGuiLwjglSdlGl3Display extends ImGuiLwjglDisplayBase<ImGuiSd
         }
         ImGuiOpenGlBackend backend = new ImGuiOpenGlBackend();
         super(backend, new ImGuiSdlGl3Renderer(backend, sdlWindow));
-        this.sdlInput = new ImGuiLwjglSdlInput(sdlWindow, getRenderer());
+        this.sdlInput = new ImGuiLwjglSdlInput(getRenderer());
     }
 
     /**
@@ -139,11 +139,11 @@ public final class ImGuiLwjglSdlGl3Display extends ImGuiLwjglDisplayBase<ImGuiSd
      * {@code SDL_GetWindowSize}, not in framebuffer pixels; the framebuffer scale of HiDPI displays is applied
      * automatically.
      * <p>
-     * At the end of the frame, the display starts SDL text input for the window when a LorisUI text or number input
-     * has gained keyboard focus, so that typed characters arrive as {@code SDL_EVENT_TEXT_INPUT} events, and stops it
-     * when the focus has left. An application that starts or stops SDL text input for the same window itself
-     * interferes with typing into the UI. If SDL fails to start text input, the frame is still drawn without an error
-     * and the display tries again after the next frame.
+     * At the end of the frame, the display's renderer starts SDL text input for the window when a LorisUI text or
+     * number input has gained keyboard focus, so that typed characters arrive as {@code SDL_EVENT_TEXT_INPUT} events,
+     * and stops it when the focus has left. An application that starts or stops SDL text input for the same window
+     * itself interferes with typing into the UI. If SDL fails to start text input, the frame is still drawn without an
+     * error and the renderer tries again after the next frame.
      * <p>
      * If the display is closed during the frame, for example from a component callback, the release completes when
      * the frame has been drawn; a failure of the release then propagates from this method.
@@ -156,12 +156,7 @@ public final class ImGuiLwjglSdlGl3Display extends ImGuiLwjglDisplayBase<ImGuiSd
      *                               registered renderer or style applier
      */
     public void render(int width, int height) {
-        renderFrame(() -> {
-            getRenderer().render(getScreenManager().getCurrentScreen(), width, height, getResolver());
-            if (isInitialized()) {
-                sdlInput.updateTextInput();
-            }
-        });
+        renderFrame(() -> getRenderer().render(getScreenManager().getCurrentScreen(), width, height, getResolver()));
     }
 
     /**
@@ -171,9 +166,9 @@ public final class ImGuiLwjglSdlGl3Display extends ImGuiLwjglDisplayBase<ImGuiSd
      * <p>
      * If the display is initialized, it then fires {@link LorisScreen#onEndScreen()} on the current screen, if that
      * screen's {@link LorisScreen#onStartScreen()} returned normally, stops SDL text input for the window if the
-     * display started it, releases its Dear ImGui, OpenGL and SDL resources, including every texture it loaded, and
-     * stops the background work that computes screen layouts until a screen is drawn again. Call it with the window's
-     * OpenGL context current, before the context or the window is destroyed.
+     * display's renderer started it, releases its Dear ImGui, OpenGL and SDL resources, including every texture it
+     * loaded, and stops the background work that computes screen layouts until a screen is drawn again. Call it with
+     * the window's OpenGL context current, before the context or the window is destroyed.
      * <p>
      * When called during a frame, for example from a component callback, or during a screen switch or a screen's
      * lifecycle hook, the release, including {@link LorisScreen#onEndScreen()}, runs when that frame, switch or hook
@@ -196,10 +191,5 @@ public final class ImGuiLwjglSdlGl3Display extends ImGuiLwjglDisplayBase<ImGuiSd
     @Override
     void setUp() {
         getRenderer().initialize();
-    }
-
-    @Override
-    void releaseInput() {
-        sdlInput.stopTextInputIfStarted();
     }
 }

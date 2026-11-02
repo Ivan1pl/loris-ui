@@ -42,6 +42,11 @@ import java.util.Objects;
  * screens' localization keys from the resource bundles registered with {@link #setResourceBundle}. When created with
  * the application's input manager, it consumes the mouse and keyboard events that the UI uses, so that they do not
  * reach the application's own input mappings.
+ * <p>
+ * Typed characters reach LorisUI text and number inputs through SDL text input. The display's renderer starts SDL text
+ * input for the application's window while such an input is active, and stops it once none is active and when the
+ * display is removed. An application that starts or stops SDL text input for the same window itself interferes with
+ * typing into the UI.
  *
  * <h2>Renderers</h2>
  * The display draws with the graphics API of the renderer selected in the application's {@code AppSettings}. With

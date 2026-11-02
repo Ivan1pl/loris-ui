@@ -28,8 +28,7 @@ import org.lwjgl.system.MemoryStack;
  *     {@link #initialize()} reads the swapchain's texture format, so the swapchain parameters must not change while
  *     the renderer is initialized; to change them, dispose the renderer and initialize it again.</li>
  *     <li>Each frame, forward every SDL event of the window to {@link #processSdlEvent(long)} and call
- *     {@link #render} once. {@link #wantsTextInput()} reports whether the host should keep SDL text input
- *     started.</li>
+ *     {@link #render} once.</li>
  *     <li>Call {@link #dispose()} before the window is released from the GPU device or destroyed. It waits until the
  *     GPU device is idle before it releases the textures and the GPU resources of the renderer.</li>
  * </ul>
@@ -44,6 +43,14 @@ import org.lwjgl.system.MemoryStack;
  * <p>The renderer does not own the GPU device. The device must stay alive until {@link #dispose()} has returned; the
  * application destroys it afterwards.
  *
+ * <p>SDL3 delivers typed characters only while text input is started for the window. After each frame that completes
+ * without an exception, the renderer starts SDL text input for its window while a LorisUI text or number input is
+ * active, so typed characters, including input-method, compose and AltGr ones, arrive as
+ * {@code SDL_EVENT_TEXT_INPUT} events. It stops text input once no input is active, and when the renderer is disposed,
+ * if it started it. If SDL refuses to start text input, the frame does not fail, and the renderer tries again after
+ * the next frame. An application that starts or stops SDL text input for the same window itself interferes with typing
+ * into the UI.
+ *
  * <p>Initializing the renderer sets global SDL hints through Dear ImGui's SDL3 platform backend:
  * {@code SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH} to {@code "1"}, {@code SDL_HINT_MOUSE_AUTO_CAPTURE} to {@code "0"} and
  * {@code SDL_HINT_BORDERLESS_WINDOWED_STYLE} to {@code "0"}. They affect every SDL window of the application and stay
@@ -55,6 +62,7 @@ import org.lwjgl.system.MemoryStack;
  */
 public final class ImGuiSdlGpuRenderer extends ImGuiRenderer {
     private final long gpuDevice;
+    private final SdlTextInput textInput;
     private ImGuiImplSdl3 implSdl3;
     private ImGuiImplSdlGpu3 implSdlGpu3;
 
@@ -75,6 +83,7 @@ public final class ImGuiSdlGpuRenderer extends ImGuiRenderer {
             throw new IllegalArgumentException("SDL window handle must not be 0");
         }
         this.gpuDevice = backend.getGpuDevice();
+        this.textInput = SdlTextInput.forWindow(sdlWindow);
     }
 
     /**
@@ -187,6 +196,16 @@ public final class ImGuiSdlGpuRenderer extends ImGuiRenderer {
         if (implSdl3 != null) {
             implSdl3.shutdown();
         }
+    }
+
+    @Override
+    void updateTextInput(boolean wanted) {
+        textInput.update(wanted);
+    }
+
+    @Override
+    void releaseTextInput() {
+        textInput.release();
     }
 
     @Override

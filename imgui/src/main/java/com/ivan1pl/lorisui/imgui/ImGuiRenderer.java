@@ -44,8 +44,8 @@ import java.util.Objects;
  *     <li>Call {@link #initialize()} once the window's graphics context is ready, as the variant describes.</li>
  *     <li>Each frame, forward the window's input events to the variant and call the variant's {@code render} method
  *     once. Between frames, {@link #wantsMouseInput()}, {@link #wantsKeyboardInput()} and
- *     {@link #isHoveringScrollablePanel()} report which input the UI consumes, and {@link #wantsTextInput()} reports
- *     whether the UI expects typed characters.</li>
+ *     {@link #isHoveringScrollablePanel()} report which input the UI consumes. The SDL3 variants start and stop SDL
+ *     text input for their window themselves, as each variant describes.</li>
  *     <li>Call {@link #dispose()} before the window or its graphics context is destroyed. It releases the Dear ImGui
  *     context, the platform and graphics resources of the renderer, and every texture the backend has loaded.</li>
  *     <li>Optionally call {@link #initialize()} again to show the UI again. The registered fonts are restored, and the
@@ -281,28 +281,6 @@ public abstract sealed class ImGuiRenderer
     }
 
     /**
-     * Returns whether the UI wants text input, that is whether a LorisUI text or number input is active and expects
-     * typed characters.
-     *
-     * <p>Some windowing libraries, such as SDL3, deliver typed characters only while text input is started for the
-     * window, and the renderer does not start or stop it. A host on such a library starts text input when this method
-     * begins to return {@code true} and stops it when it returns {@code false} again, unless its framework keeps text
-     * input started itself, as jMonkeyEngine does.
-     *
-     * <p>The result describes the most recently rendered frame.
-     *
-     * @return {@code true} if Dear ImGui wants text input; {@code false} if it does not, or if the renderer is not
-     *         initialized
-     */
-    public boolean wantsTextInput() {
-        if (context == null) {
-            return false;
-        }
-        makeContextCurrent();
-        return ImGui.getIO().getWantTextInput();
-    }
-
-    /**
      * Returns whether the pointer is over a scrollable top-level panel. Hosts use this to decide whether a mouse
      * wheel event scrolls the UI or belongs to the game.
      *
@@ -386,6 +364,7 @@ public abstract sealed class ImGuiRenderer
                 throw failure;
             }
             endFrame(drawData);
+            updateTextInput(ImGui.getIO().getWantTextInput());
         } finally {
             rendering = false;
         }
@@ -402,6 +381,12 @@ public abstract sealed class ImGuiRenderer
 
     // Variants whose graphics device works asynchronously wait here before textures and backends are released
     void awaitDeviceIdle() {}
+
+    // The SDL variants start and stop SDL text input for their window here, after each frame that completes
+    void updateTextInput(boolean wanted) {}
+
+    // The SDL variants stop SDL text input for their window here if they started it
+    void releaseTextInput() {}
 
     private static void endFrame(Runnable drawData) {
         ImGui.render();
@@ -476,6 +461,7 @@ public abstract sealed class ImGuiRenderer
                 ImGuiContext destroyed = context;
                 DeferredRelease.runAll(
                         this::makeContextCurrent,
+                        this::releaseTextInput,
                         this::awaitDeviceIdle,
                         backend::unloadTextures,
                         this::shutdownRendererBackend,

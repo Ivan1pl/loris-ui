@@ -20,8 +20,7 @@ import imgui.sdl3.ImGuiImplSdl3;
  *     <li>Call {@link #initialize()} with the window's OpenGL ES 3.0 context current, for example on jMonkeyEngine's
  *     render thread.</li>
  *     <li>Each frame, forward every SDL event of the window to {@link #processSdlEvent(long)} and call
- *     {@link #render} once. {@link #wantsTextInput()} reports whether the host should keep SDL text input
- *     started.</li>
+ *     {@link #render} once.</li>
  *     <li>Call {@link #dispose()} with the window's OpenGL ES context current, before the window or its context is
  *     destroyed.</li>
  * </ul>
@@ -30,6 +29,14 @@ import imgui.sdl3.ImGuiImplSdl3;
  * window can hold at most 65,535 vertices. A window above that fails a Dear ImGui assertion, which terminates the JVM
  * (see {@link ImGuiRenderer}). Typical menus and HUDs stay far below the limit; very long lists or large amounts of
  * text in one panel can reach it.
+ *
+ * <p>SDL3 delivers typed characters only while text input is started for the window. After each frame that completes
+ * without an exception, the renderer starts SDL text input for its window while a LorisUI text or number input is
+ * active, so typed characters, including input-method, compose and AltGr ones, arrive as
+ * {@code SDL_EVENT_TEXT_INPUT} events. It stops text input once no input is active, and when the renderer is disposed,
+ * if it started it. If SDL refuses to start text input, the frame does not fail, and the renderer tries again after
+ * the next frame. An application that starts or stops SDL text input for the same window itself interferes with typing
+ * into the UI.
  *
  * <p>Initializing the renderer sets global SDL hints through Dear ImGui's SDL3 platform backend:
  * {@code SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH} to {@code "1"}, {@code SDL_HINT_MOUSE_AUTO_CAPTURE} to {@code "0"} and
@@ -41,6 +48,7 @@ import imgui.sdl3.ImGuiImplSdl3;
  * window's OpenGL ES context.
  */
 public final class ImGuiSdlGles3Renderer extends ImGuiRenderer {
+    private final SdlTextInput textInput;
     private ImGuiImplSdl3 implSdl3;
     private ImGuiImplGles3 implGles3;
 
@@ -60,6 +68,7 @@ public final class ImGuiSdlGles3Renderer extends ImGuiRenderer {
         if (sdlWindow == 0L) {
             throw new IllegalArgumentException("SDL window handle must not be 0");
         }
+        this.textInput = SdlTextInput.forWindow(sdlWindow);
     }
 
     /**
@@ -137,6 +146,16 @@ public final class ImGuiSdlGles3Renderer extends ImGuiRenderer {
         if (implSdl3 != null) {
             implSdl3.shutdown();
         }
+    }
+
+    @Override
+    void updateTextInput(boolean wanted) {
+        textInput.update(wanted);
+    }
+
+    @Override
+    void releaseTextInput() {
+        textInput.release();
     }
 
     @Override

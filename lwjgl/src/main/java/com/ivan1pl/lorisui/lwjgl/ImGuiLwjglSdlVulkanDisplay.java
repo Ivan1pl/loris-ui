@@ -139,7 +139,7 @@ public final class ImGuiLwjglSdlVulkanDisplay extends ImGuiLwjglDisplayBase<ImGu
         }
         ImGuiVulkanBackend backend = new ImGuiVulkanBackend(device, queueFamilyIndex, queue);
         super(backend, new ImGuiSdlVulkanRenderer(backend, sdlWindow, colorAttachmentFormat, framesInFlight));
-        this.sdlInput = new ImGuiLwjglSdlInput(sdlWindow, getRenderer());
+        this.sdlInput = new ImGuiLwjglSdlInput(getRenderer());
     }
 
     /**
@@ -210,11 +210,11 @@ public final class ImGuiLwjglSdlVulkanDisplay extends ImGuiLwjglDisplayBase<ImGu
      * format. With {@code 0} as {@code targetImageView}, the frame is still built, so the UI keeps processing input
      * and running its callbacks, but nothing is drawn.
      * <p>
-     * At the end of the frame, the display starts SDL text input for the window when a LorisUI text or number input
-     * has gained keyboard focus, so that typed characters arrive as {@code SDL_EVENT_TEXT_INPUT} events, and stops it
-     * when the focus has left. An application that starts or stops SDL text input for the same window itself
-     * interferes with typing into the UI. If SDL fails to start text input, the frame is still drawn without an error
-     * and the display tries again after the next frame.
+     * At the end of the frame, the display's renderer starts SDL text input for the window when a LorisUI text or
+     * number input has gained keyboard focus, so that typed characters arrive as {@code SDL_EVENT_TEXT_INPUT} events,
+     * and stops it when the focus has left. An application that starts or stops SDL text input for the same window
+     * itself interferes with typing into the UI. If SDL fails to start text input, the frame is still drawn without an
+     * error and the renderer tries again after the next frame.
      * <p>
      * If the display is closed during the frame, for example from a component callback, the frame draws no UI, and
      * the release completes when the frame has been built, before this method returns; a failure of the release then
@@ -249,9 +249,6 @@ public final class ImGuiLwjglSdlVulkanDisplay extends ImGuiLwjglDisplayBase<ImGu
             } finally {
                 frameInProgress = outerFrameInProgress;
             }
-            if (isInitialized()) {
-                sdlInput.updateTextInput();
-            }
         });
     }
 
@@ -263,9 +260,9 @@ public final class ImGuiLwjglSdlVulkanDisplay extends ImGuiLwjglDisplayBase<ImGu
      * <p>
      * If the display is initialized, it then fires {@link LorisScreen#onEndScreen()} on the current screen, if that
      * screen's {@link LorisScreen#onStartScreen()} returned normally, stops SDL text input for the window if the
-     * display started it, waits until the device is idle, releases its Dear ImGui, Vulkan and SDL resources, including
-     * every texture it loaded, and stops the background work that computes screen layouts until a screen is drawn
-     * again. Call it after the last frame that uses the display has been submitted, and before the device, the
+     * display's renderer started it, waits until the device is idle, releases its Dear ImGui, Vulkan and SDL resources,
+     * including every texture it loaded, and stops the background work that computes screen layouts until a screen is
+     * drawn again. Call it after the last frame that uses the display has been submitted, and before the device, the
      * swapchain image views passed to {@link #render(int, int, VkCommandBuffer, long)} or the window are destroyed.
      * <p>
      * When called during a frame, for example from a component callback, that frame draws no UI, and the release,
@@ -295,10 +292,5 @@ public final class ImGuiLwjglSdlVulkanDisplay extends ImGuiLwjglDisplayBase<ImGu
     @Override
     void setUp() {
         getRenderer().initialize();
-    }
-
-    @Override
-    void releaseInput() {
-        sdlInput.stopTextInputIfStarted();
     }
 }

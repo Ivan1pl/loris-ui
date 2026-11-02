@@ -33,7 +33,7 @@ This document describes the technology choices and rationale for LorisUI, a mult
   - **Offline builds**: the range needs network access the first time runtime classpaths resolve it; see "Dependency Scopes for Toolkit Libraries" in `standards/build/gradle.md`.
 
 ### Graphics / Native
-- **LWJGL** **3.4.1**: `lwjgl-stb` (an `implementation` dependency of `loris-ui-imgui`, so consumers get it at runtime only) for image decoding when loading textures, plus the OpenGL, SDL and GLFW bindings (through imgui-java). `loris-ui-imgui` also compiles against `lwjgl-sdl` as `compileOnly`, for the SDL_GPU calls of `ImGuiSdlGpuRenderer` and `ImGuiSdlGpuBackend`; at runtime it comes with imgui-java. `lwjgl-stb` native classifiers for Windows, Linux, macOS and macOS arm64 (`natives-windows`, `natives-linux`, `natives-macos`, `natives-macos-arm64`) are declared as `runtimeOnly`.
+- **LWJGL** **3.4.3**: `lwjgl-stb` (an `implementation` dependency of `loris-ui-imgui`, so consumers get it at runtime only) for image decoding when loading textures, plus the OpenGL, SDL and GLFW bindings (through imgui-java). `loris-ui-imgui` also compiles against `lwjgl-sdl` as `compileOnly`, for the SDL_GPU calls of `ImGuiSdlGpuRenderer` and `ImGuiSdlGpuBackend` and the SDL text input (`SDLKeyboard`) of the SDL variants' `SdlTextInput`; at runtime it comes with imgui-java. `lwjgl-stb` native classifiers for Windows, Linux, macOS and macOS arm64 (`natives-windows`, `natives-linux`, `natives-macos`, `natives-macos-arm64`) are declared as `runtimeOnly`.
   - `loris-ui-imgui` compiles against `lwjgl-opengles` and `lwjgl-vulkan` as `compileOnly`, with no runtime scope, and so do the port subprojects (`imgui-gles3` against `lwjgl-opengles`, `imgui-vulkan` against `lwjgl-vulkan`, both also against imgui-java): jME supplies the OpenGL ES binding for its ANGLE renderer, and a Vulkan application supplies the Vulkan binding. For tests, `lwjgl-vulkan` is also `testCompileOnly` + `testRuntimeOnly` (`ImGuiVulkanBackend`'s constructor has Vulkan parameter types, so its test cannot compile without it; they pass Vulkan objects only as `null` literals), and `lwjgl-opengles` is `testRuntimeOnly`, so the GLES classes under test link; `imgui-vulkan` has `lwjgl-vulkan` as `testCompileOnly` + `testRuntimeOnly` for `VulkanTexturesTest`.
   - `loris-ui-jme3` compiles against `lwjgl` and `lwjgl-sdl` as `compileOnly`, because jME's `SdlEventListener` signature uses `SDL_Event`; at runtime the application's `jme3-lwjgl3` supplies them, together with the OpenGL ES binding that jME's `ANGLE_GLES3` renderer uses.
   - `loris-ui-lwjgl` compiles against `lwjgl`, `lwjgl-sdl`, `lwjgl-glfw` and `lwjgl-vulkan` as `compileOnly` (it reads SDL event types, chains GLFW callbacks and takes Vulkan objects); at runtime the first three come with imgui-java, whose POM brings `lwjgl`, `lwjgl-sdl`, `lwjgl-glfw` and `lwjgl-opengl` with their natives (GLFW and SDL natives only for Linux, macOS, macOS arm64 and Windows), and a Vulkan application adds `lwjgl-vulkan` itself. Its tests have `lwjgl-vulkan` as `testCompileOnly` + `testRuntimeOnly`, for the same reason as in `imgui`.
@@ -41,12 +41,11 @@ This document describes the technology choices and rationale for LorisUI, a mult
 
 ### Vulkan
 - **Vulkan 1.3** with the `dynamicRendering` feature, used only by the SDL3 + Vulkan variant (`ImGuiSdlVulkanRenderer`, `ImGuiVulkanBackend`, `ImGuiLwjglSdlVulkanDisplay`). The renderer draws with dynamic rendering into the application's image view and needs no render pass; its `initialize()` fails with `IllegalStateException` when the device does not expose Vulkan 1.3 functions. The instance and physical device are not parameters: LWJGL's `VkDevice` carries them.
-- **Loader**: LWJGL's Vulkan binding loads the system Vulkan loader, which comes with the graphics driver, on Linux and Windows; on macOS it uses MoltenVK from LWJGL's Vulkan natives (Vulkan 1.3 support in the MoltenVK build shipped with LWJGL 3.4.1 is unverified). SDL and LWJGL must use the same library: the example passes LWJGL's loaded library path to `SDL_Vulkan_LoadLibrary`.
+- **Loader**: LWJGL's Vulkan binding loads the system Vulkan loader, which comes with the graphics driver, on Linux and Windows; on macOS it uses MoltenVK from LWJGL's Vulkan natives (Vulkan 1.3 support in the MoltenVK build shipped with LWJGL 3.4.3 is unverified). SDL and LWJGL must use the same library: the example passes LWJGL's loaded library path to `SDL_Vulkan_LoadLibrary`.
 - **Validation**: `-Dlorisui.example.gpuDebug=true` on the Vulkan example enables `VK_LAYER_KHRONOS_validation`, which comes with the Vulkan SDK (on macOS run with `-Dorg.lwjgl.vulkan.libname=libvulkan.1.dylib` from the SDK to use its loader and layers).
 
 ### Game Engine Host
-- **jMonkeyEngine** **3.10.0-SNAPSHOT**: `jme3-core` and `jme3-lwjgl3`, non-transitive `compileOnly` in `jme3`, so the published `loris-ui-jme3` carries no jME dependency and the application declares the jME modules it uses; `examples` declares `jme3-core`, `jme3-lwjgl3` and `jme3-desktop` as `implementation`. LorisUI integrates as a `SceneProcessor` (`ImGuiJmeDisplay`), which selects its renderer variant from jME's `AppSettings` renderer: OpenGL ES 3 (`ImGuiSdlGles3Renderer`) for jME 3.10's default `ANGLE_GLES3`, OpenGL 3 (`ImGuiSdlGl3Renderer`) for the `LWJGL_OPENGL*` renderers, and `IllegalStateException` for any other renderer.
-  - The snapshot isn't on Maven Central. It's resolved from `mavenLocal()`, so jME must be installed locally first.
+- **jMonkeyEngine** **3.10.0-beta3**: `jme3-core` and `jme3-lwjgl3`, non-transitive `compileOnly` in `jme3`, so the published `loris-ui-jme3` carries no jME dependency and the application declares the jME modules it uses; `examples` declares `jme3-core`, `jme3-lwjgl3` and `jme3-desktop` as `implementation`. LorisUI integrates as a `SceneProcessor` (`ImGuiJmeDisplay`), which selects its renderer variant from jME's `AppSettings` renderer: OpenGL ES 3 (`ImGuiSdlGles3Renderer`) for jME 3.10's default `ANGLE_GLES3`, OpenGL 3 (`ImGuiSdlGl3Renderer`) for the `LWJGL_OPENGL*` renderers, and `IllegalStateException` for any other renderer.
   - jME3 jars split packages, so `loris-ui-jme3` stays on the classpath (no `module-info.java`) and sets `Automatic-Module-Name: lorisui.jme3` in its jar manifest.
 
 ### Standalone Host
@@ -55,7 +54,7 @@ This document describes the technology choices and rationale for LorisUI, a mult
 ### Testing
 - **JUnit 6.0.0** (Jupiter) through `junit-bom`, with `junit-platform-launcher`, declared in every Java module except `imgui-gles3`, which has no tests. The JUnit Platform is enabled for all `Test` tasks by the lazy `tasks.withType(Test).configureEach { useJUnitPlatform() }` hook in root `allprojects`.
 - **Mockito 5.24.0** (`mockito-core`, version in root `ext`) declared only in `api`, whose tests use it for callbacks. `api` loads Mockito as a `-javaagent` from a non-transitive `mockitoAgent` configuration, avoiding the JDK 21+ dynamic-agent warning. The other modules use JUnit only, with hand-written fakes.
-- **Status**: unit tests exist in `api` (builders, styles, `Color`, `ImageMode`, `LorisScreen`, `ScreenManager` including two-phase deactivation, `DeferredRelease`, `ResourceBundleKeyResolver`), `imgui` (`ImGuiBackend` lookup and registration, the per-backend texture cache and unload, texture masking, Repeat tile spans (`TextureTiling`), missing-resource `DecodedImage`, class-path resource lookup, native-free gating of the five renderer variants and of `ImGuiSdlGpuBackend` and `ImGuiVulkanBackend`, the GL and GLES backends' decode-before-GL order, `ImGuiFont` glyph-range validation), `imgui-vulkan` (the embedded SPIR-V words and `VulkanTextures`' upload size guard), `lwjgl` (native-free gating of the four displays, and the GLFW display's callback-dispatch rules through a package-private seam) and `jme3` (the renderer choice of `ImGuiJmeGraphicsApi`, which runs without jME on the test classpath). They don't need a GL context, a Vulkan device or imgui-java on the test compile classpath; Vulkan objects appear only as `null` literals. `imgui-gles3` and `examples` have no tests; the native lifecycle, including the GLES draw path under ANGLE and the Vulkan pipeline, uploads, swapchain and teardown, is verified manually by running the examples.
+- **Status**: unit tests exist in `api` (builders, styles, `Color`, `ImageMode`, `LorisScreen`, `ScreenManager` including two-phase deactivation, `DeferredRelease`, `ResourceBundleKeyResolver`), `imgui` (`ImGuiBackend` lookup and registration, the per-backend texture cache and unload, texture masking, Repeat tile spans (`TextureTiling`), missing-resource `DecodedImage`, class-path resource lookup, native-free gating of the five renderer variants and of `ImGuiSdlGpuBackend` and `ImGuiVulkanBackend`, the GL and GLES backends' decode-before-GL order, `ImGuiFont` glyph-range validation, the `SdlTextInput` start/stop seam of the SDL variants' text input), `imgui-vulkan` (the embedded SPIR-V words and `VulkanTextures`' upload size guard), `lwjgl` (native-free gating of the four displays, and the GLFW display's callback-dispatch rules through a package-private seam) and `jme3` (the renderer choice of `ImGuiJmeGraphicsApi`, which runs without jME on the test classpath). They don't need a GL context, a Vulkan device or imgui-java on the test compile classpath; Vulkan objects appear only as `null` literals. `imgui-gles3` and `examples` have no tests; the native lifecycle, including the GLES draw path under ANGLE and the Vulkan pipeline, uploads, swapchain and teardown, is verified manually by running the examples.
 
 ## Database
 None. LorisUI is a client-side UI library.
@@ -64,7 +63,7 @@ None. LorisUI is a client-side UI library.
 - **Gradle 9.6.0** (wrapper committed)
 - Multi-project build: `:api` → `loris-ui-api`, `:imgui` → `loris-ui-imgui`, `:imgui-gles3` → `loris-ui-imgui-gles3`, `:imgui-vulkan` → `loris-ui-imgui-vulkan`, `:jme3` → `loris-ui-jme3`, `:lwjgl` → `loris-ui-lwjgl`, `:examples`
 - Plugins: `java-library` then `maven-publish` (library modules, in that order), `java` (examples), `checkstyle` (every Java project, applied from root `allprojects`); the root project applies no plugin and has no sources
-- Repositories: `mavenLocal()` then `mavenCentral()`
+- Repositories: `mavenCentral()` only
 - Group `com.ivan1pl.loris-ui`, version `1.0-SNAPSHOT`
 - Shared versions are set as root `ext` properties (`jmonkeyVersion`, `lwjglVersion`, `mockitoVersion`, `imguiVersion`, `checkstyleVersion`) and referenced as `rootProject.ext.<name>`. There is no version catalog.
 - Root `allprojects` also sets the Java 25 toolchain, Checkstyle, the JUnit Platform, publishing and the Javadoc gate through lazy hooks (`plugins.withId('java')`, `plugins.withId('maven-publish')`, `tasks.withType(Test).configureEach`)
@@ -104,17 +103,17 @@ Provided by the Java compiler. No nullability annotations or static analysers ar
 | `loris-ui-imgui-gles3`, `loris-ui-imgui-vulkan` (project; MIT) | 1.0-SNAPSHOT | imgui | implementation |
 | `loris-ui-api` (project) | 1.0-SNAPSHOT | imgui-vulkan | implementation |
 | `io.github.spair:imgui-java-app` | 1.92.7.1 (runtime: `[1.92.7.1,1.93)`, prefer 1.92.7.1) | imgui / imgui-gles3, imgui-vulkan | compileOnly + runtimeOnly / compileOnly |
-| `org.lwjgl:lwjgl-stb` (+ natives) | 3.4.1 | imgui | implementation / runtimeOnly |
-| `org.lwjgl:lwjgl-sdl` | 3.4.1 | imgui | compileOnly |
-| `org.lwjgl:lwjgl-opengles` | 3.4.1 | imgui / imgui-gles3 | compileOnly + testRuntimeOnly / compileOnly |
-| `org.lwjgl:lwjgl-vulkan` | 3.4.1 | imgui, imgui-vulkan, lwjgl / examples | compileOnly + testCompileOnly + testRuntimeOnly / implementation |
-| `org.lwjgl:lwjgl-vulkan` natives (`natives-macos`, `natives-macos-arm64`; MoltenVK) | 3.4.1 | examples | runtimeOnly |
-| `org.lwjgl:lwjgl`, `org.lwjgl:lwjgl-sdl` | 3.4.1 | jme3, lwjgl | compileOnly |
-| `org.lwjgl:lwjgl-glfw` | 3.4.1 | lwjgl / examples | compileOnly / implementation |
-| `org.lwjgl:lwjgl`, `org.lwjgl:lwjgl-sdl`, `org.lwjgl:lwjgl-opengl` | 3.4.1 | examples | implementation |
-| `org.jmonkeyengine:jme3-core` | 3.10.0-SNAPSHOT | jme3 / examples | compileOnly / implementation |
-| `org.jmonkeyengine:jme3-lwjgl3` | 3.10.0-SNAPSHOT | jme3 / examples | compileOnly / implementation |
-| `org.jmonkeyengine:jme3-desktop` | 3.10.0-SNAPSHOT | examples | implementation |
+| `org.lwjgl:lwjgl-stb` (+ natives) | 3.4.3 | imgui | implementation / runtimeOnly |
+| `org.lwjgl:lwjgl-sdl` | 3.4.3 | imgui | compileOnly |
+| `org.lwjgl:lwjgl-opengles` | 3.4.3 | imgui / imgui-gles3 | compileOnly + testRuntimeOnly / compileOnly |
+| `org.lwjgl:lwjgl-vulkan` | 3.4.3 | imgui, imgui-vulkan, lwjgl / examples | compileOnly + testCompileOnly + testRuntimeOnly / implementation |
+| `org.lwjgl:lwjgl-vulkan` natives (`natives-macos`, `natives-macos-arm64`; MoltenVK) | 3.4.3 | examples | runtimeOnly |
+| `org.lwjgl:lwjgl`, `org.lwjgl:lwjgl-sdl` | 3.4.3 | jme3, lwjgl | compileOnly |
+| `org.lwjgl:lwjgl-glfw` | 3.4.3 | lwjgl / examples | compileOnly / implementation |
+| `org.lwjgl:lwjgl`, `org.lwjgl:lwjgl-sdl`, `org.lwjgl:lwjgl-opengl` | 3.4.3 | examples | implementation |
+| `org.jmonkeyengine:jme3-core` | 3.10.0-beta3 | jme3 / examples | compileOnly / implementation |
+| `org.jmonkeyengine:jme3-lwjgl3` | 3.10.0-beta3 | jme3 / examples | compileOnly / implementation |
+| `org.jmonkeyengine:jme3-desktop` | 3.10.0-beta3 | examples | implementation |
 | `org.junit:junit-bom` | 6.0.0 | all but imgui-gles3 | test |
 | `com.puppycrawl.tools:checkstyle` | 14.3.0 | all (Gradle `checkstyle` plugin) | build tool |
 | `org.mockito:mockito-core` | 5.24.0 | api | test (+ `mockitoAgent` javaagent) |
@@ -127,6 +126,6 @@ Provided by the Java compiler. No nullability annotations or static analysers ar
 - Java: latest LTS (currently 25). Upgrade when the next LTS ships (expected: Java 29).
 
 ---
-*Last Updated*: 2026-10-12
-*Auto-detected*: languages, versions, modules, dependencies, build config, testing setup (from build files and sources); updated for the jME ANGLE/GLES3 and SDL3 + Vulkan variants and the MIT-only renderer-port subprojects
+*Last Updated*: 2026-11-02
+*Auto-detected*: languages, versions, modules, dependencies, build config, testing setup (from build files and sources); updated for the jME ANGLE/GLES3 and SDL3 + Vulkan variants and the MIT-only renderer-port subprojects, for SDL text input owned by the SDL renderer variants (`SdlTextInput`), and for the jME 3.10.0-beta3 / LWJGL 3.4.3 upgrade (Maven Central only)
 *User-provided*: LTS-only Java policy, dependency-free `api` constraint, publishing goal
