@@ -34,10 +34,12 @@ public class Button extends Panel {
     private Button(Supplier<String> id, IntBinaryOperator x, IntBinaryOperator y, IntBinaryOperator width,
                    IntBinaryOperator height, Layout layout, Supplier<Background> background, Supplier<Boolean> open,
                    List<IntBiFunction<Component>> content, List<Style> styles, Supplier<Panel> tooltip,
-                   boolean scrollable, int padding, Supplier<Background> activeBackground,
-                   Supplier<Background> hoveredBackground, Supplier<Background> disabledBackground,
-                   Supplier<Boolean> enabled, Runnable action, Runnable hoverAction) {
-        super(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable, padding);
+                   boolean scrollable, int paddingTop, int paddingBottom, int paddingLeft, int paddingRight,
+                   Supplier<Background> activeBackground, Supplier<Background> hoveredBackground,
+                   Supplier<Background> disabledBackground, Supplier<Boolean> enabled, Runnable action,
+                   Runnable hoverAction) {
+        super(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable, paddingTop,
+                paddingBottom, paddingLeft, paddingRight);
         this.activeBackground = activeBackground;
         this.hoveredBackground = hoveredBackground;
         this.disabledBackground = disabledBackground;
@@ -397,10 +399,10 @@ public class Button extends Panel {
         @Override
         public Button build() {
             return doBuild((id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable,
-                            padding) ->
+                            paddingTop, paddingBottom, paddingLeft, paddingRight) ->
                     new Button(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable,
-                            padding, activeBackground, hoveredBackground, disabledBackground, enabled, action,
-                            hoverAction));
+                            paddingTop, paddingBottom, paddingLeft, paddingRight, activeBackground, hoveredBackground,
+                            disabledBackground, enabled, action, hoverAction));
         }
     }
 }

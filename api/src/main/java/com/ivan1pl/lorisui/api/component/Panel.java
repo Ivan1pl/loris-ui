@@ -21,9 +21,10 @@ import java.util.function.Supplier;
  * panels and popups receive the screen width and height, not the parent's size. A panel can also have a background,
  * a tooltip and styles that apply to the panel and everything inside it.
  *
- * <p>A panel's padding insets its content on all four sides. Children are not resized, and their size and content
- * functions still receive the screen size. Content that does not fit is clipped, or scrolls inside the padded area.
- * When twice the padding reaches the panel's width or height, the content is not shown, or only partly.
+ * <p>A panel's padding insets its content from each edge by that side's padding: top, bottom, left and right.
+ * Children are not resized, and their size and content functions still receive the screen size. Content that does
+ * not fit is clipped, or scrolls inside the padded area. When the left and right padding together reach the panel's
+ * width, or the top and bottom padding together reach its height, the content is not shown, or only partly.
  *
  * <p>Every panel has an ID. Panel IDs are stable keys that must be unique among siblings, that is among the panels
  * of the same parent or among the top-level panels of a screen. Backends use the ID to recognize the same panel
@@ -44,12 +45,15 @@ public class Panel implements Component {
     private final List<Style> styles;
     private final Supplier<Panel> tooltip;
     private final boolean scrollable;
-    private final int padding;
+    private final int paddingTop;
+    private final int paddingBottom;
+    private final int paddingLeft;
+    private final int paddingRight;
 
     Panel(Supplier<String> id, IntBinaryOperator x, IntBinaryOperator y, IntBinaryOperator width,
           IntBinaryOperator height, Layout layout, Supplier<Background> background, Supplier<Boolean> open,
           List<IntBiFunction<Component>> content, List<Style> styles, Supplier<Panel> tooltip, boolean scrollable,
-          int padding) {
+          int paddingTop, int paddingBottom, int paddingLeft, int paddingRight) {
         this.id = id;
         this.x = x;
         this.y = y;
@@ -62,7 +66,10 @@ public class Panel implements Component {
         this.styles = Collections.unmodifiableList(styles);
         this.tooltip = tooltip;
         this.scrollable = scrollable;
-        this.padding = padding;
+        this.paddingTop = paddingTop;
+        this.paddingBottom = paddingBottom;
+        this.paddingLeft = paddingLeft;
+        this.paddingRight = paddingRight;
     }
 
     /**
@@ -185,12 +192,39 @@ public class Panel implements Component {
     }
 
     /**
-     * Returns the padding between the panel's edges and its content, in logical pixels, applied on every side.
+     * Returns the padding between the panel's top edge and its content, in logical pixels.
      *
-     * @return the padding; 0 when no padding was set
+     * @return the top padding; 0 when no padding was set
      */
-    public int getPadding() {
-        return padding;
+    public int getPaddingTop() {
+        return paddingTop;
+    }
+
+    /**
+     * Returns the padding between the panel's bottom edge and its content, in logical pixels.
+     *
+     * @return the bottom padding; 0 when no padding was set
+     */
+    public int getPaddingBottom() {
+        return paddingBottom;
+    }
+
+    /**
+     * Returns the padding between the panel's left edge and its content, in logical pixels.
+     *
+     * @return the left padding; 0 when no padding was set
+     */
+    public int getPaddingLeft() {
+        return paddingLeft;
+    }
+
+    /**
+     * Returns the padding between the panel's right edge and its content, in logical pixels.
+     *
+     * @return the right padding; 0 when no padding was set
+     */
+    public int getPaddingRight() {
+        return paddingRight;
     }
 
     static Supplier<Background> colorBackground(Supplier<Color> color) {
@@ -237,7 +271,10 @@ public class Panel implements Component {
         private final List<Style> styles = new ArrayList<>();
         private Supplier<Panel> tooltip = () -> null;
         private boolean scrollable = true;
-        private int padding = 0;
+        private int paddingTop = 0;
+        private int paddingBottom = 0;
+        private int paddingLeft = 0;
+        private int paddingRight = 0;
 
         BaseBuilder(Supplier<String> id) {
             this.id = Objects.requireNonNull(id, "id");
@@ -517,19 +554,86 @@ public class Panel implements Component {
         }
 
         /**
-         * Sets the padding between the panel's edges and its content, in logical pixels, applied on every side.
-         * Defaults to 0.
+         * Sets the padding between the panel's edges and its content, in logical pixels, on all four sides. Each
+         * side defaults to 0. Padding setters apply in the order they are called: this setter replaces the padding
+         * of every side set before, and a later per-side setter such as {@link #paddingLeft(int)} replaces only its
+         * own side.
          *
-         * @param padding the padding, in logical pixels; must not be negative
+         * @param padding the padding of every side, in logical pixels; must not be negative
          * @return this builder
          * @throws IllegalArgumentException if {@code padding} is negative
          */
         @SuppressWarnings("unchecked")
         public BuilderType padding(int padding) {
-            if (padding < 0) {
-                throw new IllegalArgumentException("Padding must not be negative: " + padding);
-            }
-            this.padding = padding;
+            requireNonNegative(padding, "Padding");
+            this.paddingTop = padding;
+            this.paddingBottom = padding;
+            this.paddingLeft = padding;
+            this.paddingRight = padding;
+            return (BuilderType) this;
+        }
+
+        /**
+         * Sets the padding between the panel's top edge and its content, in logical pixels. Defaults to 0. This
+         * setter replaces only the top padding; a later {@link #padding(int)} call replaces it again.
+         *
+         * @param paddingTop the top padding, in logical pixels; must not be negative
+         * @return this builder
+         * @throws IllegalArgumentException if {@code paddingTop} is negative
+         * @see #padding(int)
+         */
+        @SuppressWarnings("unchecked")
+        public BuilderType paddingTop(int paddingTop) {
+            requireNonNegative(paddingTop, "Top padding");
+            this.paddingTop = paddingTop;
+            return (BuilderType) this;
+        }
+
+        /**
+         * Sets the padding between the panel's bottom edge and its content, in logical pixels. Defaults to 0. This
+         * setter replaces only the bottom padding; a later {@link #padding(int)} call replaces it again.
+         *
+         * @param paddingBottom the bottom padding, in logical pixels; must not be negative
+         * @return this builder
+         * @throws IllegalArgumentException if {@code paddingBottom} is negative
+         * @see #padding(int)
+         */
+        @SuppressWarnings("unchecked")
+        public BuilderType paddingBottom(int paddingBottom) {
+            requireNonNegative(paddingBottom, "Bottom padding");
+            this.paddingBottom = paddingBottom;
+            return (BuilderType) this;
+        }
+
+        /**
+         * Sets the padding between the panel's left edge and its content, in logical pixels. Defaults to 0. This
+         * setter replaces only the left padding; a later {@link #padding(int)} call replaces it again.
+         *
+         * @param paddingLeft the left padding, in logical pixels; must not be negative
+         * @return this builder
+         * @throws IllegalArgumentException if {@code paddingLeft} is negative
+         * @see #padding(int)
+         */
+        @SuppressWarnings("unchecked")
+        public BuilderType paddingLeft(int paddingLeft) {
+            requireNonNegative(paddingLeft, "Left padding");
+            this.paddingLeft = paddingLeft;
+            return (BuilderType) this;
+        }
+
+        /**
+         * Sets the padding between the panel's right edge and its content, in logical pixels. Defaults to 0. This
+         * setter replaces only the right padding; a later {@link #padding(int)} call replaces it again.
+         *
+         * @param paddingRight the right padding, in logical pixels; must not be negative
+         * @return this builder
+         * @throws IllegalArgumentException if {@code paddingRight} is negative
+         * @see #padding(int)
+         */
+        @SuppressWarnings("unchecked")
+        public BuilderType paddingRight(int paddingRight) {
+            requireNonNegative(paddingRight, "Right padding");
+            this.paddingRight = paddingRight;
             return (BuilderType) this;
         }
 
@@ -544,15 +648,22 @@ public class Panel implements Component {
         PanelType doBuild(PanelFactory<PanelType> factory) {
             Objects.requireNonNull(width, "width");
             Objects.requireNonNull(height, "height");
-            return factory.createNew(
-                    id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable, padding);
+            return factory.createNew(id, x, y, width, height, layout, background, open, content, styles, tooltip,
+                    scrollable, paddingTop, paddingBottom, paddingLeft, paddingRight);
+        }
+
+        private static void requireNonNegative(int value, String label) {
+            if (value < 0) {
+                throw new IllegalArgumentException(label + " must not be negative: " + value);
+            }
         }
 
         interface PanelFactory<PanelType extends Panel> {
             PanelType createNew(Supplier<String> id, IntBinaryOperator x, IntBinaryOperator y, IntBinaryOperator width,
-                        IntBinaryOperator height, Layout layout, Supplier<Background> background,
-                        Supplier<Boolean> open, List<IntBiFunction<Component>> content, List<Style> styles,
-                        Supplier<Panel> tooltip, boolean scrollable, int padding);
+                                IntBinaryOperator height, Layout layout, Supplier<Background> background,
+                                Supplier<Boolean> open, List<IntBiFunction<Component>> content, List<Style> styles,
+                                Supplier<Panel> tooltip, boolean scrollable, int paddingTop, int paddingBottom,
+                                int paddingLeft, int paddingRight);
         }
     }
 

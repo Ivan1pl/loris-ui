@@ -3,8 +3,9 @@ package com.ivan1pl.lorisui.api.component;
 /**
  * An empty component that takes up space in a panel's layout, for example to separate other content.
  *
- * <p>To inset a panel's content from its edges, set the panel's padding with its builder's {@code padding(int)}
- * setter instead; see {@link Panel#getPadding()}.
+ * <p>To inset a panel's content from its edges, set the panel's padding with its builder instead, on all sides with
+ * {@code padding(int)} or per side with {@code paddingTop(int)}, {@code paddingBottom(int)}, {@code paddingLeft(int)}
+ * and {@code paddingRight(int)}; see {@link Panel}.
  *
  * <p>Create a spacer with {@link #builder()}.
  */

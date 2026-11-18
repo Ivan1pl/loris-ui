@@ -6,10 +6,13 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntBinaryOperator;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 
 class PanelTest {
     @Test
@@ -46,77 +49,86 @@ class PanelTest {
                 () -> Assertions.assertNull(panel.getTooltip()),
                 () -> Assertions.assertEquals(0, panel.getX(800, 600)),
                 () -> Assertions.assertEquals(0, panel.getY(800, 600)),
-                () -> Assertions.assertEquals(0, panel.getPadding()));
+                () -> Assertions.assertEquals(0, panel.getPaddingTop()),
+                () -> Assertions.assertEquals(0, panel.getPaddingBottom()),
+                () -> Assertions.assertEquals(0, panel.getPaddingLeft()),
+                () -> Assertions.assertEquals(0, panel.getPaddingRight()));
     }
 
     @Test
-    void shouldKeepPaddingWhenBuilt() {
-        Panel panel = Panel.panelBuilder("panel")
-                .size(10, 10)
-                .padding(7)
-                .build();
-        Button button = Button.buttonBuilder("button")
-                .size(10, 10)
-                .padding(7)
-                .build();
-        Popup popup = Popup.popupBuilder("popup")
-                .size(10, 10)
-                .padding(7)
-                .build();
-        ModalPopup modal = ModalPopup.popupBuilder("modal")
-                .size(10, 10)
-                .padding(7)
-                .build();
+    void shouldSetEverySideWhenPaddingSet() {
+        assertPadding(buildEachType(builder -> builder.padding(7)), 7, 7, 7, 7);
+    }
+
+    @Test
+    void shouldKeepEachSideWhenSidesSetSeparately() {
+        List<Panel> panels = buildEachType(builder -> builder
+                .paddingTop(1)
+                .paddingBottom(2)
+                .paddingLeft(3)
+                .paddingRight(4));
+
+        assertPadding(panels, 1, 2, 3, 4);
+    }
+
+    @Test
+    void shouldApplyPaddingSettersInCallOrderWhenCombined() {
+        List<Panel> sideAfterAll = buildEachType(builder -> builder
+                .padding(5)
+                .paddingLeft(2));
+        List<Panel> allAfterSides = buildEachType(builder -> builder
+                .paddingTop(1)
+                .paddingBottom(2)
+                .paddingLeft(3)
+                .paddingRight(4)
+                .padding(6));
 
         Assertions.assertAll(
-                () -> Assertions.assertEquals(7, panel.getPadding()),
-                () -> Assertions.assertEquals(7, button.getPadding()),
-                () -> Assertions.assertEquals(7, popup.getPadding()),
-                () -> Assertions.assertEquals(7, modal.getPadding()));
+                () -> assertPadding(sideAfterAll, 5, 5, 2, 5),
+                () -> assertPadding(allAfterSides, 6, 6, 6, 6));
     }
 
     @Test
     void shouldRejectNegativePaddingWhenSet() {
         Panel.Builder builder = Panel.panelBuilder("panel")
                 .size(10, 10)
-                .padding(3);
+                .paddingTop(1)
+                .paddingBottom(2)
+                .paddingLeft(3)
+                .paddingRight(4);
 
         Assertions.assertAll(
-                () -> assertNegativePadding(() -> builder.padding(-1)),
-                () -> assertNegativePadding(() -> Button.buttonBuilder("button").padding(-1)),
-                () -> assertNegativePadding(() -> Popup.popupBuilder("popup").padding(-1)),
-                () -> assertNegativePadding(() -> ModalPopup.popupBuilder("modal").padding(-1)));
-        Assertions.assertEquals(3, builder.build().getPadding());
+                () -> assertNegativePadding("Padding must not be negative: -1", () -> builder.padding(-1)),
+                () -> assertNegativePadding("Top padding must not be negative: -1", () -> builder.paddingTop(-1)),
+                () -> assertNegativePadding("Bottom padding must not be negative: -1",
+                        () -> builder.paddingBottom(-1)),
+                () -> assertNegativePadding("Left padding must not be negative: -1", () -> builder.paddingLeft(-1)),
+                () -> assertNegativePadding("Right padding must not be negative: -1",
+                        () -> builder.paddingRight(-1)),
+                () -> assertNegativePadding("Padding must not be negative: -1",
+                        () -> Button.buttonBuilder("button").padding(-1)),
+                () -> assertNegativePadding("Padding must not be negative: -1",
+                        () -> Popup.popupBuilder("popup").padding(-1)),
+                () -> assertNegativePadding("Padding must not be negative: -1",
+                        () -> ModalPopup.popupBuilder("modal").padding(-1)));
+        assertPadding(List.of(builder.build()), 1, 2, 3, 4);
     }
 
     @Test
     void shouldAcceptZeroPaddingWhenSet() {
-        Panel panel = Panel.panelBuilder("panel")
-                .size(10, 10)
+        List<Panel> sidesZeroed = buildEachType(builder -> builder
                 .padding(5)
-                .padding(0)
-                .build();
-        Button button = Button.buttonBuilder("button")
-                .size(10, 10)
+                .paddingTop(0)
+                .paddingBottom(0)
+                .paddingLeft(0)
+                .paddingRight(0));
+        List<Panel> allZeroed = buildEachType(builder -> builder
                 .padding(5)
-                .padding(0)
-                .build();
-        Popup popup = Popup.popupBuilder("popup")
-                .size(10, 10)
-                .padding(5)
-                .padding(0)
-                .build();
-        ModalPopup modal = ModalPopup.popupBuilder("modal")
-                .size(10, 10)
-                .padding(5)
-                .padding(0)
-                .build();
+                .padding(0));
 
         Assertions.assertAll(
-                () -> Assertions.assertEquals(0, panel.getPadding()),
-                () -> Assertions.assertEquals(0, button.getPadding()),
-                () -> Assertions.assertEquals(0, popup.getPadding()),
-                () -> Assertions.assertEquals(0, modal.getPadding()));
+                () -> assertPadding(sidesZeroed, 0, 0, 0, 0),
+                () -> assertPadding(allZeroed, 0, 0, 0, 0));
     }
 
     @Test
@@ -167,9 +179,28 @@ class PanelTest {
                 () -> assertNullPointer("style", () -> builder.addStyle(null)));
     }
 
-    private static void assertNegativePadding(Executable executable) {
-        String message = Assertions.assertThrows(IllegalArgumentException.class, executable).getMessage();
-        Assertions.assertTrue(message.contains("-1"), message);
+    private static List<Panel> buildEachType(UnaryOperator<Panel.BaseBuilder<?, ?>> configure) {
+        return List.of(
+                configure.apply(Panel.panelBuilder("panel").size(10, 10)).build(),
+                configure.apply(Button.buttonBuilder("button").size(10, 10)).build(),
+                configure.apply(Popup.popupBuilder("popup").size(10, 10)).build(),
+                configure.apply(ModalPopup.popupBuilder("modal").size(10, 10)).build());
+    }
+
+    private static void assertPadding(List<Panel> panels, int top, int bottom, int left, int right) {
+        List<Executable> checks = new ArrayList<>();
+        for (Panel panel : panels) {
+            checks.add(() -> Assertions.assertEquals(top, panel.getPaddingTop(), panel.getId() + " top"));
+            checks.add(() -> Assertions.assertEquals(bottom, panel.getPaddingBottom(), panel.getId() + " bottom"));
+            checks.add(() -> Assertions.assertEquals(left, panel.getPaddingLeft(), panel.getId() + " left"));
+            checks.add(() -> Assertions.assertEquals(right, panel.getPaddingRight(), panel.getId() + " right"));
+        }
+        Assertions.assertAll(checks);
+    }
+
+    private static void assertNegativePadding(String expectedMessage, Executable executable) {
+        Assertions.assertEquals(expectedMessage,
+                Assertions.assertThrows(IllegalArgumentException.class, executable).getMessage());
     }
 
     private static void assertNullPointer(String expectedMessage, Executable executable) {

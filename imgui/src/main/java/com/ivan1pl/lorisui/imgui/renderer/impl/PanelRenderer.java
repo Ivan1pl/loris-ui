@@ -166,15 +166,19 @@ public class PanelRenderer extends Renderer<Panel> {
                 }
                 ImGui.setCursorPos(posX, posY);
             }
-            int padding = component.getPadding();
-            if (padding > 0) {
+            int paddingTop = component.getPaddingTop();
+            int paddingBottom = component.getPaddingBottom();
+            int paddingLeft = component.getPaddingLeft();
+            int paddingRight = component.getPaddingRight();
+            boolean padded = paddingTop > 0 || paddingBottom > 0 || paddingLeft > 0 || paddingRight > 0;
+            if (padded) {
                 int width = component.getWidth(w, h);
                 int height = component.getHeight(w, h);
                 // A child window does not inherit its parent's NoInputs flag.
                 int contentFlags = enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs);
-                ImGui.setCursorPos(posX + padding, posY + padding);
-                ImGui.beginChild(id + "_content", Math.max(width - 2L * padding, 1),
-                        Math.max(height - 2L * padding, 1), false, contentFlags);
+                ImGui.setCursorPos(posX + paddingLeft, posY + paddingTop);
+                ImGui.beginChild(id + "_content", Math.max(width - (long) paddingLeft - paddingRight, 1),
+                        Math.max(height - (long) paddingTop - paddingBottom, 1), false, contentFlags);
             }
             if (!component.getContent().isEmpty()) {
                 Component first = component.getContent().getFirst().apply(w, h);
@@ -191,7 +195,7 @@ public class PanelRenderer extends Renderer<Panel> {
                     offsetX += ImGui.getItemRectSize().x;
                 }
             }
-            if (padding > 0) {
+            if (padded) {
                 ImGui.endChild();
             }
             ImGui.dummy(0f, 0f);
