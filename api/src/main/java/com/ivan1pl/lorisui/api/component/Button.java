@@ -13,7 +13,7 @@ import java.util.function.Supplier;
  * A panel that runs an action when the user clicks it.
  *
  * <p>A button is a {@link Panel}: its content, for example a {@link Text} label, is laid out like a panel's, and it
- * supports the same position, size, background, tooltip and style settings. In addition, a button can show a
+ * supports the same position, size, padding, background, tooltip and style settings. In addition, a button can show a
  * different background while the pointer is over it (hovered), while it is being pressed (active) and while it is
  * disabled; each of these falls back to the base background when unset. A button can also run an action when the
  * pointer starts hovering it. A disabled button ignores clicks and hovers. While another control holds the pointer,
@@ -34,10 +34,10 @@ public class Button extends Panel {
     private Button(Supplier<String> id, IntBinaryOperator x, IntBinaryOperator y, IntBinaryOperator width,
                    IntBinaryOperator height, Layout layout, Supplier<Background> background, Supplier<Boolean> open,
                    List<IntBiFunction<Component>> content, List<Style> styles, Supplier<Panel> tooltip,
-                   boolean scrollable, Supplier<Background> activeBackground, Supplier<Background> hoveredBackground,
-                   Supplier<Background> disabledBackground, Supplier<Boolean> enabled, Runnable action,
-                   Runnable hoverAction) {
-        super(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable);
+                   boolean scrollable, int padding, Supplier<Background> activeBackground,
+                   Supplier<Background> hoveredBackground, Supplier<Background> disabledBackground,
+                   Supplier<Boolean> enabled, Runnable action, Runnable hoverAction) {
+        super(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable, padding);
         this.activeBackground = activeBackground;
         this.hoveredBackground = hoveredBackground;
         this.disabledBackground = disabledBackground;
@@ -396,9 +396,11 @@ public class Button extends Panel {
 
         @Override
         public Button build() {
-            return doBuild((id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable) ->
+            return doBuild((id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable,
+                            padding) ->
                     new Button(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable,
-                            activeBackground, hoveredBackground, disabledBackground, enabled, action, hoverAction));
+                            padding, activeBackground, hoveredBackground, disabledBackground, enabled, action,
+                            hoverAction));
         }
     }
 }

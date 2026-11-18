@@ -21,6 +21,10 @@ import java.util.function.Supplier;
  * panels and popups receive the screen width and height, not the parent's size. A panel can also have a background,
  * a tooltip and styles that apply to the panel and everything inside it.
  *
+ * <p>A panel's padding insets its content on all four sides. Children are not resized, and their size and content
+ * functions still receive the screen size. Content that does not fit is clipped, or scrolls inside the padded area.
+ * When twice the padding reaches the panel's width or height, the content is not shown, or only partly.
+ *
  * <p>Every panel has an ID. Panel IDs are stable keys that must be unique among siblings, that is among the panels
  * of the same parent or among the top-level panels of a screen. Backends use the ID to recognize the same panel
  * from one frame to the next, so it should not change while the panel is shown.
@@ -40,10 +44,12 @@ public class Panel implements Component {
     private final List<Style> styles;
     private final Supplier<Panel> tooltip;
     private final boolean scrollable;
+    private final int padding;
 
     Panel(Supplier<String> id, IntBinaryOperator x, IntBinaryOperator y, IntBinaryOperator width,
           IntBinaryOperator height, Layout layout, Supplier<Background> background, Supplier<Boolean> open,
-          List<IntBiFunction<Component>> content, List<Style> styles, Supplier<Panel> tooltip, boolean scrollable) {
+          List<IntBiFunction<Component>> content, List<Style> styles, Supplier<Panel> tooltip, boolean scrollable,
+          int padding) {
         this.id = id;
         this.x = x;
         this.y = y;
@@ -56,6 +62,7 @@ public class Panel implements Component {
         this.styles = Collections.unmodifiableList(styles);
         this.tooltip = tooltip;
         this.scrollable = scrollable;
+        this.padding = padding;
     }
 
     /**
@@ -177,6 +184,15 @@ public class Panel implements Component {
         return scrollable;
     }
 
+    /**
+     * Returns the padding between the panel's edges and its content, in logical pixels, applied on every side.
+     *
+     * @return the padding; 0 when no padding was set
+     */
+    public int getPadding() {
+        return padding;
+    }
+
     static Supplier<Background> colorBackground(Supplier<Color> color) {
         return () -> {
             Color value = color.get();
@@ -221,6 +237,7 @@ public class Panel implements Component {
         private final List<Style> styles = new ArrayList<>();
         private Supplier<Panel> tooltip = () -> null;
         private boolean scrollable = true;
+        private int padding = 0;
 
         BaseBuilder(Supplier<String> id) {
             this.id = Objects.requireNonNull(id, "id");
@@ -500,6 +517,23 @@ public class Panel implements Component {
         }
 
         /**
+         * Sets the padding between the panel's edges and its content, in logical pixels, applied on every side.
+         * Defaults to 0.
+         *
+         * @param padding the padding, in logical pixels; must not be negative
+         * @return this builder
+         * @throws IllegalArgumentException if {@code padding} is negative
+         */
+        @SuppressWarnings("unchecked")
+        public BuilderType padding(int padding) {
+            if (padding < 0) {
+                throw new IllegalArgumentException("Padding must not be negative: " + padding);
+            }
+            this.padding = padding;
+            return (BuilderType) this;
+        }
+
+        /**
          * Builds the panel.
          *
          * @return a new panel
@@ -511,14 +545,14 @@ public class Panel implements Component {
             Objects.requireNonNull(width, "width");
             Objects.requireNonNull(height, "height");
             return factory.createNew(
-                    id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable);
+                    id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable, padding);
         }
 
         interface PanelFactory<PanelType extends Panel> {
             PanelType createNew(Supplier<String> id, IntBinaryOperator x, IntBinaryOperator y, IntBinaryOperator width,
                         IntBinaryOperator height, Layout layout, Supplier<Background> background,
                         Supplier<Boolean> open, List<IntBiFunction<Component>> content, List<Style> styles,
-                        Supplier<Panel> tooltip, boolean scrollable);
+                        Supplier<Panel> tooltip, boolean scrollable, int padding);
         }
     }
 
@@ -528,7 +562,7 @@ public class Panel implements Component {
      *
      * <p>{@link #size(int, int) size(...)} is required and is checked by {@link #build()}. All other properties are
      * optional: the panel is placed at (0, 0), arranges its content vertically, has no background, no tooltip and
-     * no styles, is shown and is scrollable.
+     * no styles, has no padding, is shown and is scrollable.
      */
     public static class Builder extends BaseBuilder<Panel, Builder> {
         private Builder(Supplier<String> id) {

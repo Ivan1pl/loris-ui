@@ -21,8 +21,8 @@ public class ModalPopup extends Panel {
     private ModalPopup(Supplier<String> id, IntBinaryOperator x, IntBinaryOperator y, IntBinaryOperator width,
                        IntBinaryOperator height, Layout layout, Supplier<Background> background,
                        Supplier<Boolean> open, List<IntBiFunction<Component>> content, List<Style> styles,
-                       Supplier<Panel> tooltip, boolean scrollable) {
-        super(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable);
+                       Supplier<Panel> tooltip, boolean scrollable, int padding) {
+        super(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable, padding);
     }
 
     /**

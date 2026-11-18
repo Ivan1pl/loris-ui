@@ -27,8 +27,8 @@ public class Popup extends Panel {
     private Popup(Supplier<String> id, IntBinaryOperator x, IntBinaryOperator y, IntBinaryOperator width,
                   IntBinaryOperator height, Layout layout, Supplier<Background> background, Supplier<Boolean> open,
                   List<IntBiFunction<Component>> content, List<Style> styles, Supplier<Panel> tooltip,
-                  boolean scrollable, Consumer<Boolean> openSetter) {
-        super(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable);
+                  boolean scrollable, int padding, Consumer<Boolean> openSetter) {
+        super(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable, padding);
         this.openSetter = openSetter;
     }
 
@@ -131,9 +131,10 @@ public class Popup extends Panel {
 
         @Override
         public Popup build() {
-            return doBuild(((id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable) ->
+            return doBuild((id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable,
+                            padding) ->
                     new Popup(id, x, y, width, height, layout, background, open, content, styles, tooltip, scrollable,
-                            openSetter)));
+                            padding, openSetter));
         }
     }
 }

@@ -166,6 +166,16 @@ public class PanelRenderer extends Renderer<Panel> {
                 }
                 ImGui.setCursorPos(posX, posY);
             }
+            int padding = component.getPadding();
+            if (padding > 0) {
+                int width = component.getWidth(w, h);
+                int height = component.getHeight(w, h);
+                // A child window does not inherit its parent's NoInputs flag.
+                int contentFlags = enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs);
+                ImGui.setCursorPos(posX + padding, posY + padding);
+                ImGui.beginChild(id + "_content", Math.max(width - 2L * padding, 1),
+                        Math.max(height - 2L * padding, 1), false, contentFlags);
+            }
             if (!component.getContent().isEmpty()) {
                 Component first = component.getContent().getFirst().apply(w, h);
                 rendererProvider.getRenderer(first).render(
@@ -180,6 +190,9 @@ public class PanelRenderer extends Renderer<Panel> {
                             c, w, h, rendererProvider, bundleKeyResolver, false, enableInput);
                     offsetX += ImGui.getItemRectSize().x;
                 }
+            }
+            if (padding > 0) {
+                ImGui.endChild();
             }
             ImGui.dummy(0f, 0f);
             if (component instanceof ModalPopup) {
