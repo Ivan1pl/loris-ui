@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
@@ -39,6 +41,31 @@ class TabbedPanelTest {
         Assertions.assertAll(
                 () -> Assertions.assertTrue(tabButton(tabbedPanel, 0).isEnabled()),
                 () -> Assertions.assertFalse(tabButton(tabbedPanel, 1).isEnabled()));
+    }
+
+    @Test
+    void shouldGiveRemainderOfTabBarWidthToFirstTabsOnePixelEach() {
+        List<Integer> labelWidths = new ArrayList<>();
+        BiFunction<Integer, Integer, Component> label = (width, _) -> {
+            labelWidths.add(width);
+            return Spacer.builder().build();
+        };
+        Component contents = Spacer.builder().build();
+        TabbedPanel tabbedPanel = TabbedPanel.builder()
+                .size(570, 200)
+                .addTab(label, null, null, null, null, contents)
+                .addTab(label, null, null, null, null, contents)
+                .addTab(label, null, null, null, null, contents)
+                .addTab(label, null, null, null, null, contents)
+                .build();
+
+        List<Integer> buttonWidths = new ArrayList<>();
+        for (int i = 0; i < 4; ++i) {
+            buttonWidths.add(tabButton(tabbedPanel, i).getWidth(800, 600));
+        }
+        Assertions.assertAll(
+                () -> Assertions.assertEquals(List.of(143, 143, 142, 142), buttonWidths),
+                () -> Assertions.assertEquals(List.of(143, 143, 142, 142), labelWidths));
     }
 
     @Test

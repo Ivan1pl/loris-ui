@@ -10,8 +10,9 @@ import java.util.function.Supplier;
  * A component that shows one of several tabs, selected with a bar of tab buttons along its top edge.
  *
  * <p>The tab bar spans the full width of the tabbed panel and splits it equally among the tab buttons, in the order
- * the tabs were added. The content of the selected tab is shown below the tab bar. The first tab is selected
- * initially; clicking another tab's button selects that tab.
+ * the tabs were added. When the width is not divisible by the number of tabs, the first tabs are one pixel wider,
+ * so the buttons fill the whole width. The content of the selected tab is shown below the tab bar. The first tab is
+ * selected initially; clicking another tab's button selects that tab.
  *
  * <p>Create a tabbed panel with {@link #builder()}.
  */
@@ -31,12 +32,14 @@ public class TabbedPanel implements Component {
         this.height = height;
         this.tabBarHeight = tabBarHeight;
 
-        int tabWidth = width / tabs.size();
+        int baseTabWidth = width / tabs.size();
+        int remainder = width % tabs.size();
         var builder = Panel.panelBuilder(this::toString)
                 .size(width, tabBarHeight)
                 .layout(Layout.HORIZONTAL);
         for (int i = 0; i < tabs.size(); ++i) {
             int tabIndex = i;
+            int tabWidth = i < remainder ? baseTabWidth + 1 : baseTabWidth;
             builder.addContent(Button.buttonBuilder(() -> "btn_" + this + "_" + tabIndex)
                     .size(tabWidth, tabBarHeight)
                     .background(tabsBackgrounds.get(i))
