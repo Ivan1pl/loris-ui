@@ -1,6 +1,7 @@
 package com.ivan1pl.lorisui.example.jme3;
 
 import com.ivan1pl.lorisui.api.font.Font;
+import com.ivan1pl.lorisui.example.shared.ExampleFocusScreen;
 import com.ivan1pl.lorisui.example.shared.ExampleScreen;
 import com.ivan1pl.lorisui.example.shared.ExampleSettings;
 import com.ivan1pl.lorisui.jme3.ImGuiJmeDisplay;
@@ -31,8 +32,12 @@ public class LorisJme3Example extends SimpleApplication {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        ExampleScreen exampleScreen = new ExampleScreen(font, () -> guiViewPort.removeProcessor(imGuiJmeDisplay));
+        ExampleScreen exampleScreen = new ExampleScreen(font, () -> guiViewPort.removeProcessor(imGuiJmeDisplay),
+                () -> imGuiJmeDisplay.setCurrentScreen(ExampleSettings.FOCUS_SCREEN_NAME));
+        ExampleFocusScreen focusScreen = new ExampleFocusScreen(font,
+                () -> imGuiJmeDisplay.setCurrentScreen(ExampleSettings.SCREEN_NAME));
         imGuiJmeDisplay.addScreen(ExampleSettings.SCREEN_NAME, exampleScreen);
+        imGuiJmeDisplay.addScreen(ExampleSettings.FOCUS_SCREEN_NAME, focusScreen);
         imGuiJmeDisplay.setCurrentScreen(ExampleSettings.SCREEN_NAME);
         guiViewPort.addProcessor(imGuiJmeDisplay);
 

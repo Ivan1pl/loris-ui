@@ -66,6 +66,14 @@ import com.ivan1pl.lorisui.imgui.backend.ImGuiSdlGpuBackend;
  * Initializing the display sets the global SDL hints listed in {@link ImGuiSdlGpuRenderer}; they affect every SDL
  * window of the application and stay set after the display is closed.
  *
+ * <h2>Keyboard navigation</h2>
+ * Tab and Shift+Tab move the keyboard focus through the UI's buttons, text and number inputs and combo boxes, and the
+ * activation key and Escape act on the focused element, as described for
+ * {@link com.ivan1pl.lorisui.api.backend.Backend}. Tab never reaches Dear ImGui's own keyboard navigation, so Ctrl+Tab
+ * never moves or highlights panels. Choose the activation key with {@link #setActivationKey}, and turn keyboard
+ * navigation off with {@link #setKeyboardNavigationEnabled}. {@link #processEvent(long)} lists the key events that
+ * the UI consumes.
+ *
  * <h2>Threading</h2>
  * The display is not thread-safe. Create it and call all of its methods on the thread that owns the window and
  * submits the GPU device's command buffers. The screen lifecycle hooks and component callbacks run on that thread.
@@ -128,8 +136,17 @@ public final class ImGuiLwjglSdlGpuDisplay extends ImGuiLwjglDisplayBase<ImGuiSd
      * Mouse motion and mouse button events are consumed while the UI wants mouse input, that is while the pointer is
      * over LorisUI content or a mouse drag started on it. Mouse wheel events are consumed while the UI wants mouse
      * input and the pointer is over a scrollable panel. Key and text input events are consumed while a LorisUI text or
-     * number input has keyboard focus. Other events, such as window events, are passed to the UI but never consumed.
-     * The result describes the most recently rendered frame.
+     * number input is being edited. While keyboard navigation is enabled, they are also consumed while an enabled
+     * button or combo box has the keyboard focus, while a text or number input has received the keyboard focus and is
+     * about to be edited, and while a combo box is expanded. Other events, such as window events, are passed to the UI
+     * but never consumed. The result describes the most recently rendered frame, so keep rendering every frame while
+     * passing events; while the UI is hidden, close the display or disable keyboard navigation.
+     * <p>
+     * A key release is passed to the application exactly when the key's press, or a repeat while it was held, was
+     * passed to it, whatever the rules above say at the moment of release, so the application never sees a key held
+     * down or a release it never saw pressed when the UI starts or stops consuming key events. Only the release of a
+     * key pressed before {@link #initialize()} follows the rules above. Key presses, repeats and text input events
+     * follow the rules above alone.
      * <p>
      * Returns {@code false} without reading the event while the display is not initialized, including after
      * {@link #close()}.

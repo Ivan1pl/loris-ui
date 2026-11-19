@@ -18,6 +18,15 @@
  * touching native state, initialized once the window's graphics context exists, and disposed before that context goes
  * away; after disposal it can be initialized again.
  *
+ * <p>The renderer also owns the UI's keyboard focus, which follows the
+ * {@linkplain com.ivan1pl.lorisui.api.backend.Backend keyboard navigation} settings of its backend; they can be
+ * changed through {@link com.ivan1pl.lorisui.imgui.ImGuiRenderer#setActivationKey ImGuiRenderer.setActivationKey}
+ * and {@link com.ivan1pl.lorisui.imgui.ImGuiRenderer#setKeyboardNavigationEnabled
+ * ImGuiRenderer.setKeyboardNavigationEnabled} at any time. The variants never pass Tab key events to Dear ImGui, so
+ * Ctrl+Tab never moves or highlights panels; while navigation is enabled, a Tab press moves the keyboard focus
+ * instead. {@link com.ivan1pl.lorisui.imgui.ImGuiRenderer#wantsKeyboardInput() wantsKeyboardInput} then also reports
+ * keyboard input while an enabled button, an input or a combo box has the keyboard focus or a combo box is expanded.
+ *
  * <p>Fonts are registered with the renderer, which returns an {@link com.ivan1pl.lorisui.imgui.ImGuiFont} for each
  * one. A font stays valid across disposal and re-initialization of its renderer and can be used only while that
  * renderer is initialized.

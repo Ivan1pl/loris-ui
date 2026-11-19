@@ -75,12 +75,21 @@ import java.util.function.Predicate;
  *     <li>cursor position and mouse button events are consumed while the UI wants mouse input, that is while the
  *     pointer is over LorisUI content or a mouse drag started on it;</li>
  *     <li>scroll events are consumed while the UI wants mouse input and the pointer is over a scrollable panel;</li>
- *     <li>key events, including repeats, and character events are consumed while a LorisUI text or number input has
- *     keyboard focus;</li>
+ *     <li>key events, including repeats, and character events are consumed while a LorisUI text or number input is
+ *     being edited, and, while keyboard navigation is enabled, also while an enabled button or combo box has the
+ *     keyboard focus, while a text or number input has received the keyboard focus and is about to be edited, and
+ *     while a combo box is expanded;</li>
  *     <li>window focus and cursor enter events are never consumed.</li>
  * </ul>
- * Whether an event is consumed depends on the most recently rendered frame. Before {@link #initialize()} and after
- * {@link #close()}, every event goes to the application's callbacks. GLFW delivers characters whenever the window has
+ * A key release goes to the application's callback exactly when the key's press, or a repeat while it was held,
+ * went to it, whatever the rule above says at the moment of release, so the application never sees a key held down
+ * or a release it never saw pressed when the UI starts or stops consuming key events. Only the release of a key
+ * pressed before {@link #initialize()} follows the rule above.
+ * <p>
+ * Whether an event is consumed depends on the most recently rendered frame, so keep calling {@link #render(int, int)}
+ * every frame while the window's events are processed; while the UI is hidden, close the display or disable keyboard
+ * navigation. Before {@link #initialize()} and after {@link #close()}, every event goes to the application's
+ * callbacks. GLFW delivers characters whenever the window has
  * keyboard focus, so the display does not start or stop text input. The other callbacks of the window, such as the
  * window size, framebuffer size, close and refresh callbacks, are left to the application.
  * <p>
@@ -110,6 +119,14 @@ import java.util.function.Predicate;
  * the display initializes; the display then sets the application's monitor callback again, as described for
  * {@link ImGuiGlfwGl3Renderer}.
  *
+ * <h2>Keyboard navigation</h2>
+ * Tab and Shift+Tab move the keyboard focus through the UI's buttons, text and number inputs and combo boxes, and the
+ * activation key and Escape act on the focused element, as described for
+ * {@link com.ivan1pl.lorisui.api.backend.Backend}. Tab never reaches Dear ImGui's own keyboard navigation, so Ctrl+Tab
+ * never moves or highlights panels. Choose the activation key with {@link #setActivationKey}, and turn keyboard
+ * navigation off with {@link #setKeyboardNavigationEnabled}. The key and character events that the UI consumes are
+ * listed under Input above.
+ *
  * <h2>Threading</h2>
  * The display is not thread-safe. Create it and call all of its methods on the thread that owns the window and its
  * OpenGL context, with that context current. For GLFW, that is the process's main thread, so on macOS the JVM may need
@@ -134,6 +151,7 @@ public final class ImGuiLwjglGlfwGl3Display extends ImGuiLwjglDisplayBase<ImGuiG
             new ChainedCallback<>(GLFW::glfwSetScrollCallback);
     private final ChainedCallback<GLFWKeyCallback> keyCallback = new ChainedCallback<>(GLFW::glfwSetKeyCallback);
     private final ChainedCallback<GLFWCharCallback> charCallback = new ChainedCallback<>(GLFW::glfwSetCharCallback);
+    private final DeliveredKeys deliveredKeys = new DeliveredKeys();
     // Counts the callback dispatches in progress; the release must never run inside one
     private int dispatchDepth = 0;
     // The first failure of a dispatch, kept until the next render or close rethrows it
@@ -379,7 +397,11 @@ public final class ImGuiLwjglGlfwGl3Display extends ImGuiLwjglDisplayBase<ImGuiG
     private void onKey(long window, int key, int scancode, int action, int mods) {
         forward(keyCallback, renderer -> {
             renderer.processGlfwKey(key, scancode, action, mods);
-            return renderer.wantsKeyboardInput();
+            // Keyed by the key token, because GLFW may synthesize a release with another scancode (the Windows
+            // dual-Shift workaround, releases on focus loss); a key without a token by its scancode, complemented so
+            // that it never equals a token
+            int keyId = key != GLFW.GLFW_KEY_UNKNOWN ? key : ~scancode;
+            return deliveredKeys.isConsumed(keyId, action != GLFW.GLFW_RELEASE, renderer.wantsKeyboardInput());
         }, app -> app.invoke(window, key, scancode, action, mods));
     }
 

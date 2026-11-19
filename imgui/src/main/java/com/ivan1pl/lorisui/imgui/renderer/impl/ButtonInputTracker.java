@@ -13,8 +13,9 @@ final class ButtonInputTracker {
     private boolean pressProcessedThisFrame;
     private boolean releaseSeenThisFrame;
 
+    // Keyboard focus start and key activation share the pointer triggers, so each trigger runs at most once per update
     boolean update(Button button, int id, int frame, boolean hovered, boolean mouseClicked, boolean mouseDown,
-                   boolean mouseReleased) {
+                   boolean mouseReleased, boolean keyboardFocusStarted, boolean keyActivated) {
         if (frame != currentFrame) {
             startFrame(frame);
         }
@@ -46,10 +47,10 @@ final class ButtonInputTracker {
             }
         }
 
-        if (hoverStarted) {
+        if (hoverStarted || keyboardFocusStarted) {
             button.hover();
         }
-        if (clickDue) {
+        if (clickDue || keyActivated) {
             button.click();
         }
         return hovered && mouseDown && pressedHere;

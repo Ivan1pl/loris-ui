@@ -1,5 +1,6 @@
 package com.ivan1pl.lorisui.lwjgl;
 
+import com.ivan1pl.lorisui.api.backend.ActivationKey;
 import com.ivan1pl.lorisui.api.component.Component;
 import com.ivan1pl.lorisui.api.component.style.Style;
 import com.ivan1pl.lorisui.api.font.Font;
@@ -237,6 +238,37 @@ abstract class ImGuiLwjglDisplayBase<RendererType extends ImGuiRenderer> {
      */
     public void setResourceBundle(String name, String path) {
         resolver.setResourceBundle(name, path);
+    }
+
+    /**
+     * Sets the key that activates the keyboard-focused element: it presses a focused button, opens a focused combo box
+     * and selects a focused combo box item, as described for
+     * {@link com.ivan1pl.lorisui.api.backend.Backend#setActivationKey}. The default is {@link ActivationKey#ENTER}.
+     * <p>
+     * May be called in any state of the display, including before it is initialized and after its {@code close()},
+     * on the display's thread. The new key takes effect from the next frame.
+     *
+     * @param activationKey key that activates the focused element; must not be null
+     * @throws NullPointerException if {@code activationKey} is null
+     */
+    public void setActivationKey(ActivationKey activationKey) {
+        backend.setActivationKey(activationKey);
+    }
+
+    /**
+     * Enables or disables keyboard navigation with Tab, Shift+Tab, the activation key and Escape, as described for
+     * {@link com.ivan1pl.lorisui.api.backend.Backend#setKeyboardNavigationEnabled}. It is enabled by default;
+     * disable it on screens where Tab or other keys belong to the game. Disabling it ends the capture that comes from
+     * keyboard navigation at once, so the display then consumes key events only while a text or number input is being
+     * edited, and clears the keyboard focus from the next frame drawn while it is disabled.
+     * <p>
+     * May be called in any state of the display, including before it is initialized and after its {@code close()},
+     * on the display's thread. The change takes effect from the next key event or frame.
+     *
+     * @param enabled {@code true} to enable keyboard navigation, {@code false} to disable it
+     */
+    public void setKeyboardNavigationEnabled(boolean enabled) {
+        backend.setKeyboardNavigationEnabled(enabled);
     }
 
     final RendererType getRenderer() {

@@ -11,9 +11,15 @@ import com.jme3.input.event.TouchEvent;
 
 final class ImGuiInputSystem implements RawInputListener {
     private final ImGuiRenderer renderer;
+    private final DeliveredKeys deliveredKeys = new DeliveredKeys();
 
     ImGuiInputSystem(ImGuiRenderer renderer) {
         this.renderer = renderer;
+    }
+
+    // Called when the display stops receiving input, so a later attach starts without stale keys
+    void forgetDeliveredKeys() {
+        deliveredKeys.clear();
     }
 
     @Override
@@ -50,7 +56,7 @@ final class ImGuiInputSystem implements RawInputListener {
 
     @Override
     public void onKeyEvent(KeyInputEvent evt) {
-        if (renderer.wantsKeyboardInput()) {
+        if (deliveredKeys.isConsumed(evt.getKeyCode(), evt.isPressed(), renderer.wantsKeyboardInput())) {
             evt.setConsumed();
         }
     }

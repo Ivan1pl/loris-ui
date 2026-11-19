@@ -1,5 +1,6 @@
 package com.ivan1pl.lorisui.imgui.backend;
 
+import com.ivan1pl.lorisui.api.backend.ActivationKey;
 import com.ivan1pl.lorisui.api.backend.Backend;
 import com.ivan1pl.lorisui.api.component.*;
 import com.ivan1pl.lorisui.api.component.style.*;
@@ -70,6 +71,8 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
     // leading '/' is an alias that shares the nested map of its normalized path.
     private final Map<String, Map<Object, Map<Object, Map<Object, TextureData>>>> textures = new HashMap<>();
     private boolean drawing;
+    private ActivationKey activationKey = ActivationKey.ENTER;
+    private boolean keyboardNavigationEnabled = true;
 
     /**
      * Creates a backend with the built-in renderers and style appliers for all components and styles in
@@ -222,6 +225,55 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
         } finally {
             drawing = wasDrawing;
         }
+    }
+
+    /**
+     * Returns the key that activates the keyboard-focused element. The default is {@link ActivationKey#ENTER}.
+     *
+     * @return the activation key, never {@code null}
+     */
+    @Override
+    public final ActivationKey getActivationKey() {
+        return activationKey;
+    }
+
+    /**
+     * Sets the key that activates the keyboard-focused element, as described for {@link Backend#setActivationKey}.
+     * {@link ActivationKey#ENTER} matches Dear ImGui's Enter and keypad Enter keys, and {@link ActivationKey#SPACE} its
+     * Space key.
+     *
+     * <p>Can be called at any time on the host's UI thread; the new key takes effect from the next frame.
+     *
+     * @param activationKey key that activates the focused element; must not be null
+     * @throws NullPointerException if {@code activationKey} is null
+     */
+    @Override
+    public final void setActivationKey(ActivationKey activationKey) {
+        this.activationKey = Objects.requireNonNull(activationKey, "activationKey");
+    }
+
+    /**
+     * Returns whether keyboard navigation is enabled. It is enabled by default.
+     *
+     * @return {@code true} if keyboard navigation is enabled
+     */
+    @Override
+    public final boolean isKeyboardNavigationEnabled() {
+        return keyboardNavigationEnabled;
+    }
+
+    /**
+     * Enables or disables keyboard navigation, as described for {@link Backend#setKeyboardNavigationEnabled}. Dear
+     * ImGui's own keyboard navigation stays off either way. Disabling it clears the keyboard focus from the next frame
+     * drawn while it is disabled.
+     *
+     * <p>Can be called at any time on the host's UI thread; the change takes effect from the next key event or frame.
+     *
+     * @param enabled {@code true} to enable keyboard navigation, {@code false} to disable it
+     */
+    @Override
+    public final void setKeyboardNavigationEnabled(boolean enabled) {
+        keyboardNavigationEnabled = enabled;
     }
 
     @Override

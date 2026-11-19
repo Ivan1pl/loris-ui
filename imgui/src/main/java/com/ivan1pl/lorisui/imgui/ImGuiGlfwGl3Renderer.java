@@ -43,6 +43,14 @@ import imgui.glfw.ImGuiImplGlfw;
  * On macOS, the JVM may therefore need {@code -XstartOnFirstThread}.
  */
 public final class ImGuiGlfwGl3Renderer extends ImGuiRenderer {
+    // GLFW's stable values, mirrored because lorisui.imgui does not require org.lwjgl.glfw
+    private static final int GLFW_KEY_TAB = 258;
+    private static final int GLFW_RELEASE = 0;
+    private static final int GLFW_MOD_SHIFT = 1;
+    private static final int GLFW_MOD_CONTROL = 2;
+    private static final int GLFW_MOD_ALT = 4;
+    private static final int GLFW_MOD_SUPER = 8;
+
     private ImGuiImplGlfw implGlfw;
     private ImGuiImplGl3 implGl3;
 
@@ -131,6 +139,11 @@ public final class ImGuiGlfwGl3Renderer extends ImGuiRenderer {
     /**
      * Passes a key press, repeat or release to Dear ImGui. Call it from the window's key callback.
      *
+     * <p>Tab key events never reach Dear ImGui, whatever their modifiers, so Dear ImGui's Ctrl+Tab window switching is
+     * disabled. While {@linkplain #setKeyboardNavigationEnabled(boolean) keyboard navigation} is enabled, a Tab press
+     * or repeat without Ctrl, Alt or Super moves LorisUI keyboard focus to the next element, or with Shift to the
+     * previous one.
+     *
      * @param key      GLFW key ({@code GLFW_KEY_*}), or {@code GLFW_KEY_UNKNOWN}
      * @param scancode platform-specific scancode of the key
      * @param action   GLFW action ({@code GLFW_PRESS}, {@code GLFW_REPEAT} or {@code GLFW_RELEASE})
@@ -140,7 +153,9 @@ public final class ImGuiGlfwGl3Renderer extends ImGuiRenderer {
     public void processGlfwKey(int key, int scancode, int action, int mods) {
         checkInitialized();
         makeContextCurrent();
-        implGlfw.keyCallback(getWindowHandle(), key, scancode, action, mods);
+        if (!divertTab(classifyTab(key, action, mods))) {
+            implGlfw.keyCallback(getWindowHandle(), key, scancode, action, mods);
+        }
     }
 
     /**
@@ -181,6 +196,14 @@ public final class ImGuiGlfwGl3Renderer extends ImGuiRenderer {
      */
     public void render(LorisScreen screen, int w, int h, BundleKeyResolver bundleKeyResolver) {
         renderFrame(screen, w, h, bundleKeyResolver, () -> implGl3.renderDrawData(ImGui.getDrawData()));
+    }
+
+    private static TabKeyFilter.Result classifyTab(int key, int action, int mods) {
+        return TabKeyFilter.classify(key == GLFW_KEY_TAB, action != GLFW_RELEASE,
+                (mods & GLFW_MOD_SHIFT) != 0,
+                (mods & GLFW_MOD_CONTROL) != 0,
+                (mods & GLFW_MOD_ALT) != 0,
+                (mods & GLFW_MOD_SUPER) != 0);
     }
 
     @Override

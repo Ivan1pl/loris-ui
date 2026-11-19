@@ -16,9 +16,12 @@ import java.util.function.Supplier;
  * supports the same position, size, padding, background, tooltip and style settings. In addition, a button can show a
  * different background while the pointer is over it (hovered), while it is being pressed (active) and while it is
  * disabled; each of these falls back to the base background when unset. A button can also run an action when the
- * pointer starts hovering it. A disabled button ignores clicks and hovers. While another control holds the pointer,
- * for example while a scroll bar is being dragged, the button neither starts hovering nor accepts the press that
- * begins a click.
+ * pointer starts hovering it or it gains keyboard focus. A disabled button ignores clicks and hovers. While another
+ * control holds the pointer, for example while a scroll bar is being dragged, the button neither starts hovering nor
+ * accepts the press that begins a click.
+ *
+ * <p>With {@linkplain com.ivan1pl.lorisui.api.backend.Backend keyboard navigation}, an enabled button that has
+ * keyboard focus is drawn with its hovered background, and the activation key clicks it.
  *
  * <p>Create a button with {@link #buttonBuilder(String)} or {@link #buttonBuilder(Supplier)}. Its ID follows the
  * same rules as a {@link Panel} ID.
@@ -87,8 +90,8 @@ public class Button extends Panel {
 
     /**
      * Runs the button's action if the button is currently {@link #isEnabled() enabled}; does nothing otherwise.
-     * Backends call this when the user clicks the button. Applications may call it on the host's UI thread to
-     * trigger the action as if the button had been clicked.
+     * Backends call this when the user clicks the button or presses the activation key while the button has keyboard
+     * focus. Applications may call it on the host's UI thread to trigger the action as if the button had been clicked.
      */
     public void click() {
         if (isEnabled()) {
@@ -98,8 +101,9 @@ public class Button extends Panel {
 
     /**
      * Runs the button's hover action if the button is currently {@link #isEnabled() enabled}; does nothing otherwise.
-     * Backends call this when the pointer starts hovering the button. Applications may call it on the host's UI
-     * thread to trigger the hover action as if the pointer had started hovering the button.
+     * Backends call this, at most once per frame, when the pointer starts hovering the button, when the button gains
+     * keyboard focus and when the button is enabled again while it keeps keyboard focus. Applications may call it on
+     * the host's UI thread to trigger the hover action as if the pointer had started hovering the button.
      */
     public void hover() {
         if (isEnabled()) {
@@ -368,8 +372,9 @@ public class Button extends Panel {
         }
 
         /**
-         * Sets the action run when the user clicks the enabled button. It runs on the host's UI thread. An exception
-         * thrown by the action propagates to the caller of the host's render call. By default clicking does nothing.
+         * Sets the action run when the user clicks the enabled button or presses the activation key while the button
+         * has keyboard focus. It runs on the host's UI thread. An exception thrown by the action propagates to the
+         * caller of the host's render call. By default clicking does nothing.
          *
          * @param action the action; must not be null
          * @return this builder
@@ -381,11 +386,13 @@ public class Button extends Panel {
         }
 
         /**
-         * Sets the action run when the pointer starts hovering the enabled button. It runs once each time the pointer
-         * starts hovering the button, but not again when the pointer leaves and re-enters the button while the button
-         * is held down. It runs on the host's UI thread. An exception thrown by the hover action propagates to the
-         * caller of the host's render call, and a click completed in the same frame is then not run. By default
-         * hovering does nothing.
+         * Sets the action run when the pointer starts hovering the enabled button or the enabled button gains keyboard
+         * focus. It runs once each time the pointer starts hovering the button, but not again when the pointer leaves
+         * and re-enters the button while the button is held down. It also runs once each time the enabled button
+         * gains keyboard focus, and again when the button is enabled while it keeps keyboard focus; when the pointer
+         * hover and the keyboard focus start in the same frame, it runs once. It runs on the host's UI thread. An
+         * exception thrown by the hover action propagates to the caller of the host's render call, and a click
+         * completed in the same frame is then not run. By default hovering does nothing.
          *
          * @param hoverAction the hover action; must not be null
          * @return this builder

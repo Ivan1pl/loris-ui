@@ -1,5 +1,6 @@
 package com.ivan1pl.lorisui.api.screen;
 
+import com.ivan1pl.lorisui.api.backend.ActivationKey;
 import com.ivan1pl.lorisui.api.backend.Backend;
 import com.ivan1pl.lorisui.api.component.Component;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
@@ -216,10 +217,32 @@ class LorisScreenTest {
 
     private static final class RecordingBackend implements Backend {
         private final List<List<Component>> rendered = Collections.synchronizedList(new ArrayList<>());
+        private ActivationKey activationKey = ActivationKey.ENTER;
+        private boolean keyboardNavigationEnabled = true;
 
         @Override
         public void render(int w, int h, List<Component> components, BundleKeyResolver bundleKeyResolver) {
             rendered.add(components);
+        }
+
+        @Override
+        public ActivationKey getActivationKey() {
+            return activationKey;
+        }
+
+        @Override
+        public void setActivationKey(ActivationKey activationKey) {
+            this.activationKey = activationKey;
+        }
+
+        @Override
+        public boolean isKeyboardNavigationEnabled() {
+            return keyboardNavigationEnabled;
+        }
+
+        @Override
+        public void setKeyboardNavigationEnabled(boolean enabled) {
+            keyboardNavigationEnabled = enabled;
         }
 
         private List<Component> lastRendered() {

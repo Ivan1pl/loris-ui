@@ -1,5 +1,6 @@
 package com.ivan1pl.lorisui.imgui;
 
+import com.ivan1pl.lorisui.api.backend.ActivationKey;
 import com.ivan1pl.lorisui.api.component.Component;
 import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
@@ -149,6 +150,32 @@ class ImGuiSdlGl3RendererTest {
 
         Assertions.assertThrows(IllegalStateException.class, () -> renderer.processSdlEvent(0L));
         Assertions.assertThrows(IllegalStateException.class, () -> renderer.render(screen, 800, 600, resolver));
+    }
+
+    @Test
+    void shouldPassActivationKeyToBackendBeforeInitialize() {
+        renderer.setActivationKey(ActivationKey.SPACE);
+
+        Assertions.assertEquals(ActivationKey.SPACE, backend.getActivationKey());
+    }
+
+    @Test
+    void shouldPassKeyboardNavigationSwitchToBackendBeforeInitialize() {
+        renderer.setKeyboardNavigationEnabled(false);
+
+        Assertions.assertFalse(backend.isKeyboardNavigationEnabled());
+    }
+
+    @Test
+    void shouldWithholdEveryTabEventFromDearImGuiWhateverTheNavigationSwitch() {
+        for (boolean enabled : new boolean[] { true, false }) {
+            renderer.setKeyboardNavigationEnabled(enabled);
+
+            Assertions.assertFalse(renderer.divertTab(TabKeyFilter.Result.PASS));
+            Assertions.assertTrue(renderer.divertTab(TabKeyFilter.Result.WITHHOLD));
+            Assertions.assertTrue(renderer.divertTab(TabKeyFilter.Result.MOVE_FORWARD));
+            Assertions.assertTrue(renderer.divertTab(TabKeyFilter.Result.MOVE_BACK));
+        }
     }
 
     @Test

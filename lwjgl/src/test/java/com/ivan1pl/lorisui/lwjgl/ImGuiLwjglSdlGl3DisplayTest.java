@@ -1,5 +1,6 @@
 package com.ivan1pl.lorisui.lwjgl;
 
+import com.ivan1pl.lorisui.api.backend.ActivationKey;
 import com.ivan1pl.lorisui.api.component.Component;
 import com.ivan1pl.lorisui.api.component.Text;
 import com.ivan1pl.lorisui.api.component.style.Style;
@@ -128,6 +129,26 @@ class ImGuiLwjglSdlGl3DisplayTest {
         display.close();
         Assertions.assertThrows(IllegalStateException.class,
                 () -> display.registerStyleApplier(GaugeStyle.class, new NoOpStyleApplier()));
+    }
+
+    @Test
+    void shouldAcceptNavigationSettingsBeforeInitializeAndAfterClose() {
+        display.setActivationKey(ActivationKey.SPACE);
+        display.setKeyboardNavigationEnabled(false);
+
+        display.close();
+
+        Assertions.assertDoesNotThrow(() -> display.setActivationKey(ActivationKey.ENTER));
+        Assertions.assertDoesNotThrow(() -> display.setKeyboardNavigationEnabled(true));
+        Assertions.assertEquals(List.of(), events);
+    }
+
+    @Test
+    void shouldRejectNullActivationKey() {
+        NullPointerException thrown = Assertions.assertThrows(NullPointerException.class,
+                () -> display.setActivationKey(null));
+
+        Assertions.assertEquals("activationKey", thrown.getMessage());
     }
 
     private final class RecordingScreen extends LorisScreen {

@@ -1,6 +1,7 @@
 package com.ivan1pl.lorisui.example.lwjgl;
 
 import com.ivan1pl.lorisui.api.font.Font;
+import com.ivan1pl.lorisui.example.shared.ExampleFocusScreen;
 import com.ivan1pl.lorisui.example.shared.ExampleScreen;
 import com.ivan1pl.lorisui.example.shared.ExampleSettings;
 import com.ivan1pl.lorisui.lwjgl.ImGuiLwjglGlfwGl3Display;
@@ -77,7 +78,9 @@ public class LorisLwjglGlfwGl3Example {
             display.addScreen(ExampleSettings.SCREEN_NAME, new ExampleScreen(font, () -> {
                 display.close();
                 uiClosed = true;
-            }));
+            }, () -> display.setCurrentScreen(ExampleSettings.FOCUS_SCREEN_NAME)));
+            display.addScreen(ExampleSettings.FOCUS_SCREEN_NAME,
+                    new ExampleFocusScreen(font, () -> display.setCurrentScreen(ExampleSettings.SCREEN_NAME)));
             display.setCurrentScreen(ExampleSettings.SCREEN_NAME);
             display.initialize();
             runLoop(window, display);

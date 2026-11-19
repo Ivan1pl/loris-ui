@@ -46,6 +46,14 @@
  * the context, the device or the window. The package documentation of {@code com.ivan1pl.lorisui.lwjgl} describes the
  * typical setup of each display.
  *
+ * <p><b>Keyboard navigation.</b> Tab and Shift+Tab move the keyboard focus through the UI's buttons, text and number
+ * inputs and combo boxes, as described for {@link com.ivan1pl.lorisui.api.backend.Backend Backend}. Every display
+ * offers {@code setActivationKey} and {@code setKeyboardNavigationEnabled}, which can be called in any state of the
+ * display. Tab key events never reach Dear ImGui's own keyboard navigation, so Ctrl+Tab never moves or highlights
+ * panels. While an enabled button or combo box has the keyboard focus, an input has received it or a combo box is
+ * expanded, the displays consume the window's key events, so the application sees them again once the focus is
+ * cleared, for example with Escape.
+ *
  * <p><b>sRGB output.</b> Images are uploaded as sRGB textures, so every display needs an sRGB framebuffer to show their
  * true colors. With the OpenGL displays, request an sRGB-capable default framebuffer when creating the window
  * ({@code SDL_GL_FRAMEBUFFER_SRGB_CAPABLE} or {@code GLFW_SRGB_CAPABLE}) and enable {@code GL_FRAMEBUFFER_SRGB}; with

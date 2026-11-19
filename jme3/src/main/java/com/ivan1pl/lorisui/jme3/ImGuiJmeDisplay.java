@@ -1,5 +1,6 @@
 package com.ivan1pl.lorisui.jme3;
 
+import com.ivan1pl.lorisui.api.backend.ActivationKey;
 import com.ivan1pl.lorisui.api.component.Component;
 import com.ivan1pl.lorisui.api.component.style.Style;
 import com.ivan1pl.lorisui.api.font.Font;
@@ -118,6 +119,23 @@ import java.util.Objects;
  * <p>
  * Images are uploaded as sRGB textures and need an sRGB framebuffer to show their true colors; jME's gamma
  * correction, which is on by default ({@code AppSettings.setGammaCorrection}), provides it.
+ *
+ * <h2>Keyboard navigation</h2>
+ * Tab and Shift+Tab move the keyboard focus through the UI's buttons, text and number inputs and combo boxes, and the
+ * activation key and Escape act on the focused element, as described for
+ * {@link com.ivan1pl.lorisui.api.backend.Backend}. Tab never reaches Dear ImGui's own keyboard navigation, so Ctrl+Tab
+ * never moves or highlights panels. Choose the activation key with {@link #setActivationKey}, and turn keyboard
+ * navigation off with {@link #setKeyboardNavigationEnabled}.
+ * <p>
+ * When created with the application's input manager, the display consumes key events while a LorisUI text or number
+ * input is being edited. While keyboard navigation is enabled, it also consumes them while an enabled button or combo
+ * box has the keyboard focus, while a text or number input has received the keyboard focus and is about to be
+ * edited, and while a combo box is expanded. A key release reaches the application's input mappings exactly when the
+ * key's press, or a repeat while it was held, reached them, so they never see a key held down or a release they never
+ * saw pressed when the UI starts or stops consuming key events; only the release of a key pressed before the display
+ * was last attached follows the capture at that moment. Whether a key event is consumed depends on the most recently
+ * drawn frame, so while the display's viewport is not rendered, for example while the UI is hidden, remove the display
+ * or disable keyboard navigation.
  *
  * <h2>Threading</h2>
  * The display is not thread-safe. Call its methods on the jME application (render) thread, for example from
@@ -542,6 +560,39 @@ public class ImGuiJmeDisplay implements SceneProcessor {
         resolver.setResourceBundle(name, path);
     }
 
+    /**
+     * Sets the key that activates the keyboard-focused element: it presses a focused button, opens a focused combo box
+     * and selects a focused combo box item, as described for
+     * {@link com.ivan1pl.lorisui.api.backend.Backend#setActivationKey}. The default is {@link ActivationKey#ENTER}.
+     * <p>
+     * May be called in any state of the display, attached or not, also after its initialization failed, on the jME
+     * application thread. The new key takes effect from the next frame and stays in effect when the display is
+     * attached again.
+     *
+     * @param activationKey key that activates the focused element; must not be null
+     * @throws NullPointerException if {@code activationKey} is null
+     */
+    public void setActivationKey(ActivationKey activationKey) {
+        backend.setActivationKey(activationKey);
+    }
+
+    /**
+     * Enables or disables keyboard navigation with Tab, Shift+Tab, the activation key and Escape, as described for
+     * {@link com.ivan1pl.lorisui.api.backend.Backend#setKeyboardNavigationEnabled}. It is enabled by default;
+     * disable it on screens where Tab or other keys belong to the game. Disabling it ends the capture that comes from
+     * keyboard navigation at once, so the display then consumes key events only while a text or number input is being
+     * edited, and clears the keyboard focus from the next frame drawn while it is disabled.
+     * <p>
+     * May be called in any state of the display, attached or not, also after its initialization failed, on the jME
+     * application thread. The change takes effect from the next key event or frame and stays in effect when the
+     * display is attached again.
+     *
+     * @param enabled {@code true} to enable keyboard navigation, {@code false} to disable it
+     */
+    public void setKeyboardNavigationEnabled(boolean enabled) {
+        backend.setKeyboardNavigationEnabled(enabled);
+    }
+
     private void checkRegistrationOpen() {
         if (failed) {
             throw new IllegalStateException("Display initialization failed and the display can no longer be used; "
@@ -596,6 +647,7 @@ public class ImGuiJmeDisplay implements SceneProcessor {
         if (inputManager != null) {
             inputManager.removeRawInputListener(inputSys);
         }
+        inputSys.forgetDeliveredKeys();
         window.removeSdlEventListener(sdlEventListener);
     }
 

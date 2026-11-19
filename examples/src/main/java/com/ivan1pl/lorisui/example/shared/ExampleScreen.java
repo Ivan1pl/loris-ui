@@ -13,8 +13,14 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 public class ExampleScreen extends LorisScreen {
-    private static final ImageMode IMAGE_MODE_PANEL_BG =
+    static final ImageMode IMAGE_MODE_PANEL_BG =
             ImageMode.spriteResize(40, 40, 1, 5, 30, 5, 5, 5, 30, 5, 30, 5, 30, 5, 5);
+    static final TextInputStyle TEXT_INPUT_STYLE = TextInputStyle.builder()
+            .backgroundColor(Color.BLUE)
+            .borderColor(Color.YELLOW)
+            .borderThickness(1f)
+            .rounding(5f)
+            .build();
     private static final ImageMode IMAGE_MODE_BUTTON =
             ImageMode.spriteResize(40, 40, 2, 5, 30, 5, 5, 5, 30, 5, 30, 5, 30, 5, 5);
     private static final ImageMode IMAGE_MODE_BUTTON_H =
@@ -49,12 +55,6 @@ public class ExampleScreen extends LorisScreen {
             ImageMode.spriteResize(40, 40, 17, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
     private static final ImageMode IMAGE_MODE_TAB_CONTENT =
             ImageMode.spriteResize(40, 40, 18, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final TextInputStyle TEXT_INPUT_STYLE = TextInputStyle.builder()
-            .backgroundColor(Color.BLUE)
-            .borderColor(Color.YELLOW)
-            .borderThickness(1f)
-            .rounding(5f)
-            .build();
     private static final ComboBoxStyle COMBO_BOX_STYLE = ComboBoxStyle.builder()
             .backgroundColor(Color.BLUE)
             .backgroundColorHovered(new Color(0.2f, 0.2f, 1f, 1f))
@@ -91,8 +91,9 @@ public class ExampleScreen extends LorisScreen {
     private int numberInputContent = 1;
     private int hoverCount;
 
-    public ExampleScreen(Font font, Runnable hideUiAction) {
+    public ExampleScreen(Font font, Runnable hideUiAction, Runnable focusScreenAction) {
         Objects.requireNonNull(hideUiAction, "hideUiAction");
+        Objects.requireNonNull(focusScreenAction, "focusScreenAction");
         List<ComboBox.Item<String>> comboBoxItems = Stream.of("item1", "item2", "item3", "item4")
                 .map(item -> createComboBoxItem(item, font))
                 .toList();
@@ -281,6 +282,20 @@ public class ExampleScreen extends LorisScreen {
                                 .append(resolver -> Optional.ofNullable(comboBox.getSelectedItem())
                                         .map(item -> resolver.resolveResourceKey("global." + item))
                                         .orElse("=========="))
+                                .build())
+                        .addContent(Spacer.builder()
+                                .width(10)
+                                .build())
+                        .addContent(Button.buttonBuilder("focus_screen")
+                                .size(90, 30)
+                                .action(focusScreenAction)
+                                .hoverAction(() -> hoverCount++)
+                                .addContent(Text.builder()
+                                        .width(90)
+                                        .align(Text.Align.CENTER)
+                                        .font(font)
+                                        .localizedText("global.focusScreen")
+                                        .build())
                                 .build())
                         .build())
                 .addContent(Spacer.builder()

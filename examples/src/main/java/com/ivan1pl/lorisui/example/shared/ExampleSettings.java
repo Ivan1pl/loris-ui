@@ -11,6 +11,7 @@ public final class ExampleSettings {
     public static final String FONT_PATH = "/fonts/open-sans.regular.ttf";
     public static final int FONT_SIZE = 20;
     public static final String SCREEN_NAME = "example";
+    public static final String FOCUS_SCREEN_NAME = "focus";
 
     private ExampleSettings() {}
 }

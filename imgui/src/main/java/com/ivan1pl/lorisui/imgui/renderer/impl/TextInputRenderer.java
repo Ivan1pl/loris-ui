@@ -22,21 +22,21 @@ public class TextInputRenderer extends Renderer<TextInput> {
         var styles = rendererProvider.getStyleApplier(style).applyStyles(style, rendererProvider);
         try {
             if (component.getFont() != null) {
-                ((ImGuiFont) component.getFont()).useFont(() -> doRender(component));
+                ((ImGuiFont) component.getFont()).useFont(() -> doRender(component, enableInput));
             } else {
-                doRender(component);
+                doRender(component, enableInput);
             }
         } finally {
             rendererProvider.getStyleApplier(style).popStyles(styles);
         }
     }
 
-    private void doRender(TextInput component) {
+    private void doRender(TextInput component, boolean enableInput) {
         ImGui.pushItemWidth(component.getWidth());
         try {
             ImString imString = new ImString(component.getValue());
             imString.inputData.isResizable = true;
-            if (ImGui.inputText("##", imString, 0)) {
+            if (InputKeyboardFocus.inputText(component, imString, 0, enableInput)) {
                 lastEditValue.put(component, imString.get());
             } else {
                 String value = lastEditValue.remove(component);

@@ -6,6 +6,7 @@ import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
 import com.ivan1pl.lorisui.imgui.backend.TextureData;
 import com.ivan1pl.lorisui.imgui.impl.ImGuiState;
+import com.ivan1pl.lorisui.imgui.impl.KeyboardFocus;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
 import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
 import com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier;
@@ -53,6 +54,8 @@ public class PanelRenderer extends Renderer<Panel> {
         for (Style style : component.getStyles()) {
             styleStack.pushStyle(style, rendererProvider);
         }
+        KeyboardFocus keyboardFocus = enableInput ? ImGuiState.keyboardFocus : null;
+        boolean popupScopePushed = false;
         try {
             String id = component.getId() + "_panel";
             int imGuiId = component instanceof Button ? ImGui.getID(id) : 0;
@@ -76,6 +79,10 @@ public class PanelRenderer extends Renderer<Panel> {
                 }
                 if (!open) {
                     return;
+                }
+                if (keyboardFocus != null) {
+                    keyboardFocus.pushPopupScope();
+                    popupScopePushed = true;
                 }
             } else if (topLevel) {
                 int flags = enableInput ? FLAGS_WINDOW : (FLAGS_WINDOW | ImGuiWindowFlags.NoInputs);
@@ -105,7 +112,8 @@ public class PanelRenderer extends Renderer<Panel> {
                     ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
 
                     ImGui.beginTooltip();
-                    render(tooltip, w, h, rendererProvider, bundleKeyResolver, false, enableInput);
+                    // Nothing in a tooltip takes input, so nothing in it can take keyboard focus either
+                    render(tooltip, w, h, rendererProvider, bundleKeyResolver, false, false);
                     ImGui.endTooltip();
 
                     ImGui.popStyleVar(1);
@@ -123,9 +131,17 @@ public class PanelRenderer extends Renderer<Panel> {
                 boolean mouseDown = ImGui.isKeyDown(ImGuiKey.MouseLeft);
                 boolean mouseReleased = ImGui.isKeyReleased(ImGuiKey.MouseLeft);
                 int frame = ImGui.getFrameCount();
+                int focus = 0;
+                if (keyboardFocus != null) {
+                    focus = keyboardFocus.register(imGuiId, KeyboardFocus.Kind.BUTTON, button.isEnabled());
+                    if (hovered && mouseClicked) {
+                        keyboardFocus.reportClick(imGuiId);
+                    }
+                }
                 boolean active = buttonInputTracker.update(button, imGuiId, frame, hovered, mouseClicked, mouseDown,
-                        mouseReleased);
-                background = button.getBackground(hovered, active);
+                        mouseReleased, (focus & KeyboardFocus.KEYBOARD_FOCUS_STARTED) != 0,
+                        (focus & KeyboardFocus.ACTIVATE) != 0);
+                background = button.getBackground(hovered || (focus & KeyboardFocus.FOCUS_LOOK) != 0, active);
             } else {
                 background = component.getBackground();
             }
@@ -209,6 +225,10 @@ public class PanelRenderer extends Renderer<Panel> {
         } catch (IOException e) {
             throw new RuntimeException(e);
         } finally {
+            // The only pop of the popup's scope, also after a failure inside the popup
+            if (popupScopePushed) {
+                keyboardFocus.popScope();
+            }
             styleStack.popStyles(startDepth);
         }
     }

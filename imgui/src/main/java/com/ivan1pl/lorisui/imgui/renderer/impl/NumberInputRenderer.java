@@ -23,21 +23,21 @@ public class NumberInputRenderer extends Renderer<NumberInput> {
         var styles = rendererProvider.getStyleApplier(style).applyStyles(style, rendererProvider);
         try {
             if (component.getFont() != null) {
-                ((ImGuiFont) component.getFont()).useFont(() -> doRender(component));
+                ((ImGuiFont) component.getFont()).useFont(() -> doRender(component, enableInput));
             } else {
-                doRender(component);
+                doRender(component, enableInput);
             }
         } finally {
             rendererProvider.getStyleApplier(style).popStyles(styles);
         }
     }
 
-    private void doRender(NumberInput component) {
+    private void doRender(NumberInput component, boolean enableInput) {
         ImGui.pushItemWidth(component.getWidth());
         try {
             ImString imString = new ImString(component.getValue());
             imString.inputData.isResizable = true;
-            if (ImGui.inputText("##", imString, ImGuiInputTextFlags.CharsDecimal)) {
+            if (InputKeyboardFocus.inputText(component, imString, ImGuiInputTextFlags.CharsDecimal, enableInput)) {
                 lastEditValue.put(component, imString.get());
             } else {
                 String value = lastEditValue.remove(component);

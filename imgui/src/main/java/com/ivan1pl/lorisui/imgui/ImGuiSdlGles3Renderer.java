@@ -75,13 +75,20 @@ public final class ImGuiSdlGles3Renderer extends ImGuiRenderer {
      * Passes an SDL event of the window to Dear ImGui, so that the UI sees mouse, keyboard, text and window input.
      * Hosts forward every event of the window while the renderer is initialized.
      *
+     * <p>Tab key events never reach Dear ImGui, whatever their modifiers, so Dear ImGui's Ctrl+Tab window switching is
+     * disabled. While {@linkplain #setKeyboardNavigationEnabled(boolean) keyboard navigation} is enabled, a Tab press
+     * or repeat in this window without Ctrl, Alt or GUI moves LorisUI keyboard focus to the next element, or with
+     * Shift to the previous one.
+     *
      * @param eventPtr native address of the {@code SDL_Event}
      * @throws IllegalStateException if the renderer is not initialized
      */
     public void processSdlEvent(long eventPtr) {
         checkInitialized();
         makeContextCurrent();
-        implSdl3.processEvent(eventPtr);
+        if (!SdlKeyEvents.divertTab(this, eventPtr)) {
+            implSdl3.processEvent(eventPtr);
+        }
     }
 
     /**

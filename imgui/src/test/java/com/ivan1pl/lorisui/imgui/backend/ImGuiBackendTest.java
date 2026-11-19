@@ -1,5 +1,6 @@
 package com.ivan1pl.lorisui.imgui.backend;
 
+import com.ivan1pl.lorisui.api.backend.ActivationKey;
 import com.ivan1pl.lorisui.api.component.Button;
 import com.ivan1pl.lorisui.api.component.Component;
 import com.ivan1pl.lorisui.api.component.ModalPopup;
@@ -131,6 +132,32 @@ class ImGuiBackendTest {
                 rendererFailure.getMessage());
         Assertions.assertTrue(styleApplierFailure.getMessage().contains(Style.class.getName()),
                 styleApplierFailure.getMessage());
+    }
+
+    @Test
+    void shouldDefaultToEnterAndEnabledNavigation() {
+        Assertions.assertEquals(ActivationKey.ENTER, backend.getActivationKey());
+        Assertions.assertTrue(backend.isKeyboardNavigationEnabled());
+    }
+
+    @Test
+    void shouldStoreNavigationSettings() {
+        backend.setActivationKey(ActivationKey.SPACE);
+        backend.setKeyboardNavigationEnabled(false);
+
+        Assertions.assertEquals(ActivationKey.SPACE, backend.getActivationKey());
+        Assertions.assertFalse(backend.isKeyboardNavigationEnabled());
+    }
+
+    @Test
+    void shouldRejectNullActivationKeyKeepingCurrentKey() {
+        backend.setActivationKey(ActivationKey.SPACE);
+
+        NullPointerException thrown = Assertions.assertThrows(NullPointerException.class,
+                () -> backend.setActivationKey(null));
+
+        Assertions.assertEquals("activationKey", thrown.getMessage());
+        Assertions.assertEquals(ActivationKey.SPACE, backend.getActivationKey());
     }
 
     private static final class Gauge implements Component {}

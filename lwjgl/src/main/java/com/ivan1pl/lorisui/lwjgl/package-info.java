@@ -76,6 +76,13 @@
  * Close the display before destroying the OpenGL context, the GPU device, the Vulkan device or the window; a closed
  * display cannot be used again.
  * <p>
+ * Every display supports the {@linkplain com.ivan1pl.lorisui.api.backend.Backend keyboard navigation} of the UI:
+ * Tab and Shift+Tab move the keyboard focus, and the activation key and Escape act on the focused element. Choose the
+ * activation key with {@code setActivationKey} and turn navigation off with {@code setKeyboardNavigationEnabled}, in
+ * any state of the display. Tab key events never reach Dear ImGui's own keyboard navigation, so Ctrl+Tab never moves
+ * or highlights panels. While navigation is enabled, the displays also consume key events while an element has the
+ * keyboard focus or a combo box is expanded, as described for each display.
+ * <p>
  * Images are uploaded as sRGB textures, so every display needs an sRGB framebuffer to show their true colors. With
  * the OpenGL displays, request an sRGB-capable default framebuffer when creating the window
  * ({@code SDL_GL_FRAMEBUFFER_SRGB_CAPABLE} or {@code GLFW_SRGB_CAPABLE}) and enable {@code GL_FRAMEBUFFER_SRGB}; with

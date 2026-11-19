@@ -17,9 +17,9 @@ class ButtonInputTrackerTest {
         AtomicInteger clicks = new AtomicInteger();
         Button a = button("a", clicks);
 
-        tracker.update(a, ID_A, 1, true, true, true, false);
-        tracker.update(a, ID_A, 2, true, false, true, false);
-        tracker.update(a, ID_A, 3, true, false, false, true);
+        tracker.update(a, ID_A, 1, true, true, true, false, false, false);
+        tracker.update(a, ID_A, 2, true, false, true, false, false, false);
+        tracker.update(a, ID_A, 3, true, false, false, true, false, false);
 
         Assertions.assertEquals(1, clicks.get());
     }
@@ -32,12 +32,12 @@ class ButtonInputTrackerTest {
         Button a = button("a", clicksA);
         Button b = button("b", clicksB);
 
-        tracker.update(a, ID_A, 1, true, true, true, false);
-        tracker.update(b, ID_B, 1, false, true, true, false);
-        tracker.update(a, ID_A, 2, false, false, true, false);
-        tracker.update(b, ID_B, 2, true, false, true, false);
-        tracker.update(a, ID_A, 3, false, false, false, true);
-        tracker.update(b, ID_B, 3, true, false, false, true);
+        tracker.update(a, ID_A, 1, true, true, true, false, false, false);
+        tracker.update(b, ID_B, 1, false, true, true, false, false, false);
+        tracker.update(a, ID_A, 2, false, false, true, false, false, false);
+        tracker.update(b, ID_B, 2, true, false, true, false, false, false);
+        tracker.update(a, ID_A, 3, false, false, false, true, false, false);
+        tracker.update(b, ID_B, 3, true, false, false, true, false, false);
 
         Assertions.assertEquals(0, clicksA.get());
         Assertions.assertEquals(0, clicksB.get());
@@ -49,9 +49,9 @@ class ButtonInputTrackerTest {
         AtomicInteger clicks = new AtomicInteger();
         Button a = button("a", clicks);
 
-        tracker.update(a, ID_A, 1, false, true, true, false);
-        tracker.update(a, ID_A, 2, true, false, true, false);
-        tracker.update(a, ID_A, 3, true, false, false, true);
+        tracker.update(a, ID_A, 1, false, true, true, false, false, false);
+        tracker.update(a, ID_A, 2, true, false, true, false, false, false);
+        tracker.update(a, ID_A, 3, true, false, false, true, false, false);
 
         Assertions.assertEquals(0, clicks.get());
     }
@@ -61,9 +61,9 @@ class ButtonInputTrackerTest {
         ButtonInputTracker tracker = new ButtonInputTracker();
         Button a = button("a", new AtomicInteger());
 
-        tracker.update(a, ID_A, 1, false, true, true, false);
+        tracker.update(a, ID_A, 1, false, true, true, false, false, false);
 
-        Assertions.assertFalse(tracker.update(a, ID_A, 2, true, false, true, false));
+        Assertions.assertFalse(tracker.update(a, ID_A, 2, true, false, true, false, false, false));
     }
 
     @Test
@@ -74,10 +74,10 @@ class ButtonInputTrackerTest {
         Button outer = button("outer", outerClicks);
         Button inner = button("inner", innerClicks);
 
-        tracker.update(outer, ID_A, 1, true, true, true, false);
-        tracker.update(inner, ID_B, 1, true, true, true, false);
-        tracker.update(outer, ID_A, 2, true, false, false, true);
-        tracker.update(inner, ID_B, 2, true, false, false, true);
+        tracker.update(outer, ID_A, 1, true, true, true, false, false, false);
+        tracker.update(inner, ID_B, 1, true, true, true, false, false, false);
+        tracker.update(outer, ID_A, 2, true, false, false, true, false, false);
+        tracker.update(inner, ID_B, 2, true, false, false, true, false, false);
 
         Assertions.assertEquals(0, outerClicks.get());
         Assertions.assertEquals(1, innerClicks.get());
@@ -89,9 +89,9 @@ class ButtonInputTrackerTest {
         AtomicInteger hovers = new AtomicInteger();
         Button a = hoverButton("a", hovers, new AtomicInteger(), new AtomicBoolean(true));
 
-        tracker.update(a, ID_A, 1, true, false, false, false);
-        tracker.update(a, ID_A, 2, true, false, false, false);
-        tracker.update(a, ID_A, 3, true, false, false, false);
+        tracker.update(a, ID_A, 1, true, false, false, false, false, false);
+        tracker.update(a, ID_A, 2, true, false, false, false, false, false);
+        tracker.update(a, ID_A, 3, true, false, false, false, false, false);
 
         Assertions.assertEquals(1, hovers.get());
     }
@@ -102,9 +102,9 @@ class ButtonInputTrackerTest {
         AtomicInteger hovers = new AtomicInteger();
         Button a = hoverButton("a", hovers, new AtomicInteger(), new AtomicBoolean(true));
 
-        tracker.update(a, ID_A, 1, true, false, false, false);
-        tracker.update(a, ID_A, 2, false, false, false, false);
-        tracker.update(a, ID_A, 3, true, false, false, false);
+        tracker.update(a, ID_A, 1, true, false, false, false, false, false);
+        tracker.update(a, ID_A, 2, false, false, false, false, false, false);
+        tracker.update(a, ID_A, 3, true, false, false, false, false, false);
 
         Assertions.assertEquals(2, hovers.get());
     }
@@ -116,10 +116,10 @@ class ButtonInputTrackerTest {
         Button a = hoverButton("a", hovers, new AtomicInteger(), new AtomicBoolean(true));
         Button b = button("b", new AtomicInteger());
 
-        tracker.update(a, ID_A, 1, true, false, false, false);
-        tracker.update(b, ID_B, 2, false, false, false, false);
-        tracker.update(a, ID_A, 3, true, false, false, false);
-        tracker.update(a, ID_A, 5, true, false, false, false);
+        tracker.update(a, ID_A, 1, true, false, false, false, false, false);
+        tracker.update(b, ID_B, 2, false, false, false, false, false, false);
+        tracker.update(a, ID_A, 3, true, false, false, false, false, false);
+        tracker.update(a, ID_A, 5, true, false, false, false, false, false);
 
         Assertions.assertEquals(3, hovers.get());
     }
@@ -131,10 +131,10 @@ class ButtonInputTrackerTest {
         AtomicInteger clicks = new AtomicInteger();
         Button a = hoverButton("a", hovers, clicks, new AtomicBoolean(true));
 
-        tracker.update(a, ID_A, 1, true, true, true, false);
-        tracker.update(a, ID_A, 2, false, false, true, false);
-        tracker.update(a, ID_A, 3, true, false, true, false);
-        tracker.update(a, ID_A, 4, true, false, false, true);
+        tracker.update(a, ID_A, 1, true, true, true, false, false, false);
+        tracker.update(a, ID_A, 2, false, false, true, false, false, false);
+        tracker.update(a, ID_A, 3, true, false, true, false, false, false);
+        tracker.update(a, ID_A, 4, true, false, false, true, false, false);
 
         Assertions.assertEquals(1, hovers.get());
         Assertions.assertEquals(1, clicks.get());
@@ -147,11 +147,11 @@ class ButtonInputTrackerTest {
         AtomicBoolean enabled = new AtomicBoolean(false);
         Button a = hoverButton("a", hovers, new AtomicInteger(), enabled);
 
-        tracker.update(a, ID_A, 1, true, false, false, false);
+        tracker.update(a, ID_A, 1, true, false, false, false, false, false);
         int hoversWhileDisabled = hovers.get();
-        tracker.update(a, ID_A, 2, false, false, false, false);
+        tracker.update(a, ID_A, 2, false, false, false, false, false, false);
         enabled.set(true);
-        tracker.update(a, ID_A, 3, true, false, false, false);
+        tracker.update(a, ID_A, 3, true, false, false, false, false, false);
 
         Assertions.assertEquals(0, hoversWhileDisabled);
         Assertions.assertEquals(1, hovers.get());
@@ -163,10 +163,10 @@ class ButtonInputTrackerTest {
         AtomicInteger clicks = new AtomicInteger();
         Button a = hoverButton("a", new AtomicInteger(), clicks, new AtomicBoolean(true));
 
-        boolean activeOnPress = tracker.update(a, ID_A, 1, true, true, true, false);
-        boolean activeWhileOff = tracker.update(a, ID_A, 2, false, false, true, false);
-        boolean activeWhenBack = tracker.update(a, ID_A, 3, true, false, true, false);
-        boolean activeOnRelease = tracker.update(a, ID_A, 4, true, false, false, true);
+        boolean activeOnPress = tracker.update(a, ID_A, 1, true, true, true, false, false, false);
+        boolean activeWhileOff = tracker.update(a, ID_A, 2, false, false, true, false, false, false);
+        boolean activeWhenBack = tracker.update(a, ID_A, 3, true, false, true, false, false, false);
+        boolean activeOnRelease = tracker.update(a, ID_A, 4, true, false, false, true, false, false);
 
         Assertions.assertTrue(activeOnPress);
         Assertions.assertFalse(activeWhileOff);
@@ -181,9 +181,9 @@ class ButtonInputTrackerTest {
         AtomicInteger clicks = new AtomicInteger();
         Button a = hoverButton("a", new AtomicInteger(), clicks, new AtomicBoolean(true));
 
-        tracker.update(a, ID_A, 1, true, true, true, false);
-        tracker.update(a, ID_A, 3, true, false, true, false);
-        tracker.update(a, ID_A, 4, true, false, false, true);
+        tracker.update(a, ID_A, 1, true, true, true, false, false, false);
+        tracker.update(a, ID_A, 3, true, false, true, false, false, false);
+        tracker.update(a, ID_A, 4, true, false, false, true, false, false);
 
         Assertions.assertEquals(0, clicks.get());
     }
@@ -196,10 +196,10 @@ class ButtonInputTrackerTest {
         Button first = button("first", firstClicks);
         Button second = button("second", secondClicks);
 
-        tracker.update(first, ID_A, 1, true, true, true, false);
-        tracker.update(second, ID_A, 1, true, true, true, false);
-        tracker.update(first, ID_A, 2, true, false, false, true);
-        tracker.update(second, ID_A, 2, true, false, false, true);
+        tracker.update(first, ID_A, 1, true, true, true, false, false, false);
+        tracker.update(second, ID_A, 1, true, true, true, false, false, false);
+        tracker.update(first, ID_A, 2, true, false, false, true, false, false);
+        tracker.update(second, ID_A, 2, true, false, false, true, false, false);
 
         Assertions.assertEquals(1, firstClicks.get() + secondClicks.get());
     }
@@ -218,8 +218,8 @@ class ButtonInputTrackerTest {
                 .build();
 
         IllegalStateException thrown = Assertions.assertThrows(IllegalStateException.class,
-                () -> tracker.update(a, ID_A, 1, true, true, false, true));
-        tracker.update(a, ID_A, 2, true, false, false, true);
+                () -> tracker.update(a, ID_A, 1, true, true, false, true, false, false));
+        tracker.update(a, ID_A, 2, true, false, false, true, false, false);
 
         Assertions.assertSame(failure, thrown);
         Assertions.assertEquals(0, clicks.get());
@@ -232,8 +232,8 @@ class ButtonInputTrackerTest {
         AtomicInteger clicks = new AtomicInteger();
         Button a = hoverButton("a", hovers, clicks, new AtomicBoolean(true));
 
-        tracker.update(a, ID_A, Integer.MAX_VALUE, true, true, true, false);
-        tracker.update(a, ID_A, Integer.MIN_VALUE, true, false, false, true);
+        tracker.update(a, ID_A, Integer.MAX_VALUE, true, true, true, false, false, false);
+        tracker.update(a, ID_A, Integer.MIN_VALUE, true, false, false, true, false, false);
 
         Assertions.assertEquals(1, hovers.get());
         Assertions.assertEquals(1, clicks.get());
@@ -247,15 +247,77 @@ class ButtonInputTrackerTest {
         Button outer = hoverButton("outer", outerHovers, new AtomicInteger(), new AtomicBoolean(true));
         Button inner = hoverButton("inner", innerHovers, new AtomicInteger(), new AtomicBoolean(true));
 
-        tracker.update(outer, ID_A, 1, true, false, false, false);
-        tracker.update(inner, ID_B, 1, true, false, false, false);
-        tracker.update(outer, ID_A, 2, true, false, false, false);
-        tracker.update(inner, ID_B, 2, false, false, false, false);
-        tracker.update(outer, ID_A, 3, true, false, false, false);
-        tracker.update(inner, ID_B, 3, true, false, false, false);
+        tracker.update(outer, ID_A, 1, true, false, false, false, false, false);
+        tracker.update(inner, ID_B, 1, true, false, false, false, false, false);
+        tracker.update(outer, ID_A, 2, true, false, false, false, false, false);
+        tracker.update(inner, ID_B, 2, false, false, false, false, false, false);
+        tracker.update(outer, ID_A, 3, true, false, false, false, false, false);
+        tracker.update(inner, ID_B, 3, true, false, false, false, false, false);
 
         Assertions.assertEquals(1, outerHovers.get());
         Assertions.assertEquals(2, innerHovers.get());
+    }
+
+    @Test
+    void shouldRunHoverOnceWhenKeyboardFocusStarts() {
+        ButtonInputTracker tracker = new ButtonInputTracker();
+        AtomicInteger hovers = new AtomicInteger();
+        Button a = hoverButton("a", hovers, new AtomicInteger(), new AtomicBoolean(true));
+
+        tracker.update(a, ID_A, 1, false, false, false, false, true, false);
+        tracker.update(a, ID_A, 2, false, false, false, false, false, false);
+        tracker.update(a, ID_A, 3, false, false, false, false, false, false);
+
+        Assertions.assertEquals(1, hovers.get());
+    }
+
+    @Test
+    void shouldRunHoverOnceWhenPointerHoverAndKeyboardFocusStartInSameFrame() {
+        ButtonInputTracker tracker = new ButtonInputTracker();
+        AtomicInteger hovers = new AtomicInteger();
+        Button a = hoverButton("a", hovers, new AtomicInteger(), new AtomicBoolean(true));
+
+        tracker.update(a, ID_A, 1, true, false, false, false, true, false);
+        tracker.update(a, ID_A, 2, true, false, false, false, false, false);
+
+        Assertions.assertEquals(1, hovers.get());
+    }
+
+    @Test
+    void shouldClickButtonWhenActivationKeyIsPressed() {
+        ButtonInputTracker tracker = new ButtonInputTracker();
+        AtomicInteger clicks = new AtomicInteger();
+        Button a = button("a", clicks);
+
+        boolean active = tracker.update(a, ID_A, 1, false, false, false, false, false, true);
+
+        Assertions.assertEquals(1, clicks.get());
+        Assertions.assertFalse(active);
+    }
+
+    @Test
+    void shouldClickOnceWhenMouseReleaseAndActivationKeyCoincide() {
+        ButtonInputTracker tracker = new ButtonInputTracker();
+        AtomicInteger clicks = new AtomicInteger();
+        Button a = button("a", clicks);
+
+        tracker.update(a, ID_A, 1, true, true, true, false, false, false);
+        tracker.update(a, ID_A, 2, true, false, false, true, false, true);
+
+        Assertions.assertEquals(1, clicks.get());
+    }
+
+    @Test
+    void shouldNotRunHoverOrClickFromKeyboardWhileDisabled() {
+        ButtonInputTracker tracker = new ButtonInputTracker();
+        AtomicInteger hovers = new AtomicInteger();
+        AtomicInteger clicks = new AtomicInteger();
+        Button a = hoverButton("a", hovers, clicks, new AtomicBoolean(false));
+
+        tracker.update(a, ID_A, 1, false, false, false, false, true, true);
+
+        Assertions.assertEquals(0, hovers.get());
+        Assertions.assertEquals(0, clicks.get());
     }
 
     private static Button button(String id, AtomicInteger clicks) {

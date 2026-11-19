@@ -1,17 +1,21 @@
 package com.ivan1pl.lorisui.imgui;
 
+import com.ivan1pl.lorisui.api.backend.ActivationKey;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
 import com.ivan1pl.lorisui.api.screen.DeferredRelease;
 import com.ivan1pl.lorisui.api.screen.LorisScreen;
 import com.ivan1pl.lorisui.imgui.backend.ImGuiBackend;
 import com.ivan1pl.lorisui.imgui.impl.ClassPathResources;
 import com.ivan1pl.lorisui.imgui.impl.ImGuiState;
+import com.ivan1pl.lorisui.imgui.impl.KeyboardFocus;
 import imgui.ImFont;
 import imgui.ImFontAtlas;
 import imgui.ImFontConfig;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiMouseButton;
 import imgui.internal.ImGuiContext;
 
 import java.io.IOException;
@@ -65,6 +69,12 @@ import java.util.Objects;
  * <p>Initializing a renderer can change global state of its windowing library, such as SDL hints or GLFW's monitor
  * callback; each variant documents these effects.
  *
+ * <h2>Keyboard navigation</h2>
+ * Tab and Shift+Tab move LorisUI's keyboard focus through the screen's buttons, text and number inputs and combo
+ * boxes, as described for {@link com.ivan1pl.lorisui.api.backend.Backend}. Choose the key that activates the focused
+ * element with {@link #setActivationKey}, turn navigation off with {@link #setKeyboardNavigationEnabled}, and use
+ * {@link #wantsKeyboardInput()} to keep the key events that the UI captures from the game.
+ *
  * <h2>Dear ImGui assertions</h2>
  * A failed Dear ImGui assertion terminates the JVM: imgui-java reports it and then calls {@code System.exit(1)}, and
  * execution cannot continue past it. The renderer disables the assertions of Dear ImGui's error recovery, so an
@@ -86,6 +96,7 @@ public abstract sealed class ImGuiRenderer
     private final ImGuiBackend backend;
     private final long windowHandle;
     private final List<ImGuiFont> fonts = new ArrayList<>();
+    private final KeyboardFocus keyboardFocus = new KeyboardFocus();
     private ImGuiContext context;
     private boolean rendering = false;
 
@@ -264,20 +275,32 @@ public abstract sealed class ImGuiRenderer
     }
 
     /**
-     * Returns whether the UI wants keyboard input, that is whether a LorisUI text or number input has keyboard focus.
-     * Hosts use this to keep key events that the UI handles away from the game.
+     * Returns whether the UI wants keyboard input. It does while a LorisUI text or number input is being edited, and,
+     * while keyboard navigation is enabled, also while an enabled button or combo box has keyboard focus, a text or
+     * number input has received keyboard focus, or a combo box is expanded. Hosts use this to keep key events that the
+     * UI handles away from the game. Because the result changes while keys are held, a host should decide a key's
+     * release by the key's press rather than by this result: pass the release to the game exactly when the game
+     * received the key's press or a repeat of it; otherwise the game sees the key held down, or a release it never
+     * saw pressed.
      *
-     * <p>The result describes the most recently rendered frame.
+     * <p>The result describes the most recently rendered frame. The keyboard navigation switch is read on every call,
+     * so disabling navigation ends the capture that comes from it at once. Tab presses that move the keyboard focus
+     * are queued and applied by the next frame. A host must therefore render every frame while it forwards input
+     * events to the renderer: if it stops rendering, for example while the UI is hidden, the capture of the last
+     * rendered frame stays in effect, so the game keeps losing key events, and the queued Tab presses apply together
+     * on the next frame. While the UI is hidden, dispose the renderer, or at least disable keyboard navigation; a text
+     * or number input that was being edited still captures the keyboard then.
      *
-     * @return {@code true} if Dear ImGui wants to capture the keyboard; {@code false} if it does not, or if the
-     *         renderer is not initialized
+     * @return {@code true} if the UI wants to capture the keyboard; {@code false} if it does not, or if the renderer
+     *         is not initialized
      */
     public boolean wantsKeyboardInput() {
         if (context == null) {
             return false;
         }
         makeContextCurrent();
-        return ImGui.getIO().getWantCaptureKeyboard();
+        return ImGui.getIO().getWantCaptureKeyboard()
+                || (backend.isKeyboardNavigationEnabled() && keyboardFocus.wantsCapture());
     }
 
     /**
@@ -295,6 +318,38 @@ public abstract sealed class ImGuiRenderer
         }
         makeContextCurrent();
         return ImGuiState.hoveringScrollableWindow;
+    }
+
+    /**
+     * Sets the key that activates the keyboard-focused element on the backend this renderer draws with, as described
+     * for {@link com.ivan1pl.lorisui.api.backend.Backend#setActivationKey}. The default is
+     * {@link ActivationKey#ENTER}.
+     *
+     * <p>Can be called at any time on the host's UI thread, whether or not the renderer is initialized; the new key
+     * takes effect from the next frame.
+     *
+     * @param activationKey key that activates the focused element; must not be null
+     * @throws NullPointerException if {@code activationKey} is null
+     */
+    public void setActivationKey(ActivationKey activationKey) {
+        backend.setActivationKey(activationKey);
+    }
+
+    /**
+     * Enables or disables keyboard navigation with Tab, Shift+Tab, the activation key and Escape on the backend this
+     * renderer draws with, as described for
+     * {@link com.ivan1pl.lorisui.api.backend.Backend#setKeyboardNavigationEnabled}. It is enabled by default;
+     * disable it on screens where Tab or other keys belong to the game. Disabling it ends the capture that comes from
+     * keyboard navigation at once, so {@link #wantsKeyboardInput()} then reports keyboard input only while a text or
+     * number input is being edited, and clears the keyboard focus from the next frame rendered while it is disabled.
+     *
+     * <p>Can be called at any time on the host's UI thread, whether or not the renderer is initialized; the change
+     * takes effect from the next key event or frame.
+     *
+     * @param enabled {@code true} to enable keyboard navigation, {@code false} to disable it
+     */
+    public void setKeyboardNavigationEnabled(boolean enabled) {
+        backend.setKeyboardNavigationEnabled(enabled);
     }
 
     /**
@@ -342,6 +397,20 @@ public abstract sealed class ImGuiRenderer
         }
     }
 
+    // The variants pass every key event's Tab classification here as events arrive; returns whether the event is
+    // withheld from Dear ImGui. A move is queued only while keyboard navigation is enabled
+    boolean divertTab(TabKeyFilter.Result result) {
+        int step = switch (result) {
+            case PASS, WITHHOLD -> 0;
+            case MOVE_FORWARD -> 1;
+            case MOVE_BACK -> -1;
+        };
+        if (step != 0 && backend.isKeyboardNavigationEnabled()) {
+            keyboardFocus.queueMove(step);
+        }
+        return result != TabKeyFilter.Result.PASS;
+    }
+
     void renderFrame(LorisScreen screen, int w, int h, BundleKeyResolver bundleKeyResolver, Runnable drawData) {
         checkInitialized();
         if (rendering) {
@@ -357,15 +426,25 @@ public abstract sealed class ImGuiRenderer
             ImGui.newFrame();
 
             ImGuiState.hoveringScrollableWindow = false;
+            boolean navigating = false;
             try {
+                navigating = beginKeyboardFocusFrame();
                 screen.render(backend, w, h, bundleKeyResolver);
+                // Committed before drawing, so a failure while drawing or updating text input keeps this frame's focus
+                if (navigating) {
+                    keyboardFocus.endFrame();
+                }
             } catch (Throwable failure) {
+                if (navigating) {
+                    keyboardFocus.discardFrame();
+                }
                 DeferredRelease.runAfterFailure(failure, () -> endFrame(drawData));
                 throw failure;
             }
             endFrame(drawData);
             updateTextInput(ImGui.getIO().getWantTextInput());
         } finally {
+            ImGuiState.keyboardFocus = null;
             rendering = false;
         }
     }
@@ -387,6 +466,31 @@ public abstract sealed class ImGuiRenderer
 
     // The SDL variants stop SDL text input for their window here if they started it
     void releaseTextInput() {}
+
+    // Turning navigation off resets the focus state, and the renderers see no KeyboardFocus during the frame
+    private boolean beginKeyboardFocusFrame() {
+        if (!backend.isKeyboardNavigationEnabled()) {
+            keyboardFocus.reset();
+            return false;
+        }
+        ImGuiIO io = ImGui.getIO();
+        boolean plainKey = !io.getKeyCtrl() && !io.getKeyAlt() && !io.getKeySuper();
+        keyboardFocus.beginFrame(
+                plainKey && isActivationKeyPressed(),
+                plainKey && ImGui.isKeyPressed(ImGuiKey.Escape, false),
+                plainKey && ImGui.isKeyPressed(ImGuiKey.UpArrow, true),
+                plainKey && ImGui.isKeyPressed(ImGuiKey.DownArrow, true),
+                ImGui.isMouseClicked(ImGuiMouseButton.Left));
+        ImGuiState.keyboardFocus = keyboardFocus;
+        return true;
+    }
+
+    private boolean isActivationKeyPressed() {
+        return switch (backend.getActivationKey()) {
+            case ENTER -> ImGui.isKeyPressed(ImGuiKey.Enter, false) || ImGui.isKeyPressed(ImGuiKey.KeypadEnter, false);
+            case SPACE -> ImGui.isKeyPressed(ImGuiKey.Space, false);
+        };
+    }
 
     private static void endFrame(Runnable drawData) {
         ImGui.render();
@@ -474,8 +578,10 @@ public abstract sealed class ImGuiRenderer
             }
             clearBackends();
             context = null;
+            keyboardFocus.reset();
             ImGuiState.hoveringScrollableWindow = false;
             ImGuiState.currentContextPtr = 0L;
+            ImGuiState.keyboardFocus = null;
         }
     }
 }
