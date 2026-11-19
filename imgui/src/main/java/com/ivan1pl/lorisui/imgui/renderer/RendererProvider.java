@@ -1,5 +1,6 @@
 package com.ivan1pl.lorisui.imgui.renderer;
 
+import com.ivan1pl.lorisui.api.component.Canvas;
 import com.ivan1pl.lorisui.api.component.Component;
 import com.ivan1pl.lorisui.api.component.ImageMode;
 import com.ivan1pl.lorisui.api.component.style.Style;
@@ -82,6 +83,33 @@ public interface RendererProvider {
      *                              cannot be decoded as an image
      */
     TextureData loadTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB) throws IOException;
+
+    /**
+     * Returns the texture that shows the given canvas's image, bringing it up to date with the canvas's pixels. On the
+     * first call for a canvas, and after the texture was released, the texture is created from the whole image;
+     * otherwise only the pixels changed since the previous call are uploaded, and the same texture is returned. The
+     * texture is as large as the canvas's resolution.
+     *
+     * <p>Each backend keeps its own texture per canvas. It releases the texture when its textures are unloaded, and
+     * when the canvas was not drawn while the previous frame was drawn; a canvas drawn again later gets a new texture.
+     * A canvas must therefore be drawn by one backend only, because the pixel changes this method uploads are not
+     * uploaded again for another backend.
+     *
+     * <p>A failed call leaves the backend able to retry: the next call creates the texture again, or uploads the whole
+     * image to the existing texture. The OpenGL and OpenGL ES backends do not detect a texture that cannot be created
+     * or updated, for example one too large for the hardware; the canvas may then be drawn blank instead.
+     *
+     * <p>Must be called on the host's UI thread with the window's graphics context ready, typically from
+     * {@link Renderer#render}. Component callbacks that change the canvas should run before this call, so that their
+     * changes are shown in the same frame.
+     *
+     * @param canvas canvas whose image the texture shows; must not be null
+     * @return the texture, never {@code null}
+     * @throws NullPointerException  if {@code canvas} is null
+     * @throws IllegalStateException if the graphics API reports a failure to create or update the texture
+     * @throws RuntimeException      if the texture cannot be created or updated for another reason
+     */
+    TextureData loadTexture(Canvas canvas);
 
     /**
      * Draws a texture as a {@code width} by {@code height} pixel image at the current Dear ImGui cursor position, using

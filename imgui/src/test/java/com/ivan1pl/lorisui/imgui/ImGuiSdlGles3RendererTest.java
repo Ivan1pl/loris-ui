@@ -9,6 +9,7 @@ import com.ivan1pl.lorisui.imgui.backend.TextureData;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 
 class ImGuiSdlGles3RendererTest {
@@ -22,6 +23,17 @@ class ImGuiSdlGles3RendererTest {
 
         @Override
         protected void deleteTexture(TextureData texture) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected TextureData createCanvasTexture(int width, int height, ByteBuffer rgbaPixels) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected void updateCanvasTexture(TextureData texture, int x, int y, int width, int height,
+                                           ByteBuffer rgbaPixels) {
             throw new UnsupportedOperationException();
         }
     };

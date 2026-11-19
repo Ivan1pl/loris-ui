@@ -304,13 +304,13 @@ public abstract sealed class ImGuiRenderer
     }
 
     /**
-     * Returns whether the pointer is over a scrollable top-level panel. Hosts use this to decide whether a mouse
-     * wheel event scrolls the UI or belongs to the game.
+     * Returns whether the pointer is over a scrollable top-level panel or an enabled canvas that takes mouse input.
+     * Hosts use this to decide whether a mouse wheel event scrolls the UI or belongs to the game.
      *
      * <p>The result describes the most recently rendered frame.
      *
-     * @return {@code true} if the pointer hovered a scrollable top-level panel during the last frame; {@code false}
-     *         otherwise, or if the renderer is not initialized
+     * @return {@code true} if the pointer hovered a scrollable top-level panel or an enabled canvas that takes mouse
+     *         input during the last frame; {@code false} otherwise, or if the renderer is not initialized
      */
     public boolean isHoveringScrollablePanel() {
         if (context == null) {

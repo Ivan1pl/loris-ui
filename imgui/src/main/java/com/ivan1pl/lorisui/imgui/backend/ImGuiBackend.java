@@ -6,6 +6,8 @@ import com.ivan1pl.lorisui.api.component.*;
 import com.ivan1pl.lorisui.api.component.style.*;
 import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
+import com.ivan1pl.lorisui.api.screen.DeferredRelease;
+import com.ivan1pl.lorisui.imgui.backend.impl.RgbaPixels;
 import com.ivan1pl.lorisui.imgui.backend.impl.TextureTiling;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
 import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
@@ -15,9 +17,13 @@ import com.ivan1pl.lorisui.imgui.renderer.style.impl.*;
 import imgui.ImGui;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -41,14 +47,23 @@ import java.util.Set;
  * unloaded while a frame is being drawn, for example from a component callback. {@link ImageMode.Repeat} images are
  * drawn as a grid of texture tiles, cut at the right and bottom edges, so textures need no repeating wrap mode.
  *
+ * <p>Each backend also keeps one texture per {@link Canvas} it draws, loaded with {@link #loadTexture(Canvas)}. The
+ * texture follows the canvas's changed pixels, and it is released by {@link #unloadTextures}, or at the start of a
+ * frame when the canvas was not drawn in the previous frame; a canvas drawn again afterwards gets a new texture with
+ * the whole image. Canvas textures treat each outermost call of {@link #render} as one frame: a second outermost call
+ * in the same frame releases the texture of every canvas that the first call drew, so each frame should draw the UI
+ * with one outermost call. A subclass that overrides {@link #render} must call {@code super.render}, or canvas
+ * textures are never released before the textures are unloaded.
+ *
  * <p><b>Backends and renderers.</b> Each backend matches the graphics API of a renderer variant:
  * {@link ImGuiOpenGlBackend} is used with {@link com.ivan1pl.lorisui.imgui.ImGuiSdlGl3Renderer} and
  * {@link com.ivan1pl.lorisui.imgui.ImGuiGlfwGl3Renderer}, {@link ImGuiOpenGlEsBackend} with
  * {@link com.ivan1pl.lorisui.imgui.ImGuiSdlGles3Renderer}, {@link ImGuiSdlGpuBackend} with
  * {@link com.ivan1pl.lorisui.imgui.ImGuiSdlGpuRenderer}, and {@link ImGuiVulkanBackend} with
  * {@link com.ivan1pl.lorisui.imgui.ImGuiSdlVulkanRenderer}. All four are final. A custom subclass of this class, which
- * implements {@link #createTexture} and {@link #deleteTexture}, for example to load textures differently on OpenGL,
- * pairs with the OpenGL 3 or OpenGL ES 3 renderers, because the textures it creates must be texture names of the
+ * implements {@link #createTexture}, {@link #deleteTexture}, {@link #createCanvasTexture} and
+ * {@link #updateCanvasTexture}, for example to load textures differently on OpenGL, pairs with the OpenGL 3 or
+ * OpenGL ES 3 renderers, because the textures it creates must be texture names of the
  * renderer's OpenGL or OpenGL ES context. Supporting another graphics API needs a new renderer variant inside this
  * module, so it is not an extension point. The bundled hosts always use their own backend: the jMonkeyEngine display
  * uses an {@code ImGuiOpenGlBackend} or an {@code ImGuiOpenGlEsBackend}, matching jMonkeyEngine's renderer, the LWJGL
@@ -58,7 +73,8 @@ import java.util.Set;
  * <p><b>One renderer per backend.</b> A backend must be used by one renderer only and is not shared between renderers
  * or Dear ImGui contexts, because it keeps the UI's input state, such as button presses and hovers, from one frame to
  * the next. Give each renderer its own backend, as the bundled hosts do. Re-initializing the same renderer with its
- * backend is fine.
+ * backend is fine. Likewise, a {@link Canvas} must be drawn by one backend only, because a backend that uploads the
+ * canvas's changed pixels takes them from the canvas, so another backend drawing the same canvas misses them.
  *
  * <p>The backend is used on the host's UI thread only.
  */
@@ -70,6 +86,10 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
     // Keyed by path, then by the red, green and blue masks, so that a lookup allocates no key object. A path with a
     // leading '/' is an alias that shares the nested map of its normalized path.
     private final Map<String, Map<Object, Map<Object, Map<Object, TextureData>>>> textures = new HashMap<>();
+    private final Map<Canvas, CanvasTexture> canvasTextures = new IdentityHashMap<>();
+    private final Set<Canvas> drawnCanvases = Collections.newSetFromMap(new IdentityHashMap<>());
+    // Reused for every canvas upload: grown to the largest one, never shrunk, dropped by unloadTextures().
+    private ByteBuffer canvasPixels;
     private boolean drawing;
     private ActivationKey activationKey = ActivationKey.ENTER;
     private boolean keyboardNavigationEnabled = true;
@@ -89,6 +109,7 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
         renderers.put(ComboBox.class, new ComboBoxRenderer<>());
         renderers.put(ProgressBar.class, new ProgressBarRenderer());
         renderers.put(TabbedPanel.class, new TabbedPanelRenderer());
+        renderers.put(Canvas.class, new CanvasRenderer());
         this.renderers = renderers;
 
         Map<Class<? extends Style>, StyleApplier<?>> styleAppliers = new HashMap<>();
@@ -208,17 +229,27 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
     /**
      * Draws the given components in list order, each as a top-level element with input enabled, using the renderer
      * that {@link #getRenderer} returns for it. Must be called on the host's UI thread, while a Dear ImGui frame is
-     * open.
+     * open, with the window's graphics context ready as for {@link #unloadTextures()}.
+     *
+     * <p>An outermost call, one not made while this backend is already drawing, first releases the textures of the
+     * canvases that were not drawn since the previous outermost call, as described in the class documentation. Each
+     * frame should draw the UI with one outermost call. A nested call releases nothing.
      *
      * @param w                 screen width in logical window coordinates
      * @param h                 screen height in logical window coordinates
      * @param components        components to draw; must not be null and is not modified
      * @param bundleKeyResolver resolver for localized text; must not be null
      * @throws IllegalStateException if there is no renderer or style applier for a component or style being drawn
+     * @throws RuntimeException      the first failure of releasing a canvas texture, after all other unused canvas
+     *                               textures have been released and before anything is drawn; failures of later
+     *                               textures are added to it as suppressed exceptions
      */
     @Override
     public void render(int w, int h, List<Component> components, BundleKeyResolver bundleKeyResolver) {
         boolean wasDrawing = drawing;
+        if (!wasDrawing) {
+            releaseUndrawnCanvasTextures();
+        }
         drawing = true;
         try {
             components.forEach(c -> getRenderer(c).render(c, w, h, this, bundleKeyResolver, true, true));
@@ -304,9 +335,37 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
         return texture;
     }
 
+    @Override
+    public final TextureData loadTexture(Canvas canvas) {
+        Objects.requireNonNull(canvas, "canvas");
+        drawnCanvases.add(canvas);
+        CanvasTexture canvasTexture = canvasTextures.get(canvas);
+        if (canvasTexture == null) {
+            Canvas.PixelUpdate image = canvas.takePixelUpdate(true);
+            TextureData texture = createCanvasTexture(image.width(), image.height(), toRgba(image));
+            canvasTextures.put(canvas, new CanvasTexture(texture));
+            return texture;
+        }
+
+        try {
+            Canvas.PixelUpdate update = canvas.takePixelUpdate(canvasTexture.wholeImageDue);
+            if (update != null) {
+                updateCanvasTexture(canvasTexture.texture, update.x(), update.y(), update.width(), update.height(),
+                        toRgba(update));
+            }
+            canvasTexture.wholeImageDue = false;
+        } catch (Throwable failure) {
+            // The taken pixels may not have reached the texture, so the next call uploads the whole image.
+            canvasTexture.wholeImageDue = true;
+            throw failure;
+        }
+        return canvasTexture.texture;
+    }
+
     /**
-     * Releases every texture this backend has loaded. Textures requested afterwards are loaded again. The backend
-     * forgets all textures even when releasing one of them fails.
+     * Releases every texture this backend has loaded, including the textures of canvases. Textures requested
+     * afterwards are loaded again, and canvas textures are created again from the whole image. The backend forgets all
+     * textures even when releasing one of them fails.
      *
      * <p>Textures cannot be unloaded while a frame is being drawn, for example from a component callback, because the
      * frame may still draw them. Must be called on the host's UI thread with the window's graphics context ready: for
@@ -330,23 +389,14 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
                 }
             }
         }
+        for (CanvasTexture canvasTexture : canvasTextures.values()) {
+            distinct.add(canvasTexture.texture);
+        }
         textures.clear();
-
-        RuntimeException failure = null;
-        for (TextureData texture : distinct) {
-            try {
-                deleteTexture(texture);
-            } catch (RuntimeException e) {
-                if (failure == null) {
-                    failure = e;
-                } else if (e != failure) {
-                    failure.addSuppressed(e);
-                }
-            }
-        }
-        if (failure != null) {
-            throw failure;
-        }
+        canvasTextures.clear();
+        drawnCanvases.clear();
+        canvasPixels = null;
+        deleteTextures(distinct);
     }
 
     /**
@@ -372,8 +422,55 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
             throws IOException;
 
     /**
-     * Releases a texture created by {@link #createTexture}. Called once per texture by {@link #unloadTextures}, on the
-     * host's UI thread with the window's graphics context ready.
+     * Creates a new texture of {@code width} by {@code height} pixels for a canvas, from tightly packed 8-bit RGBA
+     * rows, top row first. Each call creates a new texture; renderers load canvas textures through
+     * {@link #loadTexture(Canvas)} instead, which calls this method when a canvas has no texture yet.
+     *
+     * <p>The texture is not sRGB (UNORM), so its stored values are drawn like Dear ImGui vertex colors, and it is
+     * sampled with nearest-neighbor filtering where the renderer variant allows it, clamped to the edge. Nothing
+     * created for the texture is left behind when this method fails.
+     *
+     * <p>Called on the host's UI thread, with the window's graphics context ready as for {@link #unloadTextures()},
+     * possibly while a frame is being drawn.
+     *
+     * @param width      width of the texture in pixels, at least {@code 1}
+     * @param height     height of the texture in pixels, at least {@code 1}
+     * @param rgbaPixels the pixels, from position {@code 0} to the limit of {@code width * height * 4} bytes; never
+     *                   {@code null}; owned by the backend, so it must not be kept after this method returns
+     * @return the new texture, {@code width} by {@code height} pixels; never {@code null}
+     * @throws RuntimeException if the texture cannot be created and the graphics API reports it, for example an
+     *                          {@link IllegalStateException} naming the failed graphics API call; the OpenGL and
+     *                          OpenGL ES backends do not detect such failures, and their canvas may be drawn blank
+     */
+    protected abstract TextureData createCanvasTexture(int width, int height, ByteBuffer rgbaPixels);
+
+    /**
+     * Replaces a rectangle of a texture created by {@link #createCanvasTexture} with tightly packed 8-bit RGBA rows,
+     * top row first. The texture shows the new pixels when it is drawn later in the same frame.
+     *
+     * <p>Called on the host's UI thread, with the window's graphics context ready as for {@link #unloadTextures()},
+     * possibly while a frame is being drawn.
+     *
+     * @param texture    texture to update, created by {@link #createCanvasTexture}; never {@code null}
+     * @param x          left edge of the rectangle in texture pixels
+     * @param y          top edge of the rectangle in texture pixels
+     * @param width      width of the rectangle in pixels, at least {@code 1}; the rectangle lies inside the texture
+     * @param height     height of the rectangle in pixels, at least {@code 1}
+     * @param rgbaPixels the pixels of the rectangle, from position {@code 0} to the limit of
+     *                   {@code width * height * 4} bytes; never {@code null}; owned by the backend, so it must not be
+     *                   kept after this method returns
+     * @throws RuntimeException if the texture cannot be updated and the graphics API reports it, for example an
+     *                          {@link IllegalStateException} naming the failed graphics API call; the OpenGL and
+     *                          OpenGL ES backends do not detect such failures
+     */
+    protected abstract void updateCanvasTexture(TextureData texture, int x, int y, int width, int height,
+                                                ByteBuffer rgbaPixels);
+
+    /**
+     * Releases a texture created by {@link #createTexture} or {@link #createCanvasTexture}. Called once per texture by
+     * {@link #unloadTextures}, and for a canvas texture also at the start of an outermost {@link #render} when its
+     * canvas was not drawn in the previous frame. Called on the host's UI thread with the window's graphics context
+     * ready.
      *
      * @param texture texture to release; never {@code null}
      */
@@ -401,6 +498,46 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
 
     private static Object maskKey(Color mask) {
         return mask == null ? NO_COLOR_KEY : mask;
+    }
+
+    private ByteBuffer toRgba(Canvas.PixelUpdate pixels) {
+        int size = pixels.argb().length * 4;
+        if (canvasPixels == null || canvasPixels.capacity() < size) {
+            canvasPixels = ByteBuffer.allocateDirect(size);
+        }
+        canvasPixels.limit(size);
+        canvasPixels.position(0);
+        RgbaPixels.pack(pixels.argb(), canvasPixels);
+        return canvasPixels;
+    }
+
+    private void releaseUndrawnCanvasTextures() {
+        if (canvasTextures.isEmpty()) {
+            drawnCanvases.clear();
+            return;
+        }
+        List<TextureData> unused = new ArrayList<>();
+        Iterator<Map.Entry<Canvas, CanvasTexture>> entries = canvasTextures.entrySet().iterator();
+        while (entries.hasNext()) {
+            Map.Entry<Canvas, CanvasTexture> entry = entries.next();
+            if (!drawnCanvases.contains(entry.getKey())) {
+                unused.add(entry.getValue().texture);
+                entries.remove();
+            }
+        }
+        drawnCanvases.clear();
+        deleteTextures(unused);
+    }
+
+    private void deleteTextures(Collection<TextureData> textures) {
+        if (textures.isEmpty()) {
+            return;
+        }
+        List<Runnable> deletions = new ArrayList<>();
+        for (TextureData texture : textures) {
+            deletions.add(() -> deleteTexture(texture));
+        }
+        DeferredRelease.runAll(deletions.toArray(new Runnable[0]));
     }
 
     private void renderTextureRepeat(long id, int width, int height, int textureWidth, int textureHeight) {
@@ -538,5 +675,14 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
         ImGui.image(id, middleWidth3, subImageResize.getY3(), u7, v2, u8, v3);
         ImGui.sameLine(subImageResize.getX7() + middleWidth3, 0);
         ImGui.image(id, subImageResize.getX9(), subImageResize.getY3(), u8, v2, u9, v3);
+    }
+
+    private static final class CanvasTexture {
+        private final TextureData texture;
+        private boolean wholeImageDue;
+
+        private CanvasTexture(TextureData texture) {
+            this.texture = texture;
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.ivan1pl.lorisui.imgui.backend;
 
 import com.ivan1pl.lorisui.api.backend.ActivationKey;
 import com.ivan1pl.lorisui.api.component.Button;
+import com.ivan1pl.lorisui.api.component.Canvas;
 import com.ivan1pl.lorisui.api.component.Component;
 import com.ivan1pl.lorisui.api.component.ModalPopup;
 import com.ivan1pl.lorisui.api.component.Panel;
@@ -16,10 +17,12 @@ import com.ivan1pl.lorisui.api.core.Color;
 import com.ivan1pl.lorisui.api.resolver.BundleKeyResolver;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
 import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
+import com.ivan1pl.lorisui.imgui.renderer.impl.CanvasRenderer;
 import com.ivan1pl.lorisui.imgui.renderer.style.StyleApplier;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 
 class ImGuiBackendTest {
@@ -33,6 +36,17 @@ class ImGuiBackendTest {
         protected void deleteTexture(TextureData texture) {
             throw new UnsupportedOperationException();
         }
+
+        @Override
+        protected TextureData createCanvasTexture(int width, int height, ByteBuffer rgbaPixels) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected void updateCanvasTexture(TextureData texture, int x, int y, int width, int height,
+                                           ByteBuffer rgbaPixels) {
+            throw new UnsupportedOperationException();
+        }
     };
 
     @Test
@@ -43,6 +57,22 @@ class ImGuiBackendTest {
         Assertions.assertSame(panelRenderer, backend.getRenderer(Popup.popupBuilder("popup").size(10, 10).build()));
         Assertions.assertSame(panelRenderer,
                 backend.getRenderer(ModalPopup.popupBuilder("modal").size(10, 10).build()));
+    }
+
+    @Test
+    void shouldResolveCanvasRendererForCanvas() {
+        Canvas canvas = Canvas.builder().size(10, 10).build();
+
+        Assertions.assertInstanceOf(CanvasRenderer.class, backend.getRenderer(canvas));
+    }
+
+    @Test
+    void shouldReplaceBuiltInCanvasRenderer() {
+        Renderer<Canvas> canvasRenderer = new NoOpRenderer<>();
+
+        backend.registerRenderer(Canvas.class, canvasRenderer);
+
+        Assertions.assertSame(canvasRenderer, backend.getRenderer(Canvas.builder().size(10, 10).build()));
     }
 
     @Test

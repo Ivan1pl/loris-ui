@@ -65,13 +65,16 @@ import java.nio.LongBuffer;
 public final class VulkanTextures {
     private VulkanTextures() {}
 
-    public static long createSampler(VkDevice device, String what) {
+    public static long createSampler(VkDevice device, int filter, String what) {
+        int mipmapMode = filter == VK10.VK_FILTER_NEAREST
+                ? VK10.VK_SAMPLER_MIPMAP_MODE_NEAREST
+                : VK10.VK_SAMPLER_MIPMAP_MODE_LINEAR;
         try (MemoryStack stack = MemoryStack.stackPush()) {
             VkSamplerCreateInfo info = VkSamplerCreateInfo.calloc(stack)
                     .sType$Default()
-                    .magFilter(VK10.VK_FILTER_LINEAR)
-                    .minFilter(VK10.VK_FILTER_LINEAR)
-                    .mipmapMode(VK10.VK_SAMPLER_MIPMAP_MODE_LINEAR)
+                    .magFilter(filter)
+                    .minFilter(filter)
+                    .mipmapMode(mipmapMode)
                     .addressModeU(VK10.VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
                     .addressModeV(VK10.VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
                     .addressModeW(VK10.VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
@@ -103,11 +106,7 @@ public final class VulkanTextures {
 
     public static Texture upload(VkDevice device, int queueFamilyIndex, VkQueue queue, ByteBuffer rgba, int width,
                                  int height, int format, long sampler, long layout, String what) {
-        long size = (long) width * height * 4;
-        if (rgba.remaining() < size) {
-            throw new IllegalArgumentException("Pixel data of " + what + " holds " + rgba.remaining()
-                    + " bytes, but a " + width + "x" + height + " RGBA image needs " + size);
-        }
+        checkPixelDataSize(rgba, width, height, what);
         long image = VK10.VK_NULL_HANDLE;
         long memory = VK10.VK_NULL_HANDLE;
         long view = VK10.VK_NULL_HANDLE;
@@ -120,13 +119,22 @@ public final class VulkanTextures {
             descriptorPool = createDescriptorPool(device, what);
             descriptorSet = allocateDescriptorSet(device, descriptorPool, layout, what);
             writeDescriptorSet(device, descriptorSet, sampler, view);
-            copyToImage(device, queueFamilyIndex, queue, rgba, width, height, image, what);
+            copyToImage(device, queueFamilyIndex, queue, rgba, VK10.VK_IMAGE_LAYOUT_UNDEFINED,
+                    VK10.VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, width, height, image, what);
             return new Texture(image, memory, view, descriptorPool, descriptorSet);
         } catch (Throwable failure) {
             Texture created = new Texture(image, memory, view, descriptorPool, descriptorSet);
             DeferredRelease.runAfterFailure(failure, () -> destroy(device, created));
             throw failure;
         }
+    }
+
+    public static void update(VkDevice device, int queueFamilyIndex, VkQueue queue, ByteBuffer rgba, int x, int y,
+                              int width, int height, long image, String what) {
+        checkPixelDataSize(rgba, width, height, what);
+        // The image is sampled by earlier submissions, so the copy waits for their fragment-shader reads.
+        copyToImage(device, queueFamilyIndex, queue, rgba, VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                VK10.VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, x, y, width, height, image, what);
     }
 
     public static void destroy(VkDevice device, Texture texture) {
@@ -154,6 +162,14 @@ public final class VulkanTextures {
     public static void check(int result, String vkFunction, String what) {
         if (result != VK10.VK_SUCCESS) {
             throw new IllegalStateException(vkFunction + " failed with VkResult " + result + " for " + what);
+        }
+    }
+
+    private static void checkPixelDataSize(ByteBuffer rgba, int width, int height, String what) {
+        long size = (long) width * height * 4;
+        if (rgba.remaining() < size) {
+            throw new IllegalArgumentException("Pixel data of " + what + " holds " + rgba.remaining()
+                    + " bytes, but a " + width + "x" + height + " RGBA image needs " + size);
         }
     }
 
@@ -269,8 +285,9 @@ public final class VulkanTextures {
         }
     }
 
-    private static void copyToImage(VkDevice device, int queueFamilyIndex, VkQueue queue, ByteBuffer rgba, int width,
-                                    int height, long image, String what) {
+    private static void copyToImage(VkDevice device, int queueFamilyIndex, VkQueue queue, ByteBuffer rgba,
+                                    int oldLayout, int srcStage, int x, int y, int width, int height, long image,
+                                    String what) {
         long stagingBuffer = VK10.VK_NULL_HANDLE;
         long stagingMemory = VK10.VK_NULL_HANDLE;
         long commandPool = VK10.VK_NULL_HANDLE;
@@ -282,7 +299,7 @@ public final class VulkanTextures {
             fillStagingMemory(device, stagingMemory, rgba, size, what);
             commandPool = createCommandPool(device, queueFamilyIndex, what);
             VkCommandBuffer commandBuffer = allocateCommandBuffer(device, commandPool, what);
-            recordCopy(commandBuffer, stagingBuffer, image, width, height, what);
+            recordCopy(commandBuffer, stagingBuffer, image, oldLayout, srcStage, x, y, width, height, what);
             fence = createFence(device, what);
             submitAndWait(device, queue, commandBuffer, fence, what);
         } catch (Throwable failure) {
@@ -369,8 +386,8 @@ public final class VulkanTextures {
         }
     }
 
-    private static void recordCopy(VkCommandBuffer commandBuffer, long stagingBuffer, long image, int width,
-                                   int height, String what) {
+    private static void recordCopy(VkCommandBuffer commandBuffer, long stagingBuffer, long image, int oldLayout,
+                                   int srcStage, int x, int y, int width, int height, String what) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             VkCommandBufferBeginInfo beginInfo = VkCommandBufferBeginInfo.calloc(stack)
                     .sType$Default()
@@ -378,15 +395,16 @@ public final class VulkanTextures {
             check(VK10.vkBeginCommandBuffer(commandBuffer, beginInfo), "vkBeginCommandBuffer", what);
 
             VkImageMemoryBarrier.Buffer copyBarrier = imageBarrier(stack, image, 0, VK10.VK_ACCESS_TRANSFER_WRITE_BIT,
-                    VK10.VK_IMAGE_LAYOUT_UNDEFINED, VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-            VK10.vkCmdPipelineBarrier(commandBuffer, VK10.VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                    VK10.VK_PIPELINE_STAGE_TRANSFER_BIT, 0, null, null, copyBarrier);
+                    oldLayout, VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            VK10.vkCmdPipelineBarrier(commandBuffer, srcStage, VK10.VK_PIPELINE_STAGE_TRANSFER_BIT, 0, null, null,
+                    copyBarrier);
 
             VkBufferImageCopy.Buffer region = VkBufferImageCopy.calloc(1, stack);
             region.get(0)
                     .imageSubresource(subresource -> subresource
                             .aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT)
                             .layerCount(1))
+                    .imageOffset(offset -> offset.x(x).y(y).z(0))
                     .imageExtent(extent -> extent.width(width).height(height).depth(1));
             VK10.vkCmdCopyBufferToImage(commandBuffer, stagingBuffer, image, VK10.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     region);

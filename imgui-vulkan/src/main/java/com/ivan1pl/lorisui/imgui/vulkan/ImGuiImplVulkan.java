@@ -109,7 +109,7 @@ public final class ImGuiImplVulkan {
 
         vertexShaderModule = createShaderModule(ImGuiImplVulkanShaders.VERTEX_SHADER_SPIRV);
         fragmentShaderModule = createShaderModule(ImGuiImplVulkanShaders.FRAGMENT_SHADER_SPIRV);
-        sampler = VulkanTextures.createSampler(device, RENDERER);
+        sampler = VulkanTextures.createSampler(device, VK10.VK_FILTER_LINEAR, RENDERER);
         descriptorSetLayout = VulkanTextures.createDescriptorSetLayout(device, RENDERER);
         pipelineLayout = createPipelineLayout();
         pipeline = createPipeline(colorAttachmentFormat);

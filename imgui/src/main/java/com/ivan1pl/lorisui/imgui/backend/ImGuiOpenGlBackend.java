@@ -1,6 +1,7 @@
 package com.ivan1pl.lorisui.imgui.backend;
 
 import com.ivan1pl.lorisui.api.core.Color;
+import com.ivan1pl.lorisui.api.screen.DeferredRelease;
 import com.ivan1pl.lorisui.imgui.backend.impl.DecodedImage;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -8,6 +9,8 @@ import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL21;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.function.Supplier;
 
 /**
  * The OpenGL implementation of {@link ImGuiBackend}, which loads textures from class-path resources into OpenGL
@@ -15,8 +18,12 @@ import java.io.IOException;
  * {@link com.ivan1pl.lorisui.imgui.ImGuiSdlGl3Renderer} or {@link com.ivan1pl.lorisui.imgui.ImGuiGlfwGl3Renderer}
  * use this backend.
  *
- * <p>Loading a texture restores the texture binding and the unpack state it changes, so engines that cache OpenGL
- * state, such as jMonkeyEngine, stay consistent with the context.
+ * <p>Image textures are created in the {@code SRGB_ALPHA} format with linear filtering. Canvas textures are created in
+ * the {@code RGBA8} format, which is not sRGB, with nearest-neighbor filtering, so canvas pixels look like the same
+ * colors in widgets and are drawn as sharp squares when scaled.
+ *
+ * <p>Loading or updating a texture restores the texture binding and the unpack state it changes, so engines that
+ * cache OpenGL state, such as jMonkeyEngine, stay consistent with the context.
  */
 public final class ImGuiOpenGlBackend extends ImGuiBackend {
     /**
@@ -47,15 +54,7 @@ public final class ImGuiOpenGlBackend extends ImGuiBackend {
     protected TextureData createTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB)
             throws IOException {
         try (DecodedImage image = DecodedImage.load(resourcePath, maskedR, maskedG, maskedB)) {
-            int previousTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-            int previousAlignment = GL11.glGetInteger(GL11.GL_UNPACK_ALIGNMENT);
-            int previousRowLength = GL11.glGetInteger(GL11.GL_UNPACK_ROW_LENGTH);
-            int previousSkipPixels = GL11.glGetInteger(GL11.GL_UNPACK_SKIP_PIXELS);
-            int previousSkipRows = GL11.glGetInteger(GL11.GL_UNPACK_SKIP_ROWS);
-            int previousUnpackBuffer = GL11.glGetInteger(GL21.GL_PIXEL_UNPACK_BUFFER_BINDING);
-            try {
-                GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0);
-
+            return withUploadState(() -> {
                 int texture = GL11.glGenTextures();
                 GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
 
@@ -64,23 +63,11 @@ public final class ImGuiOpenGlBackend extends ImGuiBackend {
                 GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
                 GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
 
-                GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
-                GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
-                GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, 0);
-                GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, 0);
-
                 GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL21.GL_SRGB_ALPHA, image.getWidth(), image.getHeight(), 0,
                         GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, image.getPixels());
 
                 return new TextureData(texture, image.getWidth(), image.getHeight());
-            } finally {
-                GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
-                GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, previousAlignment);
-                GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, previousRowLength);
-                GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, previousSkipPixels);
-                GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, previousSkipRows);
-                GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, previousUnpackBuffer);
-            }
+            });
         }
     }
 
@@ -92,5 +79,93 @@ public final class ImGuiOpenGlBackend extends ImGuiBackend {
     @Override
     protected void deleteTexture(TextureData texture) {
         GL11.glDeleteTextures((int) texture.id());
+    }
+
+    /**
+     * Creates a new OpenGL texture for a canvas, as described for {@link ImGuiBackend#createCanvasTexture}. The
+     * texture has the {@code RGBA8} format, which is not sRGB, and uses nearest-neighbor filtering clamped to the
+     * edge, so canvas pixels are drawn as sharp squares.
+     *
+     * <p>Called on the host's UI thread, with the window's OpenGL context current. The texture binding and the unpack
+     * state changed for the upload are restored before this method returns.
+     *
+     * <p>A texture that OpenGL cannot create, for example one too large for the hardware or one that does not fit
+     * in graphics memory, is not reported: this method returns normally and the canvas may be drawn blank.
+     *
+     * @param width      width of the texture in pixels
+     * @param height     height of the texture in pixels
+     * @param rgbaPixels tightly packed RGBA pixels of the whole texture; never {@code null}
+     * @return the new texture, never {@code null}
+     */
+    @Override
+    protected TextureData createCanvasTexture(int width, int height, ByteBuffer rgbaPixels) {
+        return withUploadState(() -> {
+            int texture = GL11.glGenTextures();
+            try {
+                GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+                GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+
+                GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, width, height, 0, GL11.GL_RGBA,
+                        GL11.GL_UNSIGNED_BYTE, rgbaPixels);
+            } catch (Throwable failure) {
+                DeferredRelease.runAfterFailure(failure, () -> GL11.glDeleteTextures(texture));
+                throw failure;
+            }
+            return new TextureData(texture, width, height);
+        });
+    }
+
+    /**
+     * Replaces a rectangle of a canvas texture, as described for {@link ImGuiBackend#updateCanvasTexture}.
+     *
+     * <p>Called on the host's UI thread, with the window's OpenGL context current. The texture binding and the unpack
+     * state changed for the upload are restored before this method returns.
+     *
+     * <p>An upload that OpenGL cannot perform is not reported: this method returns normally.
+     *
+     * @param texture    texture to update, created by {@link #createCanvasTexture}; never {@code null}
+     * @param x          left edge of the rectangle in texture pixels
+     * @param y          top edge of the rectangle in texture pixels
+     * @param width      width of the rectangle in pixels
+     * @param height     height of the rectangle in pixels
+     * @param rgbaPixels tightly packed RGBA pixels of the rectangle; never {@code null}
+     */
+    @Override
+    protected void updateCanvasTexture(TextureData texture, int x, int y, int width, int height,
+                                       ByteBuffer rgbaPixels) {
+        withUploadState(() -> {
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, (int) texture.id());
+            GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, x, y, width, height, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE,
+                    rgbaPixels);
+            return null;
+        });
+    }
+
+    private static <ResultType> ResultType withUploadState(Supplier<ResultType> upload) {
+        int previousTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        int previousUnpackBuffer = GL11.glGetInteger(GL21.GL_PIXEL_UNPACK_BUFFER_BINDING);
+        int previousAlignment = GL11.glGetInteger(GL11.GL_UNPACK_ALIGNMENT);
+        int previousRowLength = GL11.glGetInteger(GL11.GL_UNPACK_ROW_LENGTH);
+        int previousSkipPixels = GL11.glGetInteger(GL11.GL_UNPACK_SKIP_PIXELS);
+        int previousSkipRows = GL11.glGetInteger(GL11.GL_UNPACK_SKIP_ROWS);
+        try {
+            GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, 0);
+            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+            GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
+            GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, 0);
+            GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, 0);
+            return upload.get();
+        } finally {
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
+            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, previousAlignment);
+            GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, previousRowLength);
+            GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, previousSkipPixels);
+            GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, previousSkipRows);
+            GL15.glBindBuffer(GL21.GL_PIXEL_UNPACK_BUFFER, previousUnpackBuffer);
+        }
     }
 }

@@ -70,3 +70,29 @@ public void hover() {
     }
 }
 ```
+
+### Callbacks with Arguments
+An event that carries data (coordinates, a mouse button, a wheel delta) uses a nested `@FunctionalInterface` named `<Event>Action` instead of a `Runnable` (`Canvas.ClickAction`, `Canvas.DragAction`, `Canvas.WheelAction`), declared among the component's nested types before its records and the `Builder` (see `java/formatting.md` › Member Ordering), with one `void` abstract method named after the event that takes the event's values as plain parameters (`click(int x, int y, MouseButton button)`). As with `Runnable` callbacks, the builder field defaults to a no-op lambda with unnamed parameters (`(_, _, _) -> {}`) and is set with a single `requireNonNull` setter named after the property (`clickAction(ClickAction)`), with no constant overload and no null-as-unset. The component exposes a public trigger with the same name and parameters as the interface method, which checks object arguments with `requireNonNull` first (also while disabled) and then calls the action only when `isEnabled()` is true; backends call the trigger, never the action. Javadoc follows the event-callback rules above: the setter states that the callback runs on the host's UI thread, that its exceptions propagate to the caller of the host's render call and when it fires; the trigger states when backends call it, what each argument means (units, ranges, values that may lie outside the component) and that applications may call it on the host's UI thread; the interface and its method document every parameter.
+
+```java
+// Canvas
+@FunctionalInterface
+public interface ClickAction {
+    void click(int x, int y, MouseButton button);
+}
+
+public void click(int x, int y, MouseButton button) {
+    Objects.requireNonNull(button, "button");
+    if (isEnabled()) {
+        clickAction.click(x, y, button);
+    }
+}
+
+// Canvas.Builder
+private ClickAction clickAction = (_, _, _) -> {};
+
+public Builder clickAction(ClickAction clickAction) {
+    this.clickAction = Objects.requireNonNull(clickAction, "clickAction");
+    return this;
+}
+```

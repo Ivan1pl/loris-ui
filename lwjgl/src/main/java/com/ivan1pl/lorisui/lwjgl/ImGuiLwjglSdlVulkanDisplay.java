@@ -185,12 +185,13 @@ public final class ImGuiLwjglSdlVulkanDisplay extends ImGuiLwjglDisplayBase<ImGu
      * <p>
      * Mouse motion and mouse button events are consumed while the UI wants mouse input, that is while the pointer is
      * over LorisUI content or a mouse drag started on it. Mouse wheel events are consumed while the UI wants mouse
-     * input and the pointer is over a scrollable panel. Key and text input events are consumed while a LorisUI text or
-     * number input is being edited. While keyboard navigation is enabled, they are also consumed while an enabled
-     * button or combo box has the keyboard focus, while a text or number input has received the keyboard focus and is
-     * about to be edited, and while a combo box is expanded. Other events, such as window events, are passed to the UI
-     * but never consumed. The result describes the most recently rendered frame, so keep rendering every frame while
-     * passing events; while the UI is hidden, close the display or disable keyboard navigation.
+     * input and the pointer is over a scrollable panel or an enabled canvas. Key and text input events are consumed
+     * while a LorisUI text or number input is being edited. While keyboard navigation is enabled, they are also
+     * consumed while an enabled button or combo box has the keyboard focus, while a text or number input has received
+     * the keyboard focus and is about to be edited, and while a combo box is expanded. Other events, such as window
+     * events, are passed to the UI but never consumed. The result describes the most recently rendered frame, so keep
+     * rendering every frame while passing events; while the UI is hidden, close the display or disable keyboard
+     * navigation.
      * <p>
      * A key release is passed to the application exactly when the key's press, or a repeat while it was held, was
      * passed to it, whatever the rules above say at the moment of release, so the application never sees a key held

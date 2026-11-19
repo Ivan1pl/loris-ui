@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -31,6 +32,17 @@ class ImGuiSdlGl3RendererTest {
 
         @Override
         protected void deleteTexture(TextureData texture) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected TextureData createCanvasTexture(int width, int height, ByteBuffer rgbaPixels) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        protected void updateCanvasTexture(TextureData texture, int x, int y, int width, int height,
+                                           ByteBuffer rgbaPixels) {
             throw new UnsupportedOperationException();
         }
     };

@@ -25,6 +25,13 @@
  * its parent's layout). The tab-label functions of a {@link com.ivan1pl.lorisui.api.component.TabbedPanel} are the
  * exception: they receive the tab button's width and height and are called once, when the tabbed panel is built.
  *
+ * <p>A {@link com.ivan1pl.lorisui.api.component.Canvas} shows a pixel image that the application edits, from any
+ * thread, and reports mouse clicks, drags and wheel motion in image-pixel coordinates through its
+ * {@link com.ivan1pl.lorisui.api.component.Canvas.ClickAction},
+ * {@link com.ivan1pl.lorisui.api.component.Canvas.DragAction} and
+ * {@link com.ivan1pl.lorisui.api.component.Canvas.WheelAction} callbacks, with the pressed
+ * {@link com.ivan1pl.lorisui.api.component.MouseButton}.
+ *
  * <p>Null handling is uniform across builders: required arguments must not be null and are checked when the setter
  * is called, or in {@code build()} for required properties that have no default; setters taking a
  * {@code Supplier} reject {@code null}; constant overloads of optional properties accept {@code null} to keep the

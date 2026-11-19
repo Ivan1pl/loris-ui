@@ -14,11 +14,7 @@ public final class TextureMasking {
         for (int i = 0; i < byteCount; i += CHANNELS) {
             Color source = new Color(toUnitFloat(rgbaPixels.get(i)), toUnitFloat(rgbaPixels.get(i + 1)),
                     toUnitFloat(rgbaPixels.get(i + 2)), toUnitFloat(rgbaPixels.get(i + 3)));
-            int argb = source.mask(maskR, maskG, maskB).getRGBA();
-            rgbaPixels.put(i, (byte) (argb >>> 16));
-            rgbaPixels.put(i + 1, (byte) (argb >>> 8));
-            rgbaPixels.put(i + 2, (byte) argb);
-            rgbaPixels.put(i + 3, (byte) (argb >>> 24));
+            RgbaPixels.put(rgbaPixels, i, source.mask(maskR, maskG, maskB).getRGBA());
         }
     }
 

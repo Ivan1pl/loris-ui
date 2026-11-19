@@ -74,7 +74,8 @@ import java.util.function.Predicate;
  * <ul>
  *     <li>cursor position and mouse button events are consumed while the UI wants mouse input, that is while the
  *     pointer is over LorisUI content or a mouse drag started on it;</li>
- *     <li>scroll events are consumed while the UI wants mouse input and the pointer is over a scrollable panel;</li>
+ *     <li>scroll events are consumed while the UI wants mouse input and the pointer is over a scrollable panel or an
+ *     enabled canvas;</li>
  *     <li>key events, including repeats, and character events are consumed while a LorisUI text or number input is
  *     being edited, and, while keyboard navigation is enabled, also while an enabled button or combo box has the
  *     keyboard focus, while a text or number input has received the keyboard focus and is about to be edited, and

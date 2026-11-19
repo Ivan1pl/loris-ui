@@ -9,23 +9,32 @@ import org.lwjgl.vulkan.VkDevice;
 import org.lwjgl.vulkan.VkQueue;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * The Vulkan implementation of {@link ImGuiBackend}, which loads textures from class-path resources into Vulkan images
  * on an application's device and releases them when they are unloaded. Hosts that render with
  * {@link com.ivan1pl.lorisui.imgui.ImGuiSdlVulkanRenderer} use this backend.
  *
- * <p>Textures are created in the {@code R8G8B8A8_SRGB} format, which is why the renderer needs an sRGB color
- * attachment format.
+ * <p>Image textures are created in the {@code R8G8B8A8_SRGB} format with linear sampling, which is why the renderer
+ * needs an sRGB color attachment format. Canvas textures are created in the {@code R8G8B8A8_UNORM} format, which is
+ * not sRGB, with nearest-neighbor sampling, so canvas pixels look like the same colors in widgets and are drawn as
+ * sharp squares when scaled.
  *
  * <p><b>Queue.</b> The queue follows the queue rule of
  * {@link com.ivan1pl.lorisui.imgui.ImGuiSdlVulkanRenderer ImGuiSdlVulkanRenderer}. Each texture is uploaded with a
- * command buffer of its own, which is submitted to that queue and waited for before loading returns. Unloading a
- * texture waits for the queue to go idle before the texture is destroyed. Submissions to the queue from other threads
- * must not overlap LorisUI calls, as described for the renderer.
+ * command buffer of its own, which is submitted to that queue and waited for before loading returns. Likewise, each
+ * edited canvas costs one submission and one wait, together with a staging allocation, in every frame in which it is
+ * drawn with changed pixels. That wait also waits for everything submitted to the queue before it, including the
+ * frames still in flight, so frames with canvas edits run with one frame in flight. Unloading a texture, or
+ * releasing the texture of a canvas that is no longer drawn, waits for the queue to go idle before the texture is
+ * destroyed, once per texture. Submissions to the queue from other threads must not overlap LorisUI calls, as
+ * described for the renderer.
  *
  * <p><b>Lifetime.</b> The backend does not own the device or the queue. The device must stay alive until every
  * texture the backend has loaded is released with {@link #unloadTextures()}, which the renderer does when it is
@@ -39,7 +48,9 @@ public final class ImGuiVulkanBackend extends ImGuiBackend {
     private final int queueFamilyIndex;
     private final VkQueue queue;
     private final Map<Long, VulkanTextures.Texture> textures = new HashMap<>();
-    private long sampler = VK10.VK_NULL_HANDLE;
+    private final Set<Long> canvasTextureIds = new HashSet<>();
+    private long linearSampler = VK10.VK_NULL_HANDLE;
+    private long nearestSampler = VK10.VK_NULL_HANDLE;
     private long descriptorSetLayout = VK10.VK_NULL_HANDLE;
 
     /**
@@ -122,26 +133,58 @@ public final class ImGuiVulkanBackend extends ImGuiBackend {
     protected TextureData createTexture(String resourcePath, Color maskedR, Color maskedG, Color maskedB)
             throws IOException {
         try (DecodedImage image = DecodedImage.load(resourcePath, maskedR, maskedG, maskedB)) {
-            String what = "texture " + resourcePath;
-            VulkanTextures.Texture texture;
-            try {
-                if (sampler == VK10.VK_NULL_HANDLE) {
-                    sampler = VulkanTextures.createSampler(device, what);
-                }
-                if (descriptorSetLayout == VK10.VK_NULL_HANDLE) {
-                    descriptorSetLayout = VulkanTextures.createDescriptorSetLayout(device, what);
-                }
-                texture = VulkanTextures.upload(device, queueFamilyIndex, queue, image.getPixels(), image.getWidth(),
-                        image.getHeight(), VK10.VK_FORMAT_R8G8B8A8_SRGB, sampler, descriptorSetLayout, what);
-            } catch (Throwable failure) {
-                if (textures.isEmpty()) {
-                    DeferredRelease.runAfterFailure(failure, this::destroySharedObjects);
-                }
-                throw failure;
-            }
-            textures.put(texture.descriptorSet(), texture);
-            return new TextureData(texture.descriptorSet(), image.getWidth(), image.getHeight());
+            long id = upload(image.getPixels(), image.getWidth(), image.getHeight(), VK10.VK_FORMAT_R8G8B8A8_SRGB,
+                    VK10.VK_FILTER_LINEAR, "texture " + resourcePath);
+            return new TextureData(id, image.getWidth(), image.getHeight());
         }
+    }
+
+    /**
+     * Creates a new Vulkan texture for a canvas, as described for {@link ImGuiBackend#createCanvasTexture}. The
+     * texture has the {@code R8G8B8A8_UNORM} format, which is not sRGB, and is sampled with nearest-neighbor filtering
+     * clamped to the edge.
+     *
+     * <p>Called on the host's UI thread. The pixels are uploaded with a command buffer of their own, which is
+     * submitted to the backend's queue and waited for before this method returns.
+     *
+     * @param width      width of the texture in pixels
+     * @param height     height of the texture in pixels
+     * @param rgbaPixels tightly packed RGBA pixels of the whole texture; never {@code null}
+     * @return the new texture, whose ID is its {@code VkDescriptorSet} handle; never {@code null}
+     * @throws IllegalStateException if Vulkan fails to create or upload the texture; the message names the Vulkan
+     *                               function, its {@code VkResult} and the canvas texture with its size, and nothing
+     *                               created for the texture is left behind
+     */
+    @Override
+    protected TextureData createCanvasTexture(int width, int height, ByteBuffer rgbaPixels) {
+        long id = upload(rgbaPixels, width, height, VK10.VK_FORMAT_R8G8B8A8_UNORM, VK10.VK_FILTER_NEAREST,
+                canvasLabel(width, height));
+        canvasTextureIds.add(id);
+        return new TextureData(id, width, height);
+    }
+
+    /**
+     * Replaces a rectangle of a canvas texture, as described for {@link ImGuiBackend#updateCanvasTexture}.
+     *
+     * <p>Called on the host's UI thread. The pixels are copied with a command buffer of their own, which is submitted
+     * to the backend's queue and waited for before this method returns. The copy waits for earlier submissions that
+     * sample the texture.
+     *
+     * @param texture    texture to update, created by {@link #createCanvasTexture}; never {@code null}
+     * @param x          left edge of the rectangle in texture pixels
+     * @param y          top edge of the rectangle in texture pixels
+     * @param width      width of the rectangle in pixels
+     * @param height     height of the rectangle in pixels
+     * @param rgbaPixels tightly packed RGBA pixels of the rectangle; never {@code null}
+     * @throws IllegalStateException if Vulkan fails to upload the pixels; the message names the Vulkan function, its
+     *                               {@code VkResult} and the canvas texture with its size
+     */
+    @Override
+    protected void updateCanvasTexture(TextureData texture, int x, int y, int width, int height,
+                                       ByteBuffer rgbaPixels) {
+        VulkanTextures.Texture vulkanTexture = textures.get(texture.id());
+        VulkanTextures.update(device, queueFamilyIndex, queue, rgbaPixels, x, y, width, height, vulkanTexture.image(),
+                canvasLabel(texture.width(), texture.height()));
     }
 
     /**
@@ -153,8 +196,11 @@ public final class ImGuiVulkanBackend extends ImGuiBackend {
     @Override
     protected void deleteTexture(TextureData texture) {
         VulkanTextures.Texture vulkanTexture = textures.remove(texture.id());
+        String what = canvasTextureIds.remove(texture.id())
+                ? "releasing " + canvasLabel(texture.width(), texture.height())
+                : "unloading textures";
         DeferredRelease.runAll(
-                () -> VulkanTextures.check(VK10.vkQueueWaitIdle(queue), "vkQueueWaitIdle", "unloading textures"),
+                () -> VulkanTextures.check(VK10.vkQueueWaitIdle(queue), "vkQueueWaitIdle", what),
                 () -> VulkanTextures.destroy(device, vulkanTexture),
                 () -> {
                     if (textures.isEmpty()) {
@@ -163,14 +209,53 @@ public final class ImGuiVulkanBackend extends ImGuiBackend {
                 });
     }
 
+    private long upload(ByteBuffer rgba, int width, int height, int format, int filter, String what) {
+        VulkanTextures.Texture texture;
+        try {
+            long sampler = sampler(filter, what);
+            if (descriptorSetLayout == VK10.VK_NULL_HANDLE) {
+                descriptorSetLayout = VulkanTextures.createDescriptorSetLayout(device, what);
+            }
+            texture = VulkanTextures.upload(device, queueFamilyIndex, queue, rgba, width, height, format, sampler,
+                    descriptorSetLayout, what);
+        } catch (Throwable failure) {
+            if (textures.isEmpty()) {
+                DeferredRelease.runAfterFailure(failure, this::destroySharedObjects);
+            }
+            throw failure;
+        }
+        textures.put(texture.descriptorSet(), texture);
+        return texture.descriptorSet();
+    }
+
+    private long sampler(int filter, String what) {
+        if (filter == VK10.VK_FILTER_NEAREST) {
+            if (nearestSampler == VK10.VK_NULL_HANDLE) {
+                nearestSampler = VulkanTextures.createSampler(device, filter, what);
+            }
+            return nearestSampler;
+        }
+        if (linearSampler == VK10.VK_NULL_HANDLE) {
+            linearSampler = VulkanTextures.createSampler(device, filter, what);
+        }
+        return linearSampler;
+    }
+
     private void destroySharedObjects() {
-        long oldSampler = sampler;
+        long oldLinearSampler = linearSampler;
+        long oldNearestSampler = nearestSampler;
         long oldDescriptorSetLayout = descriptorSetLayout;
-        sampler = VK10.VK_NULL_HANDLE;
+        linearSampler = VK10.VK_NULL_HANDLE;
+        nearestSampler = VK10.VK_NULL_HANDLE;
         descriptorSetLayout = VK10.VK_NULL_HANDLE;
         // Destroying VK_NULL_HANDLE is a no-op, so an object that was never created is skipped.
         DeferredRelease.runAll(
-                () -> VK10.vkDestroySampler(device, oldSampler, null),
+                () -> VK10.vkDestroySampler(device, oldLinearSampler, null),
+                () -> VK10.vkDestroySampler(device, oldNearestSampler, null),
                 () -> VK10.vkDestroyDescriptorSetLayout(device, oldDescriptorSetLayout, null));
+    }
+
+    private static String canvasLabel(int width, int height) {
+        return "canvas texture " + width + "x" + height;
     }
 }
