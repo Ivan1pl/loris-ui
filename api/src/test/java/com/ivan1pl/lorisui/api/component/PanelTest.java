@@ -72,6 +72,63 @@ class PanelTest {
     }
 
     @Test
+    void shouldSetSidesClockwiseFromTopWhenPaddingSetPerSide() {
+        assertPadding(buildEachType(builder -> builder.padding(1, 2, 3, 4)), 1, 3, 4, 2);
+    }
+
+    @Test
+    void shouldReplaceEverySideWhenPaddingSetPerSideAfterOtherSetters() {
+        List<Panel> afterAll = buildEachType(builder -> builder
+                .padding(5)
+                .padding(1, 2, 3, 4));
+        List<Panel> afterSides = buildEachType(builder -> builder
+                .paddingTop(9)
+                .paddingBottom(9)
+                .paddingLeft(9)
+                .paddingRight(9)
+                .padding(0, 1, 2, 3));
+        List<Panel> overriddenBySide = buildEachType(builder -> builder
+                .padding(1, 2, 3, 4)
+                .paddingLeft(7));
+
+        Assertions.assertAll(
+                () -> assertPadding(afterAll, 1, 3, 4, 2),
+                () -> assertPadding(afterSides, 0, 2, 3, 1),
+                () -> assertPadding(overriddenBySide, 1, 3, 7, 2));
+    }
+
+    @Test
+    void shouldRejectNegativePerSidePaddingWithoutChangingAnySide() {
+        Panel.Builder builder = Panel.panelBuilder("panel")
+                .size(10, 10)
+                .padding(1, 2, 3, 4);
+
+        Assertions.assertAll(
+                () -> assertNegativePadding("Top padding must not be negative: -1",
+                        () -> builder.padding(-1, 5, 5, 5)),
+                () -> assertNegativePadding("Right padding must not be negative: -2",
+                        () -> builder.padding(5, -2, 5, 5)),
+                () -> assertNegativePadding("Bottom padding must not be negative: -3",
+                        () -> builder.padding(5, 5, -3, 5)),
+                () -> assertNegativePadding("Left padding must not be negative: -4",
+                        () -> builder.padding(5, 5, 5, -4)));
+        assertPadding(List.of(builder.build()), 1, 3, 4, 2);
+    }
+
+    @Test
+    void shouldReportFirstNegativeSideClockwiseFromTopWhenSeveralAreNegative() {
+        Panel.Builder builder = Panel.panelBuilder("panel").size(10, 10);
+
+        Assertions.assertAll(
+                () -> assertNegativePadding("Top padding must not be negative: -1",
+                        () -> builder.padding(-1, -2, -3, -4)),
+                () -> assertNegativePadding("Right padding must not be negative: -2",
+                        () -> builder.padding(0, -2, -3, -4)),
+                () -> assertNegativePadding("Bottom padding must not be negative: -3",
+                        () -> builder.padding(0, 0, -3, -4)));
+    }
+
+    @Test
     void shouldApplyPaddingSettersInCallOrderWhenCombined() {
         List<Panel> sideAfterAll = buildEachType(builder -> builder
                 .padding(5)

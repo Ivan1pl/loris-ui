@@ -562,6 +562,7 @@ public class Panel implements Component {
          * @param padding the padding of every side, in logical pixels; must not be negative
          * @return this builder
          * @throws IllegalArgumentException if {@code padding} is negative
+         * @see #padding(int, int, int, int)
          */
         @SuppressWarnings("unchecked")
         public BuilderType padding(int padding) {
@@ -574,13 +575,41 @@ public class Panel implements Component {
         }
 
         /**
+         * Sets the padding between the panel's edges and its content, in logical pixels, for each side separately,
+         * in clockwise order starting at the top, like {@link #paddingTop(int)}, {@link #paddingRight(int)},
+         * {@link #paddingBottom(int)} and {@link #paddingLeft(int)} called in that order. Each side defaults to 0.
+         * This setter replaces the padding of every side set before. All four values are checked before any is
+         * stored, so a rejected call changes no side.
+         *
+         * @param paddingTop the top padding, in logical pixels; must not be negative
+         * @param paddingRight the right padding, in logical pixels; must not be negative
+         * @param paddingBottom the bottom padding, in logical pixels; must not be negative
+         * @param paddingLeft the left padding, in logical pixels; must not be negative
+         * @return this builder
+         * @throws IllegalArgumentException if any of the values is negative; the first negative value in clockwise
+         *         order from the top is reported
+         */
+        public BuilderType padding(int paddingTop, int paddingRight, int paddingBottom, int paddingLeft) {
+            requireNonNegative(paddingTop, "Top padding");
+            requireNonNegative(paddingRight, "Right padding");
+            requireNonNegative(paddingBottom, "Bottom padding");
+            requireNonNegative(paddingLeft, "Left padding");
+            paddingTop(paddingTop);
+            paddingRight(paddingRight);
+            paddingBottom(paddingBottom);
+            return paddingLeft(paddingLeft);
+        }
+
+        /**
          * Sets the padding between the panel's top edge and its content, in logical pixels. Defaults to 0. This
-         * setter replaces only the top padding; a later {@link #padding(int)} call replaces it again.
+         * setter replaces only the top padding; a later {@link #padding(int)} or
+         * {@link #padding(int, int, int, int)} call replaces it again.
          *
          * @param paddingTop the top padding, in logical pixels; must not be negative
          * @return this builder
          * @throws IllegalArgumentException if {@code paddingTop} is negative
          * @see #padding(int)
+         * @see #padding(int, int, int, int)
          */
         @SuppressWarnings("unchecked")
         public BuilderType paddingTop(int paddingTop) {
@@ -591,12 +620,14 @@ public class Panel implements Component {
 
         /**
          * Sets the padding between the panel's bottom edge and its content, in logical pixels. Defaults to 0. This
-         * setter replaces only the bottom padding; a later {@link #padding(int)} call replaces it again.
+         * setter replaces only the bottom padding; a later {@link #padding(int)} or
+         * {@link #padding(int, int, int, int)} call replaces it again.
          *
          * @param paddingBottom the bottom padding, in logical pixels; must not be negative
          * @return this builder
          * @throws IllegalArgumentException if {@code paddingBottom} is negative
          * @see #padding(int)
+         * @see #padding(int, int, int, int)
          */
         @SuppressWarnings("unchecked")
         public BuilderType paddingBottom(int paddingBottom) {
@@ -607,12 +638,14 @@ public class Panel implements Component {
 
         /**
          * Sets the padding between the panel's left edge and its content, in logical pixels. Defaults to 0. This
-         * setter replaces only the left padding; a later {@link #padding(int)} call replaces it again.
+         * setter replaces only the left padding; a later {@link #padding(int)} or
+         * {@link #padding(int, int, int, int)} call replaces it again.
          *
          * @param paddingLeft the left padding, in logical pixels; must not be negative
          * @return this builder
          * @throws IllegalArgumentException if {@code paddingLeft} is negative
          * @see #padding(int)
+         * @see #padding(int, int, int, int)
          */
         @SuppressWarnings("unchecked")
         public BuilderType paddingLeft(int paddingLeft) {
@@ -623,12 +656,14 @@ public class Panel implements Component {
 
         /**
          * Sets the padding between the panel's right edge and its content, in logical pixels. Defaults to 0. This
-         * setter replaces only the right padding; a later {@link #padding(int)} call replaces it again.
+         * setter replaces only the right padding; a later {@link #padding(int)} or
+         * {@link #padding(int, int, int, int)} call replaces it again.
          *
          * @param paddingRight the right padding, in logical pixels; must not be negative
          * @return this builder
          * @throws IllegalArgumentException if {@code paddingRight} is negative
          * @see #padding(int)
+         * @see #padding(int, int, int, int)
          */
         @SuppressWarnings("unchecked")
         public BuilderType paddingRight(int paddingRight) {
