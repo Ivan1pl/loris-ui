@@ -30,6 +30,36 @@ class TabbedPanelTest {
     }
 
     @Test
+    void shouldSelectTabAsClickingItsButtonWouldWhenTabIndexSet() {
+        TabbedPanel tabbedPanel = threeTabs();
+
+        tabbedPanel.setTabIndex(2);
+        Assertions.assertAll(
+                () -> Assertions.assertEquals(2, tabbedPanel.getTabIndex()),
+                () -> Assertions.assertTrue(tabButton(tabbedPanel, 0).isEnabled()),
+                () -> Assertions.assertFalse(tabButton(tabbedPanel, 2).isEnabled()));
+        tabbedPanel.setTabIndex(2);
+        Assertions.assertEquals(2, tabbedPanel.getTabIndex());
+        tabbedPanel.setTabIndex(0);
+        Assertions.assertEquals(0, tabbedPanel.getTabIndex());
+    }
+
+    @Test
+    void shouldRejectTabIndexOutOfRangeWithoutChangingSelection() {
+        TabbedPanel tabbedPanel = threeTabs();
+        tabbedPanel.setTabIndex(1);
+
+        Assertions.assertAll(
+                () -> Assertions.assertEquals("Tab index -1 is outside the range 0 to 2",
+                        Assertions.assertThrows(IllegalArgumentException.class,
+                                () -> tabbedPanel.setTabIndex(-1)).getMessage()),
+                () -> Assertions.assertEquals("Tab index 3 is outside the range 0 to 2",
+                        Assertions.assertThrows(IllegalArgumentException.class,
+                                () -> tabbedPanel.setTabIndex(3)).getMessage()),
+                () -> Assertions.assertEquals(1, tabbedPanel.getTabIndex()));
+    }
+
+    @Test
     void shouldDisableSelectedTabButton() {
         TabbedPanel tabbedPanel = threeTabs();
 

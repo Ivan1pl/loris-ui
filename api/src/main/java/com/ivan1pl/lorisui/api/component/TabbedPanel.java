@@ -12,7 +12,7 @@ import java.util.function.Supplier;
  * <p>The tab bar spans the full width of the tabbed panel and splits it equally among the tab buttons, in the order
  * the tabs were added. When the width is not divisible by the number of tabs, the first tabs are one pixel wider,
  * so the buttons fill the whole width. The content of the selected tab is shown below the tab bar. The first tab is
- * selected initially; clicking another tab's button selects that tab.
+ * selected initially; clicking another tab's button, or calling {@link #setTabIndex(int)}, selects that tab.
  *
  * <p>Create a tabbed panel with {@link #builder()}.
  */
@@ -22,7 +22,7 @@ public class TabbedPanel implements Component {
     private final int tabBarHeight;
     private final Panel tabsPanel;
     private final List<Supplier<Component>> tabsContents;
-    private int tabIndex = 0;
+    private volatile int tabIndex = 0;
 
     private TabbedPanel(int width, int height, int tabBarHeight, List<BiFunction<Integer, Integer, Component>> tabs,
                         List<Background> tabsBackgrounds, List<Background> tabsHoveredBackgrounds,
@@ -48,7 +48,7 @@ public class TabbedPanel implements Component {
                     .disabledBackground(tabsSelectedBackground.get(i))
                     .addContent(tabs.get(i).apply(tabWidth, tabBarHeight))
                     .enabled(() -> this.tabIndex != tabIndex)
-                    .action(() -> this.tabIndex = tabIndex)
+                    .action(() -> setTabIndex(tabIndex))
                     .build());
         }
         this.tabsPanel = builder.build();
@@ -103,12 +103,28 @@ public class TabbedPanel implements Component {
     }
 
     /**
-     * Returns the index of the selected tab.
+     * Returns the index of the selected tab. May be called from any thread.
      *
      * @return the zero-based index of the selected tab
      */
     public int getTabIndex() {
         return tabIndex;
+    }
+
+    /**
+     * Selects the tab at the given index, exactly as clicking its tab button does. May be called from any thread; the
+     * selected tab is shown the next time the tabbed panel is drawn. Selecting the tab that is already selected
+     * changes nothing.
+     *
+     * @param tabIndex the zero-based index of the tab to select, from 0 to the number of tabs minus 1
+     * @throws IllegalArgumentException if {@code tabIndex} is negative or not less than the number of tabs
+     */
+    public void setTabIndex(int tabIndex) {
+        if (tabIndex < 0 || tabIndex >= tabsContents.size()) {
+            throw new IllegalArgumentException("Tab index " + tabIndex + " is outside the range 0 to "
+                    + (tabsContents.size() - 1));
+        }
+        this.tabIndex = tabIndex;
     }
 
     /**
