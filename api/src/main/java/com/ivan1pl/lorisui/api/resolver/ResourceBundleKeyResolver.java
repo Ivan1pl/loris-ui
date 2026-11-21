@@ -79,4 +79,26 @@ public final class ResourceBundleKeyResolver implements BundleKeyResolver {
         }
         return result;
     }
+
+    /**
+     * Returns whether a key names text in the resource bundles registered with {@link #setResourceBundle}.
+     * <p>
+     * The key has the same form as for {@link #resolveResourceKey}. A key without a dot, or one whose bundle name is
+     * not registered, is not contained.
+     *
+     * @param key the key in the form {@code bundleName.key}; must not be null
+     * @return {@code true} if the bundle registered under the bundle name of {@code key} has text for the rest of the
+     *         key, {@code false} otherwise
+     * @throws NullPointerException if {@code key} is null
+     */
+    @Override
+    public boolean containsKey(String key) {
+        Objects.requireNonNull(key, "key");
+        int separator = key.indexOf('.');
+        if (separator < 0) {
+            return false;
+        }
+        ResourceBundle bundle = resourceBundles.get(key.substring(0, separator));
+        return bundle != null && bundle.containsKey(key.substring(separator + 1));
+    }
 }

@@ -40,7 +40,7 @@ examples ──┬──▶ loris-ui-jme3  ──┬──▶ loris-ui-imgui ─
     - Both are not thread-safe; hosts call them on their UI thread.
   - `core`: the final `Color` and `IntBiFunction<ResultType>`, the content function that receives the screen width and height
   - `font`: the `Font` marker interface
-  - `resolver`: `BundleKeyResolver` (i18n) and the final `ResourceBundleKeyResolver`, which resolves `bundleName.key` keys from `ResourceBundle`s registered by name
+  - `resolver`: `BundleKeyResolver` (i18n; its default `containsKey(key)` resolves the key without arguments and returns `false` on a `RuntimeException`, after rejecting a `null` key) and the final `ResourceBundleKeyResolver`, which resolves `bundleName.key` keys from `ResourceBundle`s registered by name and overrides `containsKey` with `ResourceBundle.containsKey`, returning `false` for a key without a dot or of an unregistered bundle
 - **Conventions**: components are immutable-ish value holders built with nested static `Builder`s and non-public constructors. The Panel family is closed to the package: `Panel`'s constructor and its self-typed `BaseBuilder<PanelType, BuilderType>` are package-private, and `Button`, `Popup` and `ModalPopup` have private constructors.
 
 ### loris-ui-imgui (`imgui/`)

@@ -47,6 +47,23 @@ class ResourceBundleKeyResolverTest {
     }
 
     @Test
+    void shouldContainOnlyKeysWithTextInRegisteredBundle() {
+        resolver.setResourceBundle("test", "resolver-test");
+
+        Assertions.assertAll(
+                () -> Assertions.assertTrue(resolver.containsKey("test.menu.start")),
+                () -> Assertions.assertFalse(resolver.containsKey("test.menu.quit")),
+                () -> Assertions.assertFalse(resolver.containsKey("missing.menu.start")),
+                () -> Assertions.assertFalse(resolver.containsKey("menu")));
+    }
+
+    @Test
+    void shouldRejectNullKeyInContainsKey() {
+        Assertions.assertEquals("key",
+                Assertions.assertThrows(NullPointerException.class, () -> resolver.containsKey(null)).getMessage());
+    }
+
+    @Test
     void shouldReplaceBundleRegisteredUnderSameName() {
         resolver.setResourceBundle("test", "resolver-test");
         resolver.setResourceBundle("test", "resolver-test-other");
