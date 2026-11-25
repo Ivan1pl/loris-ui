@@ -7,6 +7,7 @@ import com.ivan1pl.lorisui.imgui.ImGuiFont;
 import com.ivan1pl.lorisui.imgui.renderer.Renderer;
 import com.ivan1pl.lorisui.imgui.renderer.RendererProvider;
 import imgui.ImGui;
+import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
 
@@ -16,6 +17,8 @@ public class TextRenderer extends Renderer<Text> {
             ImGuiWindowFlags.NoTitleBar |
             ImGuiWindowFlags.NoResize |
             ImGuiWindowFlags.NoBackground;
+
+    private final ImVec2 textSize = new ImVec2();
 
     @Override
     public void render(Text component, int w, int h, RendererProvider rendererProvider,
@@ -30,11 +33,13 @@ public class TextRenderer extends Renderer<Text> {
     private void doRender(Text component, int w, BundleKeyResolver bundleKeyResolver, boolean enableInput) {
         int flags = enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs);
         String text = component.getText(bundleKeyResolver);
-        float size = ImGui.calcTextSizeX(text, false, Float.POSITIVE_INFINITY);
-        ImGui.beginChild(component + "_text", component.getWidth(w), 0, false, flags);
+        ImGui.calcTextSize(textSize, text, false, Float.POSITIVE_INFINITY);
+        // alignTextToFramePadding offsets the text by the vertical frame padding, so it is added on both sides
+        float height = textSize.y + 2f * ImGui.getStyle().getFramePaddingY();
+        ImGui.beginChild(component + "_text", component.getWidth(w), height, false, flags);
         if (component.getWidth(w) > 0 &&
                 (component.getAlign() == Text.Align.RIGHT || component.getAlign() == Text.Align.CENTER)) {
-            float dummySize = component.getWidth(w) - size;
+            float dummySize = component.getWidth(w) - textSize.x;
             if (component.getAlign() == Text.Align.CENTER) {
                 dummySize /= 2f;
             }
