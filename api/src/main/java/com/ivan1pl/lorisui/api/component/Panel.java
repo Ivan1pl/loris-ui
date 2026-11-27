@@ -26,6 +26,38 @@ import java.util.function.Supplier;
  * not fit is clipped, or scrolls inside the padded area. When the left and right padding together reach the panel's
  * width, or the top and bottom padding together reach its height, the content is not shown, or only partly.
  *
+ * <p>Content taller than the panel's content area scrolls vertically. An application reads how far it is scrolled
+ * with {@link #getScrollPosition()} and requests a position with {@link #setScrollPosition(float)}. All scroll
+ * position methods may be called from any thread, and none of them blocks. The following cases are accepted:
+ * <ul>
+ *     <li>A user who drags or clicks the panel's scrollbar while a request is being applied overrides the request,
+ *     which is then dropped. The mouse wheel and keyboard scrolling of the panel have no effect while a request is
+ *     being applied, which normally lasts one to three frames.</li>
+ *     <li>A request that is never reached, because the content or the panel changes height in every frame, stays
+ *     pending. It is applied each time the panel is drawn until a newer request replaces it or the user drags the
+ *     scrollbar. A request renewed in every frame, for example by calling {@code setScrollPosition(1f)} in each
+ *     frame to keep a log at the bottom, is never cleared either, because each renewal is a new request that is
+ *     judged afresh. The panel then stays pinned at the requested position, and the mouse wheel and keyboard
+ *     scrolling of it have no effect. Request the position once per content change instead.</li>
+ *     <li>The backend clears a request once it is reached or dropped. A request made from another thread at that
+ *     moment may be lost. The backend clears requests on the host's UI thread, so a request made on that thread is
+ *     not lost this way.</li>
+ *     <li>The position reported after a request may differ from the requested one by up to half a pixel of scroll
+ *     offset, because the panel scrolls by whole pixels. On a very small scroll range the difference in position can
+ *     be large: content that overflows the panel by less than half a pixel may report 0.0 for a request of 1.0.</li>
+ * </ul>
+ *
+ * <p>Scroll position limitations:
+ * <ul>
+ *     <li>Draw a panel on one display only. A panel drawn by two displays receives conflicting scroll position
+ *     reports.</li>
+ *     <li>A panel that is created anew for every layout never sees a request made on an older instance. Request the
+ *     position on the instance that is drawn.</li>
+ *     <li>When the same instance is drawn more than once in a frame, the last draw is reported, and the first draw
+ *     that can apply a request consumes it.</li>
+ *     <li>Only the vertical scroll position is reported and can be requested.</li>
+ * </ul>
+ *
  * <p>Every panel has an ID. Panel IDs are stable keys that must be unique among siblings, that is among the panels
  * of the same parent or among the top-level panels of a screen. Backends use the ID to recognize the same panel
  * from one frame to the next, so it should not change while the panel is shown.
@@ -49,6 +81,7 @@ public class Panel implements Component {
     private final int paddingBottom;
     private final int paddingLeft;
     private final int paddingRight;
+    private final ScrollState scrollState = new ScrollState();
 
     Panel(Supplier<String> id, IntBinaryOperator x, IntBinaryOperator y, IntBinaryOperator width,
           IntBinaryOperator height, Layout layout, Supplier<Background> background, Supplier<Boolean> open,
@@ -192,6 +225,108 @@ public class Panel implements Component {
     }
 
     /**
+     * Returns how far the panel's content is scrolled vertically: the scroll offset divided by the scroll range, from
+     * 0.0 at the top to 1.0 at the bottom.
+     *
+     * <p>The value is updated each time the panel is drawn and is that of its most recent draw. It is 0.0 before the
+     * panel is first drawn and while its content fits in the panel. While the panel is not drawn, for example while
+     * it is closed, in a tab that is not selected or a popup that is not open, and after the host releases the UI, it
+     * keeps its last value until the panel is drawn again.
+     *
+     * @return the scroll position, from 0.0 (top) to 1.0 (bottom)
+     */
+    public float getScrollPosition() {
+        return scrollState.getPosition();
+    }
+
+    /**
+     * Requests that the panel's content be scrolled vertically to the given position, from 0.0 at the top to 1.0 at
+     * the bottom. The request is stamped with {@link System#nanoTime()} and replaces a pending one.
+     *
+     * <p><b>When a request is applied.</b> A request is applied the first time the panel is drawn after it was drawn
+     * in each of the two frames before, because only then is the size of its content known. A panel that is already
+     * shown therefore applies it the next time it is drawn, while a panel that appears, for example on a screen's
+     * first visit or when its tab is selected, applies it in the third frame in which it is drawn. A frame that fails
+     * before it reaches the panel keeps the request pending.
+     *
+     * <p><b>When a request is cleared.</b> The request stays pending, and is applied again each time the panel is
+     * drawn, until the panel has reached the requested position for its content as drawn after the request. Content
+     * changed before the request is therefore taken into account, and a panel whose content grows, or that gets
+     * smaller, while the request is pending still ends at the requested position once its size settles. A request
+     * made while the content fits in the panel, or for the position the panel is already at, is dropped without
+     * effect once the panel has been drawn in two consecutive frames after it. {@link #getScrollPosition()} reports
+     * the result from the frame in which the request is applied.
+     *
+     * <p>The request works whether or not the panel is {@linkplain #isScrollable() scrollable}. The backend clears a
+     * request only while its stamp is unchanged, so a request renewed in the meantime is kept, apart from the race
+     * that the {@linkplain Panel class description} explains. The class description also covers user scrolling while
+     * a request is applied, requests that are never reached and the whole-pixel rounding of the result.
+     *
+     * @param position the position to scroll to, from 0.0 (top) to 1.0 (bottom)
+     * @throws IllegalArgumentException if {@code position} is NaN or not in the range 0.0 to 1.0
+     */
+    public void setScrollPosition(float position) {
+        checkScrollPosition(position);
+        scrollState.request(position);
+    }
+
+    /**
+     * Returns whether a request made with {@link #setScrollPosition(float)} is pending. Backends call this to apply
+     * and clear requests; applications normally do not.
+     *
+     * @return {@code true} while a request is pending
+     */
+    public boolean requestsScrollPosition() {
+        return scrollState.isRequested();
+    }
+
+    /**
+     * Returns the position of the most recent {@link #setScrollPosition(float)} call. The value is meaningful while
+     * {@link #requestsScrollPosition()} is {@code true}, and is 0.0 before the first request. Backends call this to
+     * apply a pending request, after reading {@link #getScrollPositionRequestTime()}, so that the value belongs to
+     * the request with that stamp or to a later one; applications normally do not.
+     *
+     * @return the requested position, from 0.0 (top) to 1.0 (bottom)
+     */
+    public float getRequestedScrollPosition() {
+        return scrollState.getRequestedPosition();
+    }
+
+    /**
+     * Returns the {@link System#nanoTime()} value of the most recent {@link #setScrollPosition(float)} call. The
+     * value is meaningful while {@link #requestsScrollPosition()} is {@code true}, and is {@code 0} before the first
+     * request. Backends call this to drop stale requests; applications normally do not.
+     *
+     * @return the time stamp of the most recent scroll position request, or {@code 0} if none was made
+     */
+    public long getScrollPositionRequestTime() {
+        return scrollState.getRequestTime();
+    }
+
+    /**
+     * Clears a pending scroll position request, keeping its position and stamp. Backends call this once a request is
+     * reached or dropped; applications normally do not.
+     */
+    public void clearScrollPositionRequest() {
+        scrollState.clear();
+    }
+
+    /**
+     * Records the panel's current scroll position. Backends call this each time the panel is drawn.
+     *
+     * <p>Applications normally do not call it: it does not scroll the panel, which
+     * {@link #setScrollPosition(float)} does. A value set by an application is reported by
+     * {@link #getScrollPosition()} until the panel is next drawn.
+     *
+     * @param position the scroll position, from 0.0 (top) to 1.0 (bottom)
+     * @throws IllegalArgumentException if {@code position} is NaN or not in the range 0.0 to 1.0
+     */
+    public void reportScrollPosition(float position) {
+        checkScrollPosition(position);
+        scrollState.report(position);
+    }
+
+    /**
      * Returns the padding between the panel's top edge and its content, in logical pixels.
      *
      * @return the top padding; 0 when no padding was set
@@ -225,6 +360,12 @@ public class Panel implements Component {
      */
     public int getPaddingRight() {
         return paddingRight;
+    }
+
+    private static void checkScrollPosition(float position) {
+        if (!(position >= 0f && position <= 1f)) {
+            throw new IllegalArgumentException("Scroll position " + position + " is not in the range 0.0 to 1.0");
+        }
     }
 
     static Supplier<Background> colorBackground(Supplier<Color> color) {
@@ -542,7 +683,8 @@ public class Panel implements Component {
 
         /**
          * Sets whether the panel's content may be scrolled, for example with the mouse wheel, when it does not fit
-         * in the panel. Defaults to {@code true}. Backends that lack the feature may ignore this setting.
+         * in the panel. Defaults to {@code true}. Backends that lack the feature may ignore this setting. It does not
+         * affect {@link Panel#setScrollPosition(float)}.
          *
          * @param scrollable {@code true} to make the panel scrollable
          * @return this builder

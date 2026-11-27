@@ -104,13 +104,13 @@ class PanelTest {
                 .padding(1, 2, 3, 4);
 
         Assertions.assertAll(
-                () -> assertNegativePadding("Top padding must not be negative: -1",
+                () -> assertIllegalArgument("Top padding must not be negative: -1",
                         () -> builder.padding(-1, 5, 5, 5)),
-                () -> assertNegativePadding("Right padding must not be negative: -2",
+                () -> assertIllegalArgument("Right padding must not be negative: -2",
                         () -> builder.padding(5, -2, 5, 5)),
-                () -> assertNegativePadding("Bottom padding must not be negative: -3",
+                () -> assertIllegalArgument("Bottom padding must not be negative: -3",
                         () -> builder.padding(5, 5, -3, 5)),
-                () -> assertNegativePadding("Left padding must not be negative: -4",
+                () -> assertIllegalArgument("Left padding must not be negative: -4",
                         () -> builder.padding(5, 5, 5, -4)));
         assertPadding(List.of(builder.build()), 1, 3, 4, 2);
     }
@@ -120,11 +120,11 @@ class PanelTest {
         Panel.Builder builder = Panel.panelBuilder("panel").size(10, 10);
 
         Assertions.assertAll(
-                () -> assertNegativePadding("Top padding must not be negative: -1",
+                () -> assertIllegalArgument("Top padding must not be negative: -1",
                         () -> builder.padding(-1, -2, -3, -4)),
-                () -> assertNegativePadding("Right padding must not be negative: -2",
+                () -> assertIllegalArgument("Right padding must not be negative: -2",
                         () -> builder.padding(0, -2, -3, -4)),
-                () -> assertNegativePadding("Bottom padding must not be negative: -3",
+                () -> assertIllegalArgument("Bottom padding must not be negative: -3",
                         () -> builder.padding(0, 0, -3, -4)));
     }
 
@@ -155,18 +155,18 @@ class PanelTest {
                 .paddingRight(4);
 
         Assertions.assertAll(
-                () -> assertNegativePadding("Padding must not be negative: -1", () -> builder.padding(-1)),
-                () -> assertNegativePadding("Top padding must not be negative: -1", () -> builder.paddingTop(-1)),
-                () -> assertNegativePadding("Bottom padding must not be negative: -1",
+                () -> assertIllegalArgument("Padding must not be negative: -1", () -> builder.padding(-1)),
+                () -> assertIllegalArgument("Top padding must not be negative: -1", () -> builder.paddingTop(-1)),
+                () -> assertIllegalArgument("Bottom padding must not be negative: -1",
                         () -> builder.paddingBottom(-1)),
-                () -> assertNegativePadding("Left padding must not be negative: -1", () -> builder.paddingLeft(-1)),
-                () -> assertNegativePadding("Right padding must not be negative: -1",
+                () -> assertIllegalArgument("Left padding must not be negative: -1", () -> builder.paddingLeft(-1)),
+                () -> assertIllegalArgument("Right padding must not be negative: -1",
                         () -> builder.paddingRight(-1)),
-                () -> assertNegativePadding("Padding must not be negative: -1",
+                () -> assertIllegalArgument("Padding must not be negative: -1",
                         () -> Button.buttonBuilder("button").padding(-1)),
-                () -> assertNegativePadding("Padding must not be negative: -1",
+                () -> assertIllegalArgument("Padding must not be negative: -1",
                         () -> Popup.popupBuilder("popup").padding(-1)),
-                () -> assertNegativePadding("Padding must not be negative: -1",
+                () -> assertIllegalArgument("Padding must not be negative: -1",
                         () -> ModalPopup.popupBuilder("modal").padding(-1)));
         assertPadding(List.of(builder.build()), 1, 2, 3, 4);
     }
@@ -236,6 +236,83 @@ class PanelTest {
                 () -> assertNullPointer("style", () -> builder.addStyle(null)));
     }
 
+    @Test
+    void shouldReportZeroPositionAndNoRequestWhenBuilt() {
+        List<Executable> checks = new ArrayList<>();
+        for (Panel panel : buildEachType(UnaryOperator.identity())) {
+            checks.add(() -> Assertions.assertEquals(0f, panel.getScrollPosition(), 1e-6f, panel.getId()));
+            checks.add(() -> Assertions.assertFalse(panel.requestsScrollPosition(), panel.getId()));
+            checks.add(() -> Assertions.assertEquals(0L, panel.getScrollPositionRequestTime(), panel.getId()));
+        }
+        Assertions.assertAll(checks);
+    }
+
+    @Test
+    void shouldKeepRequestStateWhenAnyPanelTypeRejectsScrollPosition() {
+        List<Executable> checks = new ArrayList<>();
+        for (Panel panel : buildEachType(UnaryOperator.identity())) {
+            addScrollPositionRejectionChecks(checks, panel);
+            checks.add(() -> Assertions.assertFalse(panel.requestsScrollPosition(), panel.getId()));
+            checks.add(() -> Assertions.assertEquals(0L, panel.getScrollPositionRequestTime(), panel.getId()));
+        }
+        for (Panel panel : buildEachType(UnaryOperator.identity())) {
+            panel.setScrollPosition(0.25f);
+            long stamp = panel.getScrollPositionRequestTime();
+            addScrollPositionRejectionChecks(checks, panel);
+            checks.add(() -> Assertions.assertTrue(panel.requestsScrollPosition(), panel.getId()));
+            checks.add(() -> Assertions.assertEquals(0.25f, panel.getRequestedScrollPosition(), 1e-6f,
+                    panel.getId()));
+            checks.add(() -> Assertions.assertEquals(stamp, panel.getScrollPositionRequestTime(), panel.getId()));
+        }
+        Assertions.assertAll(checks);
+    }
+
+    @Test
+    void shouldAcceptBothEndsWhenScrollPositionSet() {
+        Panel top = Panel.panelBuilder("top").size(10, 10).build();
+        Panel bottom = Panel.panelBuilder("bottom").size(10, 10).build();
+
+        top.setScrollPosition(0f);
+        bottom.setScrollPosition(1f);
+
+        Assertions.assertAll(
+                () -> Assertions.assertTrue(top.requestsScrollPosition()),
+                () -> Assertions.assertEquals(0f, top.getRequestedScrollPosition(), 1e-6f),
+                () -> Assertions.assertTrue(bottom.requestsScrollPosition()),
+                () -> Assertions.assertEquals(1f, bottom.getRequestedScrollPosition(), 1e-6f));
+    }
+
+    @Test
+    void shouldReflectAndValidateReportedPositionWhenReported() {
+        Panel panel = Panel.panelBuilder("panel").size(10, 10).build();
+
+        panel.reportScrollPosition(0.25f);
+
+        Assertions.assertEquals(0.25f, panel.getScrollPosition(), 1e-6f);
+        Assertions.assertAll(
+                () -> assertIllegalArgument("Scroll position NaN is not in the range 0.0 to 1.0",
+                        () -> panel.reportScrollPosition(Float.NaN)),
+                () -> assertIllegalArgument("Scroll position -0.1 is not in the range 0.0 to 1.0",
+                        () -> panel.reportScrollPosition(-0.1f)),
+                () -> assertIllegalArgument("Scroll position 1.1 is not in the range 0.0 to 1.0",
+                        () -> panel.reportScrollPosition(1.1f)));
+        Assertions.assertEquals(0.25f, panel.getScrollPosition(), 1e-6f);
+    }
+
+    @Test
+    void shouldClearOnlyFlagWhenScrollPositionRequestCleared() {
+        Panel panel = Panel.panelBuilder("panel").size(10, 10).build();
+        panel.setScrollPosition(0.5f);
+        long stamp = panel.getScrollPositionRequestTime();
+
+        panel.clearScrollPositionRequest();
+
+        Assertions.assertAll(
+                () -> Assertions.assertFalse(panel.requestsScrollPosition()),
+                () -> Assertions.assertEquals(0.5f, panel.getRequestedScrollPosition(), 1e-6f),
+                () -> Assertions.assertEquals(stamp, panel.getScrollPositionRequestTime()));
+    }
+
     private static List<Panel> buildEachType(UnaryOperator<Panel.BaseBuilder<?, ?>> configure) {
         return List.of(
                 configure.apply(Panel.panelBuilder("panel").size(10, 10)).build(),
@@ -255,7 +332,16 @@ class PanelTest {
         Assertions.assertAll(checks);
     }
 
-    private static void assertNegativePadding(String expectedMessage, Executable executable) {
+    private static void addScrollPositionRejectionChecks(List<Executable> checks, Panel panel) {
+        checks.add(() -> assertIllegalArgument("Scroll position NaN is not in the range 0.0 to 1.0",
+                () -> panel.setScrollPosition(Float.NaN)));
+        checks.add(() -> assertIllegalArgument("Scroll position -0.1 is not in the range 0.0 to 1.0",
+                () -> panel.setScrollPosition(-0.1f)));
+        checks.add(() -> assertIllegalArgument("Scroll position 1.1 is not in the range 0.0 to 1.0",
+                () -> panel.setScrollPosition(1.1f)));
+    }
+
+    private static void assertIllegalArgument(String expectedMessage, Executable executable) {
         Assertions.assertEquals(expectedMessage,
                 Assertions.assertThrows(IllegalArgumentException.class, executable).getMessage());
     }

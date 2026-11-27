@@ -43,6 +43,7 @@ public class PanelRenderer extends Renderer<Panel> {
     private final StyleStack styleStack = new StyleStack();
     private final ImBoolean modalPopupOpen = new ImBoolean();
     private final ButtonInputTracker buttonInputTracker = new ButtonInputTracker();
+    private final PanelScrollTracker panelScrollTracker = new PanelScrollTracker();
 
     @Override
     public void render(Panel component, int w, int h, RendererProvider rendererProvider,
@@ -59,7 +60,14 @@ public class PanelRenderer extends Renderer<Panel> {
         boolean popupScopePushed = false;
         try {
             String id = component.getId() + "_panel";
-            int imGuiId = component instanceof Button ? ImGui.getID(id) : 0;
+            int imGuiId = ImGui.getID(id);
+            int frame = ImGui.getFrameCount();
+            int paddingTop = component.getPaddingTop();
+            int paddingBottom = component.getPaddingBottom();
+            int paddingLeft = component.getPaddingLeft();
+            int paddingRight = component.getPaddingRight();
+            // A padded panel scrolls in its content child, otherwise in its own window, child or popup
+            boolean padded = paddingTop > 0 || paddingBottom > 0 || paddingLeft > 0 || paddingRight > 0;
             if (component instanceof ModalPopup || component instanceof Popup) {
                 if (component instanceof ModalPopup modalPopup && modalPopup.isOpen() && !ImGui.isPopupOpen(id)) {
                     ImGui.openPopup(id, ImGuiPopupFlags.MouseButtonLeft);
@@ -73,8 +81,14 @@ public class PanelRenderer extends Renderer<Panel> {
                 int flags = enableInput ? FLAGS_POPUP : (FLAGS_POPUP | ImGuiWindowFlags.NoInputs);
                 if (component instanceof ModalPopup) {
                     modalPopupOpen.set(component.isOpen());
+                    if (!padded) {
+                        applyScrollRequest(component, imGuiId, frame);
+                    }
                     open = ImGui.beginPopupModal(id, modalPopupOpen, flags);
                 } else {
+                    if (!padded) {
+                        applyScrollRequest(component, imGuiId, frame);
+                    }
                     open = ImGui.beginPopup(id, flags);
                     ((Popup) component).getOpenSetter().accept(open);
                 }
@@ -90,6 +104,9 @@ public class PanelRenderer extends Renderer<Panel> {
                 if (component.isOpen()) {
                     ImGui.setNextWindowPos(component.getX(w, h), component.getY(w, h), ImGuiCond.Always, 0f, 0f);
                     ImGui.setNextWindowSize(component.getWidth(w, h), component.getHeight(w, h), ImGuiCond.Always);
+                    if (!padded) {
+                        applyScrollRequest(component, imGuiId, frame);
+                    }
                     ImGui.begin(id, TRUE, flags);
                 } else {
                     ImGui.setNextWindowPos(Integer.MAX_VALUE, Integer.MAX_VALUE, ImGuiCond.Always, 0f, 0f);
@@ -100,7 +117,15 @@ public class PanelRenderer extends Renderer<Panel> {
                 }
             } else {
                 int flags = enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs);
-                ImGui.beginChild(id, component.getWidth(w, h), component.getHeight(w, h), false, flags);
+                int width = component.getWidth(w, h);
+                int height = component.getHeight(w, h);
+                if (!padded) {
+                    applyScrollRequest(component, imGuiId, frame);
+                }
+                ImGui.beginChild(id, width, height, false, flags);
+            }
+            if (!padded) {
+                reportScroll(component, imGuiId, frame);
             }
             Panel tooltip = component.getTooltip();
             if (ImGui.isWindowHovered(ImGuiHoveredFlags.ChildWindows)) {
@@ -131,7 +156,6 @@ public class PanelRenderer extends Renderer<Panel> {
                 boolean mouseClicked = ImGui.isMouseClicked(ImGuiMouseButton.Left);
                 boolean mouseDown = ImGui.isKeyDown(ImGuiKey.MouseLeft);
                 boolean mouseReleased = ImGui.isKeyReleased(ImGuiKey.MouseLeft);
-                int frame = ImGui.getFrameCount();
                 int focus = 0;
                 if (keyboardFocus != null) {
                     focus = keyboardFocus.register(imGuiId, KeyboardFocus.Kind.BUTTON, button.isEnabled(), button);
@@ -183,19 +207,16 @@ public class PanelRenderer extends Renderer<Panel> {
                 }
                 ImGui.setCursorPos(posX, posY);
             }
-            int paddingTop = component.getPaddingTop();
-            int paddingBottom = component.getPaddingBottom();
-            int paddingLeft = component.getPaddingLeft();
-            int paddingRight = component.getPaddingRight();
-            boolean padded = paddingTop > 0 || paddingBottom > 0 || paddingLeft > 0 || paddingRight > 0;
             if (padded) {
                 int width = component.getWidth(w, h);
                 int height = component.getHeight(w, h);
                 // A child window does not inherit its parent's NoInputs flag.
                 int contentFlags = enableInput ? FLAGS_CHILD : (FLAGS_CHILD | ImGuiWindowFlags.NoInputs);
                 ImGui.setCursorPos(posX + paddingLeft, posY + paddingTop);
+                applyScrollRequest(component, imGuiId, frame);
                 ImGui.beginChild(id + "_content", Math.max(width - (long) paddingLeft - paddingRight, 1),
                         Math.max(height - (long) paddingTop - paddingBottom, 1), false, contentFlags);
+                reportScroll(component, imGuiId, frame);
             }
             if (!component.getContent().isEmpty()) {
                 Component first = component.getContent().getFirst().apply(w, h);
@@ -232,6 +253,19 @@ public class PanelRenderer extends Renderer<Panel> {
             }
             styleStack.popStyles(startDepth);
         }
+    }
+
+    // Called immediately before the Begin of the window that scrolls, with no other window begun in between
+    private void applyScrollRequest(Panel component, int imGuiId, int frame) {
+        float target = panelScrollTracker.scrollTarget(component, imGuiId, frame);
+        if (target >= 0) {
+            ImGui.setNextWindowScroll(-1f, target);
+        }
+    }
+
+    // Called immediately after that Begin, while the window that scrolls is current
+    private void reportScroll(Panel component, int imGuiId, int frame) {
+        panelScrollTracker.update(component, imGuiId, frame, ImGui.getScrollY(), ImGui.getScrollMaxY());
     }
 
     private static class StyleStack {

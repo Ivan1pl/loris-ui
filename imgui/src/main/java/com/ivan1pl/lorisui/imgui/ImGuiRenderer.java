@@ -61,7 +61,10 @@ import java.util.Objects;
  *
  * <p>Dear ImGui UI state, such as selected tabs, scroll positions, open popups and keyboard focus, starts fresh after
  * {@link #dispose()} and {@link #initialize()}. State held by LorisUI components and their bindings is not affected,
- * except that {@link com.ivan1pl.lorisui.api.component.Focusable#isFocused()} becomes {@code false}.
+ * except that {@link com.ivan1pl.lorisui.api.component.Focusable#isFocused()} becomes {@code false}. LorisUI's panel
+ * scroll state is not affected either: {@link com.ivan1pl.lorisui.api.component.Panel#getScrollPosition()} keeps its
+ * last value and a pending request stays pending, as described for
+ * {@link com.ivan1pl.lorisui.api.component.Panel#setScrollPosition(float)}.
  *
  * <p>Every method that talks to Dear ImGui first makes the renderer's context current and leaves it current when it
  * returns. An application that uses a Dear ImGui context of its own must make that context current again after calling

@@ -41,6 +41,10 @@
  * {@link com.ivan1pl.lorisui.api.component.Focusable#setRequestsFocus(boolean)}, from any thread. A canvas never takes
  * the focus.
  *
+ * <p>Panels, and so buttons and popups, report how far their content is scrolled vertically and accept a requested
+ * scroll position from any thread, with {@link com.ivan1pl.lorisui.api.component.Panel#getScrollPosition()} and
+ * {@link com.ivan1pl.lorisui.api.component.Panel#setScrollPosition(float)}.
+ *
  * <p>Null handling is uniform across builders: required arguments must not be null and are checked when the setter
  * is called, or in {@code build()} for required properties that have no default; setters taking a
  * {@code Supplier} reject {@code null}; constant overloads of optional properties accept {@code null} to keep the

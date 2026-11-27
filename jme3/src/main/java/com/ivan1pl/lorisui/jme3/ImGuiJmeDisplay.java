@@ -76,9 +76,8 @@ import java.util.Objects;
  *     background work that computes screen layouts stops until a screen is drawn again.</li>
  *     <li>A removed display can be added to a viewport again. It then sets up Dear ImGui again, restores the
  *     registered fonts (the {@link Font} instances returned at registration stay valid) and starts the current screen
- *     again. Screens, resource bundles, renderers and style appliers stay registered. Dear ImGui UI state, such as
- *     selected tabs, scroll positions, open popups and keyboard focus, starts fresh; state held by LorisUI components
- *     and their bindings is not affected.</li>
+ *     again. Screens, resource bundles, renderers and style appliers stay registered. Dear ImGui UI state starts
+ *     fresh, and state held by LorisUI components is kept, as described for {@link ImGuiRenderer}.</li>
  * </ul>
  * Removing the display from a component callback, such as a button action, or from a screen's
  * {@link LorisScreen#onStartScreen()} or {@link LorisScreen#onEndScreen()} is allowed. The display stops handling

@@ -31,7 +31,7 @@ Language and toolchain versions, libraries and their dependency scopes, build, t
 Module layering, the `Backend` port and the ImGui backend's internals, the frame, input and teardown flows, the screen lifecycle, extension points and the known architectural concerns and accepted limitations. Read it before changing a module boundary, a frame step or a lifecycle rule.
 
 ### Manual Testing (`project/manual-testing.md`)
-Manual verification procedures for what can't be unit-tested: how to run the six examples (also all at once), the native lifecycle per backend, OpenGL ES under ANGLE, SDL_GPU, Vulkan, keyboard navigation and focusable components, the canvas, and the imgui-java upgrade checks. Read it before a release, after changing native or renderer code, and on every imgui-java upgrade.
+Manual verification procedures for what can't be unit-tested: how to run the six examples (also all at once), the native lifecycle per backend, OpenGL ES under ANGLE, SDL_GPU, Vulkan, keyboard navigation and focusable components, the panel scroll position, the canvas, and the imgui-java upgrade checks. Read it before a release, after changing native or renderer code, and on every imgui-java upgrade.
 
 ---
 

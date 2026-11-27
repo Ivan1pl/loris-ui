@@ -59,6 +59,15 @@ public class ExampleScreen extends LorisScreen {
             .borderThickness(1f)
             .rounding(5f)
             .build();
+    static final ScrollbarStyle SCROLLBAR_STYLE = ScrollbarStyle.builder()
+            .backgroundColor(Color.BLACK.withA(0.2f))
+            .grabColor(Color.BLUE)
+            .hoveredGrabColor(new Color(0.2f, 0.2f, 1f, 1f))
+            .activeGrabColor(new Color(0.4f, 0.4f, 1f, 1f))
+            .padding(2f)
+            .rounding(10f)
+            .size(15f)
+            .build();
     private static final ImageMode IMAGE_MODE_BUTTON =
             ImageMode.spriteResize(40, 40, 2, 5, 30, 5, 5, 5, 30, 5, 30, 5, 30, 5, 5);
     private static final ImageMode IMAGE_MODE_BUTTON_H =
@@ -79,15 +88,6 @@ public class ExampleScreen extends LorisScreen {
     private static final Color CANVAS_PAINT_COLOR = new Color(1f, 0.5f, 0f, 1f);
     private static final int CANVAS_MIN_REGION_WIDTH = 8;
     private static final double CANVAS_ZOOM_STEP = 0.8;
-    private static final ScrollbarStyle SCROLLBAR_STYLE = ScrollbarStyle.builder()
-            .backgroundColor(Color.BLACK.withA(0.2f))
-            .grabColor(Color.BLUE)
-            .hoveredGrabColor(new Color(0.2f, 0.2f, 1f, 1f))
-            .activeGrabColor(new Color(0.4f, 0.4f, 1f, 1f))
-            .padding(2f)
-            .rounding(10f)
-            .size(15f)
-            .build();
     private final ComboBox<String> comboBox;
     private final Panel panel;
     private final Canvas canvas;

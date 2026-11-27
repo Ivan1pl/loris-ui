@@ -12,6 +12,7 @@ public final class ExampleSettings {
     public static final int FONT_SIZE = 20;
     public static final String SCREEN_NAME = "example";
     public static final String FOCUS_SCREEN_NAME = "focus";
+    public static final String SCROLL_SCREEN_NAME = "scroll";
 
     private ExampleSettings() {}
 }

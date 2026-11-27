@@ -3,6 +3,7 @@ package com.ivan1pl.lorisui.example.jme3;
 import com.ivan1pl.lorisui.api.font.Font;
 import com.ivan1pl.lorisui.example.shared.ExampleFocusScreen;
 import com.ivan1pl.lorisui.example.shared.ExampleScreen;
+import com.ivan1pl.lorisui.example.shared.ExampleScrollScreen;
 import com.ivan1pl.lorisui.example.shared.ExampleSettings;
 import com.ivan1pl.lorisui.jme3.ImGuiJmeDisplay;
 import com.jme3.app.SimpleApplication;
@@ -35,9 +36,13 @@ public class LorisJme3Example extends SimpleApplication {
         ExampleScreen exampleScreen = new ExampleScreen(font, () -> guiViewPort.removeProcessor(imGuiJmeDisplay),
                 () -> imGuiJmeDisplay.setCurrentScreen(ExampleSettings.FOCUS_SCREEN_NAME));
         ExampleFocusScreen focusScreen = new ExampleFocusScreen(font,
-                () -> imGuiJmeDisplay.setCurrentScreen(ExampleSettings.SCREEN_NAME));
+                () -> imGuiJmeDisplay.setCurrentScreen(ExampleSettings.SCREEN_NAME),
+                () -> imGuiJmeDisplay.setCurrentScreen(ExampleSettings.SCROLL_SCREEN_NAME));
+        ExampleScrollScreen scrollScreen = new ExampleScrollScreen(font,
+                () -> imGuiJmeDisplay.setCurrentScreen(ExampleSettings.FOCUS_SCREEN_NAME));
         imGuiJmeDisplay.addScreen(ExampleSettings.SCREEN_NAME, exampleScreen);
         imGuiJmeDisplay.addScreen(ExampleSettings.FOCUS_SCREEN_NAME, focusScreen);
+        imGuiJmeDisplay.addScreen(ExampleSettings.SCROLL_SCREEN_NAME, scrollScreen);
         imGuiJmeDisplay.setCurrentScreen(ExampleSettings.SCREEN_NAME);
         guiViewPort.addProcessor(imGuiJmeDisplay);
 

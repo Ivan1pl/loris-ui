@@ -4,6 +4,7 @@ import com.ivan1pl.lorisui.api.font.Font;
 import com.ivan1pl.lorisui.api.screen.DeferredRelease;
 import com.ivan1pl.lorisui.example.shared.ExampleFocusScreen;
 import com.ivan1pl.lorisui.example.shared.ExampleScreen;
+import com.ivan1pl.lorisui.example.shared.ExampleScrollScreen;
 import com.ivan1pl.lorisui.example.shared.ExampleSettings;
 import com.ivan1pl.lorisui.lwjgl.ImGuiLwjglSdlVulkanDisplay;
 import org.lwjgl.PointerBuffer;
@@ -112,7 +113,10 @@ public class LorisLwjglSdlVulkanExample {
                 uiClosed = true;
             }, () -> display.setCurrentScreen(ExampleSettings.FOCUS_SCREEN_NAME)));
             display.addScreen(ExampleSettings.FOCUS_SCREEN_NAME,
-                    new ExampleFocusScreen(font, () -> display.setCurrentScreen(ExampleSettings.SCREEN_NAME)));
+                    new ExampleFocusScreen(font, () -> display.setCurrentScreen(ExampleSettings.SCREEN_NAME),
+                            () -> display.setCurrentScreen(ExampleSettings.SCROLL_SCREEN_NAME)));
+            display.addScreen(ExampleSettings.SCROLL_SCREEN_NAME,
+                    new ExampleScrollScreen(font, () -> display.setCurrentScreen(ExampleSettings.FOCUS_SCREEN_NAME)));
             display.setCurrentScreen(ExampleSettings.SCREEN_NAME);
             display.initialize();
             runLoop(window, device, swapchain, frames, display);

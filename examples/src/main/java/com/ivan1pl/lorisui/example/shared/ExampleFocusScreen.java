@@ -33,6 +33,7 @@ public class ExampleFocusScreen extends LorisScreen {
     private final Button openModalButton;
     private final Button toggleButton;
     private final Button backButton;
+    private final Button scrollScreenButton;
     private final Button closeButton;
     private final Button focusNumberButton;
     private final Button focusNumberDelayedButton;
@@ -53,8 +54,9 @@ public class ExampleFocusScreen extends LorisScreen {
     private boolean numberRequestPending;
     private long numberRequestDeadline;
 
-    public ExampleFocusScreen(Font font, Runnable backAction) {
+    public ExampleFocusScreen(Font font, Runnable backAction, Runnable scrollScreenAction) {
         Objects.requireNonNull(backAction, "backAction");
+        Objects.requireNonNull(scrollScreenAction, "scrollScreenAction");
         this.textInput = TextInput.builder()
                 .width(180)
                 .font(font)
@@ -113,6 +115,8 @@ public class ExampleFocusScreen extends LorisScreen {
         this.toggleButton = createTextButton("toggle_delayed", 140, "global.toggleDelayed", this::scheduleToggle,
                 font);
         this.backButton = createTextButton("back", 90, "global.back", backAction, font);
+        this.scrollScreenButton = createTextButton("scroll_screen", 90, "global.scrollScreen", scrollScreenAction,
+                font);
         this.closeButton = createTextButton("close_modal", 90, "global.closeModal", () -> modalOpen = false, font);
         this.focusNumberButton = createTextButton("focus_number", 180, "global.focusNumber",
                 () -> numberInput.setRequestsFocus(true), font);
@@ -133,6 +137,7 @@ public class ExampleFocusScreen extends LorisScreen {
                 new FocusTarget("open modal", openModalButton),
                 new FocusTarget("toggle", toggleButton),
                 new FocusTarget("back", backButton),
+                new FocusTarget("scroll", scrollScreenButton),
                 new FocusTarget("close", closeButton),
                 new FocusTarget("focus number", focusNumberButton),
                 new FocusTarget("focus number delayed", focusNumberDelayedButton),
@@ -185,6 +190,10 @@ public class ExampleFocusScreen extends LorisScreen {
                                 .width(10)
                                 .build())
                         .addContent(backButton)
+                        .addContent(Spacer.builder()
+                                .width(10)
+                                .build())
+                        .addContent(scrollScreenButton)
                         .build())
                 .addContent(Spacer.builder()
                         .height(10)
@@ -319,7 +328,7 @@ public class ExampleFocusScreen extends LorisScreen {
         return System.nanoTime() - deadline >= 0;
     }
 
-    private static Button createTextButton(String id, int width, String textKey, Runnable action, Font font) {
+    static Button createTextButton(String id, int width, String textKey, Runnable action, Font font) {
         return Button.buttonBuilder(id)
                 .size(width, 30)
                 .action(action)
