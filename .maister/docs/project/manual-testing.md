@@ -117,7 +117,7 @@ The focusable-components checks have not been verified yet (pending the first ma
 
 ## Panel Scroll Position
 
-What this covers: the `PanelRenderer` scroll hooks and `PanelScrollTracker` against a real Dear ImGui context (the scroll range, the whole-pixel scroll and the scrollbar), the padded and unpadded nested paths, the unpadded `ModalPopup` path, and requests from another thread (see [Not Covered](#not-covered-by-the-examples) for the top-level and non-modal `Popup` paths).
+What this covers: the `PanelRenderer` scroll hooks and `PanelScrollTracker` against a real Dear ImGui context (the scroll range, the whole-pixel scroll and the scrollbar), the content child every panel scrolls in (on a padded nested panel and an unpadded modal popup), backgrounds staying in place while the content scrolls, and requests from another thread.
 
 On `ExampleScrollScreen` (reached through "Scroll" on `ExampleFocusScreen`), on all six examples (the Vulkan one also with `-Dlorisui.example.gpuDebug=true`, without validation errors):
 
@@ -128,13 +128,13 @@ On `ExampleScrollScreen` (reached through "Scroll" on `ExampleFocusScreen`), on 
 5. Press "Bottom (3 s)", then drag the scrollbar grab to the top and hold it still until well after the 3 s: the panel does not jump. After the release it stays at the top and the label reads 0.00, because the drag dropped the request.
 6. In both jME examples, F1 twice ends at the bottom with the label at 1.00 (a new Dear ImGui context, and `onStartScreen()` again).
 7. Unpadded panel and content that fits: make a temporary, uncommitted change to the scroll panel (`scroll_content`) in `ExampleScrollScreen`, in this order, and revert it afterwards:
-    1. padding 0: re-run checks (1) to (5);
+    1. padding 0: re-run checks (1) to (5); the panel's background stays in place while the lines scroll;
     2. still padding 0, with the content cut to 3 lines: the buttons do nothing, and the label stays at 0.00;
     3. padding 10 restored, still 3 lines: the same.
 8. Growing content: make a temporary, uncommitted change that replaces the 30 lines by one `Text`, whose supplier joins as many numbered lines as a counter holds (starting at 3) with line breaks, and makes "Bottom" increment the counter before it requests 1.0. Press "Bottom" until the content overflows, and a few times more: every press, including the first one that makes the content overflow, ends with the newest line visible and the label at 1.00. Revert the change afterwards.
-9. Modal popup (the unpadded `ModalPopup` path, where the popup window itself scrolls): press "Modal":
-    1. the modal opens at the bottom ("Modal line 30" and "Close" visible), and the label reads "Modal: 1.00";
-    2. the wheel over the modal then scrolls it and updates the modal value;
+9. Modal popup (unpadded): press "Modal":
+    1. the modal opens at the bottom ("Modal line 30" and "Close" visible) over its background, and the label reads "Modal: 1.00";
+    2. the wheel over the modal then scrolls it and updates the modal value, while its background stays in place;
     3. scroll it up a little, keeping "Close" visible (the modal value below 1.00), press "Close", then "Modal" again: it reopens at the bottom with the modal value at 1.00, because every open requests the bottom again (the old position may show for up to two frames).
 
 The panel scroll position checks have not been verified yet (pending the first manual pass).
@@ -169,7 +169,7 @@ LorisUI relies on Dear ImGui internals, and the runtime range `[1.92.7.1,1.93)` 
 3. Re-check the canvas wheel take-over: the wheeling window chosen from the hovered window, `ScrollMax` from the previous frame's content size, `SetNextWindowScroll` overriding the wheel's scroll target.
 4. Re-check the `clearActiveID` and `SetKeyboardFocusHere` semantics: the request is activated in the next `NewFrame`, and an input requested by navigation is not re-activated while it is active; `clearActiveID` before a disabled input's widget ends the edit cleanly.
 5. Re-check the `BeginDisabled` interplay: a block spanning the combo popup and preview child, `AllowWhenDisabled` hover on a disabled input and combo frame, a combo closing while its items are drawn disabled.
-6. Re-check the panel scroll assumptions: `ScrollMax` is computed from the previous frame's content size (0 in a window's first frame); `SetNextWindowScroll` is applied in that window's `Begin`, rounded to whole pixels and clamped to `ScrollMax` (the 0.51 px tolerance of `PanelScrollTracker` and the two-decimal label of `ExampleScrollScreen` depend on the rounding); the wheel and keyboard scroll targets are set before `Begin` and replaced by it; the scrollbar is the only thing that moves the scroll inside `Begin` after the requested scroll (the drag rule depends on it, and anything else would drop requests as if the user had dragged); `BeginPopup` and `BeginPopupModal` discard the next-window data while the popup is closed.
+6. Re-check the panel scroll assumptions: `ScrollMax` is computed from the previous frame's content size (0 in a window's first frame); `SetNextWindowScroll` is applied in that window's `Begin`, rounded to whole pixels and clamped to `ScrollMax` (the 0.51 px tolerance of `PanelScrollTracker` and the two-decimal label of `ExampleScrollScreen` depend on the rounding); the wheel and keyboard scroll targets are set before `Begin` and replaced by it; the scrollbar is the only thing that moves the scroll inside `Begin` after the requested scroll (the drag rule depends on it, and anything else would drop requests as if the user had dragged).
 7. Re-run the manual canvas checks:
    1. wheel take-over: the wheel over a canvas in a scrollable panel runs `wheel()` without scrolling the panel;
    2. no keyboard capture during canvas drags: F1 pressed during a left, right or middle canvas drag still toggles the jME examples' UI.
@@ -187,5 +187,4 @@ These paths have no example control or are not observable in the examples; they 
 2. The navigation switch and the `SPACE` activation key end to end: unit tests and review only, apart from the temporary local setter call of focusable-components check (12).
 3. The Tab trap of a non-modal `Popup` (no example contains one): `KeyboardFocusTest` and review only.
 4. The wheel withholding from the game over an enabled canvas: the jME examples disable the fly camera and no LWJGL example reads the wheel, so it is verified by review only.
-5. The scroll paths of top-level panels and non-modal `Popup`s (no example has an overflowing one): `PanelScrollTrackerTest` and review only; the nested paths and the unpadded `ModalPopup` path are covered by the panel scroll position checks, the unpadded nested one through the temporary change of check (7) and the modal through check (9).
-6. Content or a panel that changes height in every frame, so a scroll request is never reached and stays applied: `PanelScrollTrackerTest` and review only (the growing content of panel scroll position check (8) settles after each press).
+5. Content or a panel that changes height in every frame, so a scroll request is never reached and stays applied: `PanelScrollTrackerTest` and review only (the growing content of panel scroll position check (8) settles after each press).

@@ -33,7 +33,7 @@ public class ExampleScrollScreen extends LorisScreen {
                     .build());
         }
         this.scrollPanel = scrollPanelBuilder.build();
-        // Unpadded, so the popup window itself scrolls rather than a content child
+        // Unpadded, so it shows that the background stays in place while the content scrolls
         ModalPopup.Builder modalPopupBuilder = ModalPopup.popupBuilder("scroll_modal")
                 .size(300, 200)
                 .position((w, _) -> w / 2 - 150, (_, h) -> h / 2 - 100)
