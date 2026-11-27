@@ -38,13 +38,19 @@ public class TextInputRenderer extends Renderer<TextInput> {
         try {
             ImString imString = new ImString(component.getValue());
             imString.inputData.isResizable = true;
-            if (InputKeyboardFocus.inputText(component, imString, 0, enableInput, enabled)) {
+            InputKeyboardFocus.Result result = InputKeyboardFocus.inputText(component, imString, 0, enableInput,
+                    enabled);
+            if (result.edited()) {
                 lastEditValue.put(component, imString.get());
-            } else {
+            }
+            if (!result.edited() || result.submitted()) {
                 String value = lastEditValue.remove(component);
                 if (value != null) {
                     component.validateInput(value);
                 }
+            }
+            if (result.submitted()) {
+                component.submit();
             }
         } finally {
             ImGui.popItemWidth();

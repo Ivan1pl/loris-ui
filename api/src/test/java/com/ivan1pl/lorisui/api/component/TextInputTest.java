@@ -75,7 +75,7 @@ class TextInputTest {
     }
 
     @Test
-    void shouldRejectNullBindingMaxLengthAndStyleAtSetter() {
+    void shouldRejectNullBindingMaxLengthStyleAndSubmitActionAtSetter() {
         Consumer<String> setter = mockSetter();
         TextInput.Builder builder = TextInput.builder();
 
@@ -83,7 +83,8 @@ class TextInputTest {
                 () -> assertNullPointer("getter", () -> builder.value(null, setter)),
                 () -> assertNullPointer("setter", () -> builder.value(() -> "", null)),
                 () -> assertNullPointer("maxLength", () -> builder.maxLength((Supplier<Integer>) null)),
-                () -> assertNullPointer("style", () -> builder.style(null)));
+                () -> assertNullPointer("style", () -> builder.style(null)),
+                () -> assertNullPointer("submitAction", () -> builder.submitAction(null)));
     }
 
     @Test
@@ -154,6 +155,59 @@ class TextInputTest {
                 () -> Assertions.assertTrue(stamp - before >= 0 && after - stamp >= 0),
                 () -> Assertions.assertFalse(input.requestsFocus()),
                 () -> Assertions.assertEquals(stamp, input.getFocusRequestTime()));
+    }
+
+    @Test
+    void shouldRunSubmitActionWhenSubmittedWhileEnabled() {
+        Runnable action = Mockito.mock(Runnable.class);
+        TextInput input = TextInput.builder()
+                .value(() -> "", mockSetter())
+                .submitAction(action)
+                .build();
+
+        input.submit();
+
+        Mockito.verify(action, Mockito.times(1)).run();
+    }
+
+    @Test
+    void shouldNotRunSubmitActionWhenSubmittedWhileDisabled() {
+        Runnable action = Mockito.mock(Runnable.class);
+        TextInput input = TextInput.builder()
+                .value(() -> "", mockSetter())
+                .enabled(false)
+                .submitAction(action)
+                .build();
+
+        input.submit();
+
+        Mockito.verifyNoInteractions(action);
+    }
+
+    @Test
+    void shouldReadEnabledSupplierWhenSubmitted() {
+        AtomicBoolean enabled = new AtomicBoolean(true);
+        Runnable action = Mockito.mock(Runnable.class);
+        TextInput input = TextInput.builder()
+                .value(() -> "", mockSetter())
+                .enabled(enabled::get)
+                .submitAction(action)
+                .build();
+
+        input.submit();
+        enabled.set(false);
+        input.submit();
+
+        Mockito.verify(action, Mockito.times(1)).run();
+    }
+
+    @Test
+    void shouldDoNothingWhenSubmittedWithDefaultAction() {
+        TextInput input = TextInput.builder()
+                .value(() -> "", mockSetter())
+                .build();
+
+        Assertions.assertDoesNotThrow(input::submit);
     }
 
     @SuppressWarnings("unchecked")

@@ -12,7 +12,8 @@ import java.util.function.Supplier;
  * <p>
  * The field is bound to the application state through a getter and a setter. It displays the value returned by the
  * getter, and passes edited text to {@link #validateInput(String)}, which truncates it to the maximum length and hands
- * the result to the setter.
+ * the result to the setter. Ending the editing with Enter submits the input field, as described for
+ * {@link Builder#submitAction(Runnable)}.
  * <p>
  * A disabled input field is drawn dimmed, with its {@linkplain #getDisabledStyle() disabled style} when one is
  * set. It ignores pointer and keyboard input and is skipped by keyboard navigation; an input field that is
@@ -31,11 +32,12 @@ public class TextInput implements Focusable {
     private final TextInputStyle style;
     private final Supplier<Boolean> enabled;
     private final TextInputStyle disabledStyle;
+    private final Runnable submitAction;
     private final FocusState focusState = new FocusState();
 
     private TextInput(Supplier<Integer> maxLength, Supplier<String> valueGetter,
                       Consumer<String> valueSetter, int width, Font font, TextInputStyle style,
-                      Supplier<Boolean> enabled, TextInputStyle disabledStyle) {
+                      Supplier<Boolean> enabled, TextInputStyle disabledStyle, Runnable submitAction) {
         this.maxLength = maxLength;
         this.valueGetter = valueGetter;
         this.valueSetter = valueSetter;
@@ -44,6 +46,7 @@ public class TextInput implements Focusable {
         this.style = style;
         this.enabled = enabled;
         this.disabledStyle = disabledStyle;
+        this.submitAction = submitAction;
     }
 
     /**
@@ -129,6 +132,18 @@ public class TextInput implements Focusable {
     }
 
     /**
+     * Runs the input field's submit action if the input field is currently {@link #isEnabled() enabled}; does nothing
+     * otherwise. Backends call this when the user submits the input field as described for
+     * {@link Builder#submitAction(Runnable)}, after committing the edited text. Applications may call it on the host's
+     * UI thread to run the submit action; it does not commit text that is being edited.
+     */
+    public void submit() {
+        if (isEnabled()) {
+            submitAction.run();
+        }
+    }
+
+    /**
      * Commits edited text to the bound setter, truncated to the current maximum length.
      *
      * @param value the edited text; must not be null
@@ -154,8 +169,8 @@ public class TextInput implements Focusable {
      * Builder for {@link TextInput}, obtained from {@link TextInput#builder()}.
      * <p>
      * The value bindings are required: call {@link #value(Supplier, Consumer)} before {@link #build()}. Unless set,
-     * the maximum length is 100 characters, the width, font and style keep the toolkit defaults, and the input field
-     * is enabled and has no disabled style.
+     * the maximum length is 100 characters, the width, font and style keep the toolkit defaults, the input field is
+     * enabled and has no disabled style, and submitting does nothing.
      */
     public static class Builder {
         private Supplier<Integer> maxLength = () -> 100;
@@ -166,6 +181,7 @@ public class TextInput implements Focusable {
         private TextInputStyle style = TextInputStyle.builder().build();
         private Supplier<Boolean> enabled = () -> true;
         private TextInputStyle disabledStyle = null;
+        private Runnable submitAction = () -> {};
 
         private Builder() {}
 
@@ -279,6 +295,24 @@ public class TextInput implements Focusable {
         }
 
         /**
+         * Sets the action run when the user ends the editing of the enabled input field with Enter, or Enter on the
+         * numeric keypad, also while holding Shift or Ctrl, and also when the key repeats while held. Enter with Alt or
+         * Super never submits the input field, and neither does Space. The action also runs when the text was not
+         * changed, and while keyboard navigation is disabled. Before it runs, the edited text is committed through the
+         * bound setter as for {@link TextInput#validateInput(String)}, and the input field is no longer being edited.
+         * It runs on the host's UI thread. An exception thrown by the action propagates to the caller of the host's
+         * render call. By default submitting does nothing.
+         *
+         * @param submitAction the submit action; must not be null
+         * @return this builder
+         * @throws NullPointerException if {@code submitAction} is {@code null}
+         */
+        public Builder submitAction(Runnable submitAction) {
+            this.submitAction = Objects.requireNonNull(submitAction, "submitAction");
+            return this;
+        }
+
+        /**
          * Builds the text input. Unless set, the maximum length is 100.
          *
          * @return a new {@link TextInput}
@@ -286,7 +320,8 @@ public class TextInput implements Focusable {
          */
         public TextInput build() {
             return new TextInput(maxLength, Objects.requireNonNull(valueGetter, "valueGetter"),
-                    Objects.requireNonNull(valueSetter, "valueSetter"), width, font, style, enabled, disabledStyle);
+                    Objects.requireNonNull(valueSetter, "valueSetter"), width, font, style, enabled, disabledStyle,
+                    submitAction);
         }
     }
 }

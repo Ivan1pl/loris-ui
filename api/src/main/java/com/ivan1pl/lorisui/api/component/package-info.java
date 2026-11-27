@@ -38,8 +38,11 @@
  * drawn dimmed; a disabled button is drawn with its disabled background when one is set. They are
  * {@link com.ivan1pl.lorisui.api.component.Focusable}: an application reads whether one has the keyboard focus with
  * {@link com.ivan1pl.lorisui.api.component.Focusable#isFocused()} and requests the focus for it with
- * {@link com.ivan1pl.lorisui.api.component.Focusable#setRequestsFocus(boolean)}, from any thread. A canvas never takes
- * the focus.
+ * {@link com.ivan1pl.lorisui.api.component.Focusable#setRequestsFocus(boolean)}, from any thread. Text and number
+ * inputs report Enter that ends their editing through their submit action, set with
+ * {@link com.ivan1pl.lorisui.api.component.TextInput.Builder#submitAction(Runnable)} and
+ * {@link com.ivan1pl.lorisui.api.component.NumberInput.Builder#submitAction(Runnable)}. A canvas never takes the
+ * focus.
  *
  * <p>Panels, and so buttons and popups, report how far their content is scrolled vertically and accept a requested
  * scroll position from any thread, with {@link com.ivan1pl.lorisui.api.component.Panel#getScrollPosition()} and

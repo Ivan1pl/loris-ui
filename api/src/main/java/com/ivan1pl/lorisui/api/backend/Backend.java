@@ -19,7 +19,13 @@ import java.util.List;
  * Down arrow keys move through the items of an expanded combo box. The {@linkplain #getActivationKey() activation key}
  * presses the focused button, opens the focused combo box and selects the focused combo box item. Escape closes an
  * expanded combo box and returns the focus to it; otherwise it clears the keyboard focus, so that the next Tab starts
- * again from the first element. Escape never closes a popup.
+ * again from the first element. Escape never closes a popup. Enter that ends the editing of a text or number input
+ * submits it, as described for
+ * {@link com.ivan1pl.lorisui.api.component.TextInput.Builder#submitAction(Runnable)
+ * TextInput.Builder.submitAction} and
+ * {@link com.ivan1pl.lorisui.api.component.NumberInput.Builder#submitAction(Runnable)
+ * NumberInput.Builder.submitAction}; it is not a navigation key, and it works while keyboard navigation is disabled
+ * and whatever the activation key is.
  * <p>
  * Buttons, inputs and combo boxes are {@link com.ivan1pl.lorisui.api.component.Focusable}: an application reads
  * whether one has the focus and requests the focus for it, also while keyboard navigation is disabled.

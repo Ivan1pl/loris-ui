@@ -47,6 +47,7 @@ public class ExampleFocusScreen extends LorisScreen {
     private String modalInputContent = "Modal input";
     private String disabledTextInputContent = "Disabled input";
     private int disabledNumberInputContent = 2;
+    private String lastSubmitted = "";
     private boolean modalOpen;
     private boolean widgetsEnabled;
     private boolean togglePending;
@@ -63,6 +64,7 @@ public class ExampleFocusScreen extends LorisScreen {
                 .style(ExampleScreen.TEXT_INPUT_STYLE)
                 .maxLength(30)
                 .value(() -> textInputContent, v -> textInputContent = v)
+                .submitAction(() -> lastSubmitted = "text input: " + textInputContent)
                 .build();
         this.numberInput = NumberInput.builder()
                 .width(180)
@@ -71,6 +73,7 @@ public class ExampleFocusScreen extends LorisScreen {
                 .minValue(0)
                 .maxValue(99)
                 .value(() -> numberInputContent, v -> numberInputContent = v)
+                .submitAction(() -> lastSubmitted = "number input: " + numberInputContent)
                 .build();
         this.modalInput = TextInput.builder()
                 .width(270)
@@ -78,6 +81,10 @@ public class ExampleFocusScreen extends LorisScreen {
                 .style(ExampleScreen.TEXT_INPUT_STYLE)
                 .maxLength(30)
                 .value(() -> modalInputContent, v -> modalInputContent = v)
+                .submitAction(() -> {
+                    lastSubmitted = "modal input: " + modalInputContent;
+                    modalOpen = false;
+                })
                 .build();
         this.disabledTextInput = TextInput.builder()
                 .width(180)
@@ -87,6 +94,7 @@ public class ExampleFocusScreen extends LorisScreen {
                 .enabled(this::widgetsEnabled)
                 .maxLength(30)
                 .value(() -> disabledTextInputContent, v -> disabledTextInputContent = v)
+                .submitAction(() -> lastSubmitted = "disabled text input: " + disabledTextInputContent)
                 .build();
         // No disabled style, so the normal style is drawn dimmed
         this.disabledNumberInput = NumberInput.builder()
@@ -97,6 +105,7 @@ public class ExampleFocusScreen extends LorisScreen {
                 .minValue(0)
                 .maxValue(99)
                 .value(() -> disabledNumberInputContent, v -> disabledNumberInputContent = v)
+                .submitAction(() -> lastSubmitted = "disabled number input: " + disabledNumberInputContent)
                 .build();
         this.disabledComboBox = ComboBox.builder(String.class)
                 .size(160, 30)
@@ -144,8 +153,8 @@ public class ExampleFocusScreen extends LorisScreen {
                 new FocusTarget("focus modal", focusModalButton),
                 new FocusTarget("focus hidden tab", focusHiddenTabButton));
         this.panel = Panel.panelBuilder("focus_panel")
-                .size(600, 370)
-                .position((w, _) -> w / 2 - 300, (_, h) -> h / 2 - 185)
+                .size(600, 400)
+                .position((w, _) -> w / 2 - 300, (_, h) -> h / 2 - 200)
                 .layout(Layout.VERTICAL)
                 .padding(15)
                 .backgroundImage("/textures/textures.png", ExampleScreen.IMAGE_MODE_PANEL_BG)
@@ -247,6 +256,13 @@ public class ExampleFocusScreen extends LorisScreen {
                         .localizedText("global.focused")
                         .append(" ")
                         .append(this::focusedNames)
+                        .build())
+                .addContent(Text.builder()
+                        .width(570)
+                        .font(font)
+                        .localizedText("global.submitted")
+                        .append(" ")
+                        .append(() -> lastSubmitted)
                         .build())
                 .build();
         this.modalPopup = ModalPopup.popupBuilder("focus_modal")

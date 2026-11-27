@@ -107,13 +107,14 @@ class NumberInputTest {
     }
 
     @Test
-    void shouldRejectNullBoundsAndStyleAtSetter() {
+    void shouldRejectNullBoundsStyleAndSubmitActionAtSetter() {
         NumberInput.Builder builder = NumberInput.builder();
 
         Assertions.assertAll(
                 () -> assertNullPointer("minValue", () -> builder.minValue((Supplier<Integer>) null)),
                 () -> assertNullPointer("maxValue", () -> builder.maxValue((Supplier<Integer>) null)),
-                () -> assertNullPointer("style", () -> builder.style(null)));
+                () -> assertNullPointer("style", () -> builder.style(null)),
+                () -> assertNullPointer("submitAction", () -> builder.submitAction(null)));
     }
 
     @Test
@@ -184,6 +185,59 @@ class NumberInputTest {
                 () -> Assertions.assertTrue(stamp - before >= 0 && after - stamp >= 0),
                 () -> Assertions.assertFalse(input.requestsFocus()),
                 () -> Assertions.assertEquals(stamp, input.getFocusRequestTime()));
+    }
+
+    @Test
+    void shouldRunSubmitActionWhenSubmittedWhileEnabled() {
+        Runnable action = Mockito.mock(Runnable.class);
+        NumberInput input = NumberInput.builder()
+                .value(() -> 0, mockSetter())
+                .submitAction(action)
+                .build();
+
+        input.submit();
+
+        Mockito.verify(action, Mockito.times(1)).run();
+    }
+
+    @Test
+    void shouldNotRunSubmitActionWhenSubmittedWhileDisabled() {
+        Runnable action = Mockito.mock(Runnable.class);
+        NumberInput input = NumberInput.builder()
+                .value(() -> 0, mockSetter())
+                .enabled(false)
+                .submitAction(action)
+                .build();
+
+        input.submit();
+
+        Mockito.verifyNoInteractions(action);
+    }
+
+    @Test
+    void shouldReadEnabledSupplierWhenSubmitted() {
+        AtomicBoolean enabled = new AtomicBoolean(true);
+        Runnable action = Mockito.mock(Runnable.class);
+        NumberInput input = NumberInput.builder()
+                .value(() -> 0, mockSetter())
+                .enabled(enabled::get)
+                .submitAction(action)
+                .build();
+
+        input.submit();
+        enabled.set(false);
+        input.submit();
+
+        Mockito.verify(action, Mockito.times(1)).run();
+    }
+
+    @Test
+    void shouldDoNothingWhenSubmittedWithDefaultAction() {
+        NumberInput input = NumberInput.builder()
+                .value(() -> 0, mockSetter())
+                .build();
+
+        Assertions.assertDoesNotThrow(input::submit);
     }
 
     @SuppressWarnings("unchecked")

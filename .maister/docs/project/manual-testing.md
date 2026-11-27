@@ -101,17 +101,37 @@ On `ExampleFocusScreen`, on all six examples:
 4. "Toggle (3 s)" makes them reachable again.
 5. Disabling while in use: the row starts disabled, so first re-enable it as in check 4. Press "Toggle (3 s)" again and, within the 3 s, start editing one of its two inputs, or expand its combo with Enter or open it with a click, and let the toggle disable it: editing stops with no stray caret, no typed character and no captured keys (in the jME examples F1 toggles the UI), or the list closes. Press "Toggle (3 s)" once more to re-enable the row: Tab works, a combo expanded with Enter gets its look back without expanding, and one opened with a click stays closed.
 6. A request releases an edited input: click "Focus number (3 s)", tab to the text input and type until the request lands. The text input loses its caret and keeps its edit, the number input starts editing, and further keys reach only the number input.
-7. "Focus number" gives the number input the caret.
-8. "Focus modal" opens the modal with the caret in its input.
+7. "Focus number" gives the number input the caret. When pressing the button with Enter, tap the key: held past the key-repeat delay, Enter also submits the focused input (check 13.7).
+8. "Focus modal" opens the modal with the caret in its input. Tap Enter here too: held past the key-repeat delay, it submits the modal input, which closes the modal again.
 9. "Focus hidden tab" focuses nothing, and switching to tab 2 a moment later does not focus its button.
 10. On the first switch to the focus screen in a run, the text input gets the caret from `onStartScreen`, and again on later visits.
 11. The status text follows Tab, shows an input edited after a mouse click but not a clicked button, shows the combo while Up/Down moves through its items, and clears on Escape.
 12. Navigation off: add a temporary, uncommitted `imGuiJmeDisplay.setKeyboardNavigationEnabled(false);` right after the display is constructed in `LorisJme3Example.simpleInitApp()` (shared by both jME examples; in an LWJGL example, `display.setKeyboardNavigationEnabled(false);` after the display is constructed in `runUi`), run a jME example and revert the call afterwards:
-    1. Tab and Enter or Space do nothing for LorisUI;
+    1. Tab and Space do nothing for LorisUI, and Enter only submits an edited input (the "Submitted:" line updates);
     2. the request buttons and `onStartScreen` still focus their targets;
     3. the status text still follows a mouse-edited input;
     4. keys are not captured while a button is focused: select tab 2 and press "Focus hidden tab", so the status text shows "button 2", then press F1, which hides the UI (F1 again shows it);
     5. last, Escape is not taken by LorisUI either: with a button still focused, it reaches jME and exits the example (in the GLFW example it closes the UI).
+13. Submit on Enter (the "Submitted:" line shows the input's name and value after each submit):
+    1. Tab into the text input, type, and press Enter. "Submitted:" shows `text input: <new value>` once, with the committed value, the caret is gone, "Focused:" clears, and the next Tab continues after the input.
+    2. Keypad Enter does the same, on the number input, in all six examples (jME keypad delivery included).
+    3. Enter without an edit submits the current value.
+    4. Enter after a mouse click into the field submits.
+    5. Space types a space and never submits.
+    6. Modifiers, one expected result each (with an edit before each key):
+       - Shift+Enter ends the editing, commits the value and submits.
+       - Ctrl+Enter ends the editing, commits the value and submits.
+       - Alt+Enter keeps the input being edited (the caret stays) and does not submit.
+       - Super+Enter, where the OS delivers it, keeps the input being edited and does not submit.
+       - Ctrl+Shift+Enter keeps the input being edited (Dear ImGui matches no chord) and does not submit.
+    7. Held Enter submits once:
+       - with an edit, hold Enter: the editing ends and "Submitted:" updates once;
+       - with the default activation key Enter (the examples keep it), hold Enter on "Focus number": the number input gets the caret, and after the key-repeat delay its editing ends and "Submitted:" updates once, to `number input: <value>`.
+    8. A character typed in the same frame as Enter, at a low frame rate, is included in the submitted value.
+    9. In the number input, clearing the text or typing `-` and then pressing Enter submits the unchanged value. Typing `150` submits `99`.
+    10. The disabled row never submits while it is disabled. After "Toggle (3 s)" it submits as `disabled text input` or `disabled number input`. When it is disabled mid-edit (the procedure of check 5), a later Enter does not submit.
+    11. "Focus modal", type, Enter: the modal closes and "Submitted:" shows the modal input's value.
+    12. Escape, a click elsewhere and Tab off an edited input don't submit. At a low frame rate, a click elsewhere and Enter in the same frame don't submit either (the edit is committed, and "Submitted:" is unchanged).
 
 The focusable-components checks have not been verified yet (pending the first manual pass).
 
@@ -168,16 +188,17 @@ LorisUI relies on Dear ImGui internals, and the runtime range `[1.92.7.1,1.93)` 
 2. Re-check the `itemHoverable` signature and the early return of the empty-space move path on a hovered item (F1 must still reach the jME example during a left canvas drag).
 3. Re-check the canvas wheel take-over: the wheeling window chosen from the hovered window, `ScrollMax` from the previous frame's content size, `SetNextWindowScroll` overriding the wheel's scroll target.
 4. Re-check the `clearActiveID` and `SetKeyboardFocusHere` semantics: the request is activated in the next `NewFrame`, and an input requested by navigation is not re-activated while it is active; `clearActiveID` before a disabled input's widget ends the edit cleanly.
-5. Re-check the `BeginDisabled` interplay: a block spanning the combo popup and preview child, `AllowWhenDisabled` hover on a disabled input and combo frame, a combo closing while its items are drawn disabled.
-6. Re-check the panel scroll assumptions: `ScrollMax` is computed from the previous frame's content size (0 in a window's first frame); `SetNextWindowScroll` is applied in that window's `Begin`, rounded to whole pixels and clamped to `ScrollMax` (the 0.51 px tolerance of `PanelScrollTracker` and the two-decimal label of `ExampleScrollScreen` depend on the rounding); the wheel and keyboard scroll targets are set before `Begin` and replaced by it; the scrollbar is the only thing that moves the scroll inside `Begin` after the requested scroll (the drag rule depends on it, and anything else would drop requests as if the user had dragged).
-7. Re-run the manual canvas checks:
+5. Re-check `InputTextEx` Enter handling: a single-line Enter (also Ctrl+ and Shift+) sets `validated`/`clear_active_id` and clears the active ID at the end of the widget; key handling is skipped on the just-activated frame and after a click-away; characters are processed before Enter; `Shortcut()` claims only the modifiers of Enter; Enter is read with key repeat (`Shortcut()` with `Repeat`), on the same repeat delay and rate as `isKeyPressed(key, true)`.
+6. Re-check the `BeginDisabled` interplay: a block spanning the combo popup and preview child, `AllowWhenDisabled` hover on a disabled input and combo frame, a combo closing while its items are drawn disabled.
+7. Re-check the panel scroll assumptions: `ScrollMax` is computed from the previous frame's content size (0 in a window's first frame); `SetNextWindowScroll` is applied in that window's `Begin`, rounded to whole pixels and clamped to `ScrollMax` (the 0.51 px tolerance of `PanelScrollTracker` and the two-decimal label of `ExampleScrollScreen` depend on the rounding); the wheel and keyboard scroll targets are set before `Begin` and replaced by it; the scrollbar is the only thing that moves the scroll inside `Begin` after the requested scroll (the drag rule depends on it, and anything else would drop requests as if the user had dragged).
+8. Re-run the manual canvas checks:
    1. wheel take-over: the wheel over a canvas in a scrollable panel runs `wheel()` without scrolling the panel;
    2. no keyboard capture during canvas drags: F1 pressed during a left, right or middle canvas drag still toggles the jME examples' UI.
-8. Re-run the manual keyboard checks:
-   1. inputs: Tab into a text or number input shows the caret, typing and Tab off keep the edit and deactivate it; holding Tab across inputs at a low frame rate leaves no stray caret;
+9. Re-run the manual keyboard checks:
+   1. inputs: Tab into a text or number input shows the caret, typing and Tab off keep the edit and deactivate it; holding Tab across inputs at a low frame rate leaves no stray caret; Enter in an edited input submits once, after its value is committed, and ends the editing;
    2. combo boxes: a focused combo opens on Enter at its selected item, Tab, Shift+Tab, Up and Down move with the highlight, Enter selects, closes and returns the focus.
-9. Re-run the [focusable-components checks](#focusable-components) (1) to (12) on `ExampleFocusScreen`.
-10. Re-run the [panel scroll position checks](#panel-scroll-position) (1) to (9) on `ExampleScrollScreen`.
+10. Re-run the [focusable-components checks](#focusable-components) (1) to (13) on `ExampleFocusScreen`.
+11. Re-run the [panel scroll position checks](#panel-scroll-position) (1) to (9) on `ExampleScrollScreen`.
 
 ## Not Covered by the Examples
 
@@ -188,3 +209,4 @@ These paths have no example control or are not observable in the examples; they 
 3. The Tab trap of a non-modal `Popup` (no example contains one): `KeyboardFocusTest` and review only.
 4. The wheel withholding from the game over an enabled canvas: the jME examples disable the fly camera and no LWJGL example reads the wheel, so it is verified by review only.
 5. Content or a panel that changes height in every frame, so a scroll request is never reached and stays applied: `PanelScrollTrackerTest` and review only (the growing content of panel scroll position check (8) settles after each press).
+6. Enter that confirms an IME composition: it is expected to be consumed by the IME and not to submit the input, which can be checked only where an IME is available (not verified yet).

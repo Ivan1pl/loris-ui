@@ -10,11 +10,11 @@ import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImString;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 public class NumberInputRenderer extends Renderer<NumberInput> {
-    private final Map<NumberInput, String> lastEditValue = new HashMap<>();
+    private final Map<NumberInput, String> lastEditValue = new WeakHashMap<>();
 
     @Override
     public void render(NumberInput component, int w, int h, RendererProvider rendererProvider,
@@ -39,14 +39,19 @@ public class NumberInputRenderer extends Renderer<NumberInput> {
         try {
             ImString imString = new ImString(component.getValue());
             imString.inputData.isResizable = true;
-            if (InputKeyboardFocus.inputText(component, imString, ImGuiInputTextFlags.CharsDecimal, enableInput,
-                    enabled)) {
+            InputKeyboardFocus.Result result = InputKeyboardFocus.inputText(component, imString,
+                    ImGuiInputTextFlags.CharsDecimal, enableInput, enabled);
+            if (result.edited()) {
                 lastEditValue.put(component, imString.get());
-            } else {
+            }
+            if (!result.edited() || result.submitted()) {
                 String value = lastEditValue.remove(component);
                 if (value != null) {
                     component.validateInput(value);
                 }
+            }
+            if (result.submitted()) {
+                component.submit();
             }
         } finally {
             ImGui.popItemWidth();
