@@ -9,9 +9,12 @@ import java.util.function.Supplier;
  * Styles the closed {@link com.ivan1pl.lorisui.api.component.ComboBox} field: its background, border, arrow
  * button and arrow colors, corner rounding and border thickness.
  *
- * <p>Set it with {@link com.ivan1pl.lorisui.api.component.ComboBox.Builder#style(ComboBoxStyle)}. Use
- * {@link ComboBoxPopupStyle} and {@link ComboBoxItemStyle} for the drop-down list. Every property is optional; an
- * unset property keeps the toolkit default.
+ * <p>Set it with {@link com.ivan1pl.lorisui.api.component.ComboBox.Builder#style(ComboBoxStyle)}, and the style
+ * used while the combo box is disabled with
+ * {@link com.ivan1pl.lorisui.api.component.ComboBox.Builder#disabledStyle(ComboBoxStyle)}. A disabled combo box
+ * without a disabled style uses its style; either way it is drawn dimmed. Use {@link ComboBoxPopupStyle} and
+ * {@link ComboBoxItemStyle} for the drop-down list, which has no disabled style. Every property is optional; an unset
+ * property keeps the toolkit default.
  */
 public class ComboBoxStyle implements Style {
     private final Supplier<Color> backgroundColor;

@@ -78,8 +78,8 @@ import java.util.function.Predicate;
  *     enabled canvas;</li>
  *     <li>key events, including repeats, and character events are consumed while a LorisUI text or number input is
  *     being edited, and, while keyboard navigation is enabled, also while an enabled button or combo box has the
- *     keyboard focus, while a text or number input has received the keyboard focus and is about to be edited, and
- *     while a combo box is expanded;</li>
+ *     keyboard focus, while an enabled text or number input has received the keyboard focus and is about to be
+ *     edited, and while a combo box is expanded;</li>
  *     <li>window focus and cursor enter events are never consumed.</li>
  * </ul>
  * A key release goes to the application's callback exactly when the key's press, or a repeat while it was held,
@@ -121,12 +121,13 @@ import java.util.function.Predicate;
  * {@link ImGuiGlfwGl3Renderer}.
  *
  * <h2>Keyboard navigation</h2>
- * Tab and Shift+Tab move the keyboard focus through the UI's buttons, text and number inputs and combo boxes, and the
- * activation key and Escape act on the focused element, as described for
+ * Tab and Shift+Tab move the keyboard focus through the UI's enabled buttons, text and number inputs and combo
+ * boxes, and the activation key and Escape act on the focused element, as described for
  * {@link com.ivan1pl.lorisui.api.backend.Backend}. Tab never reaches Dear ImGui's own keyboard navigation, so Ctrl+Tab
- * never moves or highlights panels. Choose the activation key with {@link #setActivationKey}, and turn keyboard
- * navigation off with {@link #setKeyboardNavigationEnabled}. The key and character events that the UI consumes are
- * listed under Input above.
+ * never moves or highlights panels. Choose the activation key with {@link #setActivationKey}, and turn the navigation
+ * keys off with {@link #setKeyboardNavigationEnabled}; the focus reported and requested through
+ * {@link com.ivan1pl.lorisui.api.component.Focusable} keeps working either way. The key and character events that
+ * the UI consumes are listed under Input above.
  *
  * <h2>Threading</h2>
  * The display is not thread-safe. Create it and call all of its methods on the thread that owns the window and its

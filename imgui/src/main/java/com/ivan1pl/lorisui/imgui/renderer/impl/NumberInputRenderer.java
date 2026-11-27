@@ -19,25 +19,28 @@ public class NumberInputRenderer extends Renderer<NumberInput> {
     @Override
     public void render(NumberInput component, int w, int h, RendererProvider rendererProvider,
                        BundleKeyResolver bundleKeyResolver, boolean topLevel, boolean enableInput) {
-        TextInputStyle style = component.getStyle();
+        boolean enabled = component.isEnabled();
+        TextInputStyle disabledStyle = enabled ? null : component.getDisabledStyle();
+        TextInputStyle style = disabledStyle != null ? disabledStyle : component.getStyle();
         var styles = rendererProvider.getStyleApplier(style).applyStyles(style, rendererProvider);
         try {
             if (component.getFont() != null) {
-                ((ImGuiFont) component.getFont()).useFont(() -> doRender(component, enableInput));
+                ((ImGuiFont) component.getFont()).useFont(() -> doRender(component, enableInput, enabled));
             } else {
-                doRender(component, enableInput);
+                doRender(component, enableInput, enabled);
             }
         } finally {
             rendererProvider.getStyleApplier(style).popStyles(styles);
         }
     }
 
-    private void doRender(NumberInput component, boolean enableInput) {
+    private void doRender(NumberInput component, boolean enableInput, boolean enabled) {
         ImGui.pushItemWidth(component.getWidth());
         try {
             ImString imString = new ImString(component.getValue());
             imString.inputData.isResizable = true;
-            if (InputKeyboardFocus.inputText(component, imString, ImGuiInputTextFlags.CharsDecimal, enableInput)) {
+            if (InputKeyboardFocus.inputText(component, imString, ImGuiInputTextFlags.CharsDecimal, enableInput,
+                    enabled)) {
                 lastEditValue.put(component, imString.get());
             } else {
                 String value = lastEditValue.remove(component);

@@ -1,3 +1,4 @@
+// Not among Gradle's default script imports
 import java.nio.file.Files
 import javax.inject.Inject
 
@@ -97,6 +98,7 @@ abstract class RunExamplesInParallel extends DefaultTask {
         String gpuDebugValue = gpuDebug.get()
         File nativesRoot = temporaryDir
         List<String> failures = Collections.synchronizedList(new ArrayList<String>())
+        // The examples' console output is interleaved
         List<Thread> threads = examples.get().collect { example ->
             Thread thread = new Thread({
                 try {
@@ -115,6 +117,7 @@ abstract class RunExamplesInParallel extends DefaultTask {
                             }
                         }
                     } finally {
+                        // Not File.deleteOnExit: it removes only empty directories, and only when the daemon exits
                         fileSystemOperations.delete { spec -> spec.delete(nativesDir) }
                     }
                 } catch (Throwable t) {

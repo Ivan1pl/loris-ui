@@ -52,7 +52,7 @@ public Builder barColor(Supplier<Color> barColor) {
 ```
 
 ### Event Callbacks and Trigger Methods
-Event callbacks are `Runnable` properties (`Button`'s `action` and `hoverAction`) that default to a no-op `() -> {}` and are set with a single `requireNonNull` setter (no constant overload, no null-as-unset). The component exposes a public trigger method per event (`click()`, `hover()`) that runs the callback only when `isEnabled()` is true; backends call the trigger, never the raw `Runnable`, so the enabled gate lives in one place and applications can trigger the event themselves. Keyboard input reuses the same triggers instead of adding callbacks: a keyboard focus start counts as a hover start (`hover()`, at most once per frame even when the pointer hover starts in the same frame, and again when a focused button is enabled again), and the activation key on a focused element counts as a click (`click()`); the Javadoc of the callback setters and triggers names both the pointer and the keyboard events. The setter's Javadoc states that the callback runs on the host's UI thread and that an exception it throws propagates to the caller of the host's render call; the trigger's Javadoc states when backends call it and that applications may call it on the host's UI thread.
+Event callbacks are `Runnable` properties (`Button`'s `action` and `hoverAction`) that default to a no-op `() -> {}` and are set with a single `requireNonNull` setter (no constant overload, no null-as-unset). The component exposes a public trigger method per event (`click()`, `hover()`) that runs the callback only when `isEnabled()` is true; backends call the trigger, never the raw `Runnable`, so the enabled gate lives in one place and applications can trigger the event themselves. Keyboard input reuses the same triggers instead of adding callbacks: a keyboard focus start counts as a hover start (`hover()`) and the activation key on a focused element counts as a click (`click()`); the Javadoc of the callback setters and triggers names both the pointer and the keyboard events. The setter's Javadoc states that the callback runs on the host's UI thread and that an exception it throws propagates to the caller of the host's render call; the trigger's Javadoc states when backends call it and that applications may call it on the host's UI thread.
 
 ```java
 // Button.Builder
@@ -96,3 +96,29 @@ public Builder clickAction(ClickAction clickAction) {
     return this;
 }
 ```
+
+### Enabled State and Disabled Style
+A component that the user can disable (e.g. `Button`, `TextInput`) stores `Supplier<Boolean> enabled`, defaulting to `() -> true`, with the constant overload `enabled(boolean)` delegating to `enabled(Supplier<Boolean>)` (`requireNonNull(enabled, "enabled")`), and exposes `boolean isEnabled()` evaluated on each call. The setter's Javadoc copies Button's phrasing ("Defaults to `true`", evaluated each time the component is drawn, "must not be null and must not return `null`", `@throws NullPointerException`). A disabled look that needs more than the toolkit's dimming is a nullable `disabledStyle` of the same type as `style` (builder field `null`, one setter accepting `null` "to use the style", getter "the disabled style, or `null` when unset, in which case the style is used"); the builder fields follow `style`, first `enabled`, then `disabledStyle` (exceptions: `Button` keeps its `disabledBackground`, and `ComboBox` has no disabled popup or item style). The disabled state gates only the user: programmatic changes (e.g. the bindings) keep working, and the class Javadoc says so together with the disabled behavior. The builder class Javadoc lists the defaults (enabled, no disabled style). Renderers evaluate `isEnabled()` once per draw (see `renderers-and-styles.md`).
+
+```java
+// TextInput.Builder
+private Supplier<Boolean> enabled = () -> true;
+private TextInputStyle disabledStyle = null;
+
+public Builder enabled(boolean enabled) {
+    return enabled(() -> enabled);
+}
+
+public Builder enabled(Supplier<Boolean> enabled) {
+    this.enabled = Objects.requireNonNull(enabled, "enabled");
+    return this;
+}
+
+public Builder disabledStyle(TextInputStyle disabledStyle) {
+    this.disabledStyle = disabledStyle;
+    return this;
+}
+```
+
+### Backend-Consumed Requests
+A request that the application makes and the backend acts on later is a flag on the component that the backend clears once it has handled it (e.g. `Popup.open()`, cleared with `setShouldOpen(false)`; `Focusable.setRequestsFocus(true)`, cleared with `setRequestsFocus(false)`). The Javadoc names the methods that backends call and says that applications normally use the requesting method instead. A request that may be made from any thread lives in a package-private, lock-free holder shared by the implementing classes (e.g. `FocusState`, whose memory-ordering contract is in its code), and each component holds its own `private final` instance and delegates through one-line `@Override` methods with inherited Javadoc. Such a request carries a `System.nanoTime()` stamp, compared overflow-safe by subtraction; the backend clears it only while its stamp is unchanged, so a request renewed in the meantime is kept, and the interface Javadoc documents the remaining race.

@@ -121,16 +121,17 @@ import java.util.Objects;
  * correction, which is on by default ({@code AppSettings.setGammaCorrection}), provides it.
  *
  * <h2>Keyboard navigation</h2>
- * Tab and Shift+Tab move the keyboard focus through the UI's buttons, text and number inputs and combo boxes, and the
- * activation key and Escape act on the focused element, as described for
+ * Tab and Shift+Tab move the keyboard focus through the UI's enabled buttons, text and number inputs and combo
+ * boxes, and the activation key and Escape act on the focused element, as described for
  * {@link com.ivan1pl.lorisui.api.backend.Backend}. Tab never reaches Dear ImGui's own keyboard navigation, so Ctrl+Tab
- * never moves or highlights panels. Choose the activation key with {@link #setActivationKey}, and turn keyboard
- * navigation off with {@link #setKeyboardNavigationEnabled}.
+ * never moves or highlights panels. Choose the activation key with {@link #setActivationKey}, and turn the navigation
+ * keys off with {@link #setKeyboardNavigationEnabled}; the focus reported and requested through
+ * {@link com.ivan1pl.lorisui.api.component.Focusable} keeps working either way.
  * <p>
  * When created with the application's input manager, the display consumes key events while a LorisUI text or number
  * input is being edited. While keyboard navigation is enabled, it also consumes them while an enabled button or combo
- * box has the keyboard focus, while a text or number input has received the keyboard focus and is about to be
- * edited, and while a combo box is expanded. A key release reaches the application's input mappings exactly when the
+ * box has the keyboard focus, while an enabled text or number input has received the keyboard focus and is about to
+ * be edited, and while a combo box is expanded. A key release reaches the application's input mappings exactly when the
  * key's press, or a repeat while it was held, reached them, so they never see a key held down or a release they never
  * saw pressed when the UI starts or stops consuming key events; only the release of a key pressed before the display
  * was last attached follows the capture at that moment. Whether a key event is consumed depends on the most recently
@@ -577,11 +578,11 @@ public class ImGuiJmeDisplay implements SceneProcessor {
     }
 
     /**
-     * Enables or disables keyboard navigation with Tab, Shift+Tab, the activation key and Escape, as described for
-     * {@link com.ivan1pl.lorisui.api.backend.Backend#setKeyboardNavigationEnabled}. It is enabled by default;
-     * disable it on screens where Tab or other keys belong to the game. Disabling it ends the capture that comes from
-     * keyboard navigation at once, so the display then consumes key events only while a text or number input is being
-     * edited, and clears the keyboard focus from the next frame drawn while it is disabled.
+     * Enables or disables keyboard navigation with Tab, Shift+Tab, the activation key, Escape and the Up and Down arrow
+     * keys. It is enabled by default; disable it on screens where Tab or other keys belong to the game. Disabling it
+     * turns off the navigation keys and ends the capture that comes from keyboard navigation at once, so the display
+     * then consumes key events only while a text or number input is being edited; the focus itself keeps working, as
+     * described for {@link com.ivan1pl.lorisui.api.backend.Backend#setKeyboardNavigationEnabled}.
      * <p>
      * May be called in any state of the display, attached or not, also after its initialization failed, on the jME
      * application thread. The change takes effect from the next key event or frame and stays in effect when the

@@ -54,6 +54,7 @@ public class PanelRenderer extends Renderer<Panel> {
         for (Style style : component.getStyles()) {
             styleStack.pushStyle(style, rendererProvider);
         }
+        // The slot is set during every frame, so null means this panel and its children take no input
         KeyboardFocus keyboardFocus = enableInput ? ImGuiState.keyboardFocus : null;
         boolean popupScopePushed = false;
         try {
@@ -133,7 +134,7 @@ public class PanelRenderer extends Renderer<Panel> {
                 int frame = ImGui.getFrameCount();
                 int focus = 0;
                 if (keyboardFocus != null) {
-                    focus = keyboardFocus.register(imGuiId, KeyboardFocus.Kind.BUTTON, button.isEnabled());
+                    focus = keyboardFocus.register(imGuiId, KeyboardFocus.Kind.BUTTON, button.isEnabled(), button);
                     if (hovered && mouseClicked) {
                         keyboardFocus.reportClick(imGuiId);
                     }

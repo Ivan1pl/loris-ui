@@ -295,8 +295,8 @@ public abstract class ImGuiBackend implements Backend, RendererProvider {
 
     /**
      * Enables or disables keyboard navigation, as described for {@link Backend#setKeyboardNavigationEnabled}. Dear
-     * ImGui's own keyboard navigation stays off either way. Disabling it clears the keyboard focus from the next frame
-     * drawn while it is disabled.
+     * ImGui's own keyboard navigation stays off either way, and disabling LorisUI's turns off only its navigation keys
+     * and their keyboard capture.
      *
      * <p>Can be called at any time on the host's UI thread; the change takes effect from the next key event or frame.
      *

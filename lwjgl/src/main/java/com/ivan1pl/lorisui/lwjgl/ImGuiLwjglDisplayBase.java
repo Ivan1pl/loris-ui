@@ -256,11 +256,11 @@ abstract class ImGuiLwjglDisplayBase<RendererType extends ImGuiRenderer> {
     }
 
     /**
-     * Enables or disables keyboard navigation with Tab, Shift+Tab, the activation key and Escape, as described for
-     * {@link com.ivan1pl.lorisui.api.backend.Backend#setKeyboardNavigationEnabled}. It is enabled by default;
-     * disable it on screens where Tab or other keys belong to the game. Disabling it ends the capture that comes from
-     * keyboard navigation at once, so the display then consumes key events only while a text or number input is being
-     * edited, and clears the keyboard focus from the next frame drawn while it is disabled.
+     * Enables or disables keyboard navigation with Tab, Shift+Tab, the activation key, Escape and the Up and Down arrow
+     * keys. It is enabled by default; disable it on screens where Tab or other keys belong to the game. Disabling it
+     * turns off the navigation keys and ends the capture that comes from keyboard navigation at once, so the display
+     * then consumes key events only while a text or number input is being edited; the focus itself keeps working, as
+     * described for {@link com.ivan1pl.lorisui.api.backend.Backend#setKeyboardNavigationEnabled}.
      * <p>
      * May be called in any state of the display, including before it is initialized and after its {@code close()},
      * on the display's thread. The change takes effect from the next key event or frame.

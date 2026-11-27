@@ -13,9 +13,11 @@
  * fonts and localized text through {@link com.ivan1pl.lorisui.api.resolver.BundleKeyResolver}.
  * <p>
  * The backend also holds the keyboard-navigation settings of the UI it draws: whether Tab and Shift+Tab move the
- * keyboard focus through the UI's buttons, inputs and combo boxes, and which
+ * keyboard focus through the UI's enabled buttons, inputs and combo boxes, and which
  * {@link com.ivan1pl.lorisui.api.backend.ActivationKey} activates the focused element. Both are toolkit-neutral and
- * described for {@link com.ivan1pl.lorisui.api.backend.Backend}.
+ * described for {@link com.ivan1pl.lorisui.api.backend.Backend}. These components are
+ * {@link com.ivan1pl.lorisui.api.component.Focusable}: applications read whether one has the focus and request the
+ * focus for it.
  * <p>
  * Hosts may use {@link com.ivan1pl.lorisui.api.screen.ScreenManager} to keep their named screens and fire the
  * screen lifecycle callbacks, and {@link com.ivan1pl.lorisui.api.resolver.ResourceBundleKeyResolver} to resolve

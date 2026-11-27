@@ -120,6 +120,28 @@ class ButtonTest {
         Mockito.verifyNoInteractions(hoverAction);
     }
 
+    @Test
+    void shouldDelegateFocusStateToItsHolder() {
+        Focusable button = Button.buttonBuilder("button")
+                .size(10, 10)
+                .build();
+
+        button.setFocused(true);
+        long before = System.nanoTime();
+        button.setRequestsFocus(true);
+        long after = System.nanoTime();
+        long stamp = button.getFocusRequestTime();
+        boolean requested = button.requestsFocus();
+        button.setRequestsFocus(false);
+
+        Assertions.assertAll(
+                () -> Assertions.assertTrue(button.isFocused()),
+                () -> Assertions.assertTrue(requested),
+                () -> Assertions.assertTrue(stamp - before >= 0 && after - stamp >= 0),
+                () -> Assertions.assertFalse(button.requestsFocus()),
+                () -> Assertions.assertEquals(stamp, button.getFocusRequestTime()));
+    }
+
     private static void assertNullPointer(String expectedMessage, Executable executable) {
         Assertions.assertEquals(expectedMessage,
                 Assertions.assertThrows(NullPointerException.class, executable).getMessage());

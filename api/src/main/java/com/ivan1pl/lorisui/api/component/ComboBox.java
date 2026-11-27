@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * A drop-down list from which the user selects one item.
@@ -15,28 +16,42 @@ import java.util.Objects;
  * Each {@link Item} pairs a value with the {@link Panel} drawn for it in the list. The closed combo box shows the label
  * of the selected item, or the empty-selection label when no item is selected. Items are matched to the selected value
  * with {@link Object#equals(Object)}. The selection is state of the combo box instance: it changes when the user picks
- * an item and can be read and set with {@link #getSelectedItem()} and {@link #setSelectedItem(Object)}. Create
- * instances with {@link #builder(Class)}.
+ * an item and can be read and set with {@link #getSelectedItem()} and {@link #setSelectedItem(Object)}.
+ * <p>
+ * A combo box can be disabled with {@link Builder#enabled(Supplier)}. A disabled combo box is drawn dimmed, with its
+ * {@linkplain #getDisabledStyle() disabled style} when one is set. It ignores pointer and keyboard input and is
+ * skipped by {@linkplain com.ivan1pl.lorisui.api.backend.Backend keyboard navigation}; a combo box that is disabled
+ * while it is expanded closes its list at once. Programmatic changes are not affected:
+ * {@link #setSelectedItem(Object)} keeps working while the combo box is disabled.
+ * <p>
+ * A combo box is {@link Focusable}: an application can read whether it has the focus and request the focus for it.
+ * Create instances with {@link #builder(Class)}.
  *
  * @param <ItemType> type of the item values
  */
-public class ComboBox<ItemType> implements Component {
+public class ComboBox<ItemType> implements Focusable {
     private final int width;
     private final int height;
     private final Item<ItemType>[] items;
     private final Panel emptySelectionLabel;
     private final ComboBoxStyle style;
+    private final Supplier<Boolean> enabled;
+    private final ComboBoxStyle disabledStyle;
     private final ComboBoxPopupStyle popupStyle;
     private final ComboBoxItemStyle itemStyle;
+    private final FocusState focusState = new FocusState();
     private ItemType selectedItem;
 
     private ComboBox(int width, int height, Item<ItemType>[] items, Panel emptySelectionLabel, ComboBoxStyle style,
-                     ComboBoxPopupStyle popupStyle, ComboBoxItemStyle itemStyle) {
+                     Supplier<Boolean> enabled, ComboBoxStyle disabledStyle, ComboBoxPopupStyle popupStyle,
+                     ComboBoxItemStyle itemStyle) {
         this.width = width;
         this.height = height;
         this.items = items;
         this.emptySelectionLabel = emptySelectionLabel;
         this.style = style;
+        this.enabled = enabled;
+        this.disabledStyle = disabledStyle;
         this.popupStyle = popupStyle;
         this.itemStyle = itemStyle;
     }
@@ -122,6 +137,15 @@ public class ComboBox<ItemType> implements Component {
     }
 
     /**
+     * Returns the style of the combo box itself while it is disabled.
+     *
+     * @return the disabled style, or {@code null} when unset, in which case the style is used
+     */
+    public ComboBoxStyle getDisabledStyle() {
+        return disabledStyle;
+    }
+
+    /**
      * Returns the style of the drop-down list.
      *
      * @return the drop-down list style; never {@code null}
@@ -137,6 +161,42 @@ public class ComboBox<ItemType> implements Component {
      */
     public ComboBoxItemStyle getItemStyle() {
         return itemStyle;
+    }
+
+    /**
+     * Returns whether the combo box currently accepts pointer and keyboard input and can take the focus, evaluated on
+     * each call.
+     *
+     * @return {@code true} when the combo box is enabled
+     */
+    @Override
+    public boolean isEnabled() {
+        return enabled.get();
+    }
+
+    @Override
+    public boolean isFocused() {
+        return focusState.isFocused();
+    }
+
+    @Override
+    public void setFocused(boolean focused) {
+        focusState.setFocused(focused);
+    }
+
+    @Override
+    public boolean requestsFocus() {
+        return focusState.requestsFocus();
+    }
+
+    @Override
+    public void setRequestsFocus(boolean requestsFocus) {
+        focusState.setRequestsFocus(requestsFocus);
+    }
+
+    @Override
+    public long getFocusRequestTime() {
+        return focusState.getFocusRequestTime();
     }
 
     /**
@@ -165,9 +225,9 @@ public class ComboBox<ItemType> implements Component {
      * Builder for {@link ComboBox}, obtained from {@link ComboBox#builder(Class)}.
      * <p>
      * No property is required. Unless set, the combo box has no items, its empty-selection label is an empty panel of
-     * size 0 &times; 0, and its styles keep the toolkit defaults. The size is derived from the empty-selection label
-     * when it is not set (see {@link #build()}), so set either {@link #size(int, int)} or a sized empty-selection
-     * label.
+     * size 0 &times; 0, its styles keep the toolkit defaults, it is enabled and it has no disabled style. The size is
+     * derived from the empty-selection label when it is not set (see {@link #build()}), so set either
+     * {@link #size(int, int)} or a sized empty-selection label.
      *
      * @param <ItemType> type of the item values
      */
@@ -177,6 +237,8 @@ public class ComboBox<ItemType> implements Component {
         private List<Item<ItemType>> items = Collections.emptyList();
         private Panel emptySelectionLabel = Panel.panelBuilder("comboBox.emptySelectionLabel").size(0, 0).build();
         private ComboBoxStyle style = ComboBoxStyle.builder().build();
+        private Supplier<Boolean> enabled = () -> true;
+        private ComboBoxStyle disabledStyle = null;
         private ComboBoxPopupStyle popupStyle = ComboBoxPopupStyle.builder().build();
         private ComboBoxItemStyle itemStyle = ComboBoxItemStyle.builder().build();
 
@@ -245,6 +307,42 @@ public class ComboBox<ItemType> implements Component {
         }
 
         /**
+         * Sets whether the combo box accepts pointer and keyboard input and can take the focus. Defaults to
+         * {@code true}.
+         *
+         * @param enabled {@code true} to enable the combo box
+         * @return this builder
+         */
+        public Builder<ItemType> enabled(boolean enabled) {
+            return enabled(() -> enabled);
+        }
+
+        /**
+         * Sets whether the combo box accepts pointer and keyboard input and can take the focus from a supplier,
+         * evaluated each time the combo box is drawn.
+         *
+         * @param enabled supplies whether the combo box is enabled; must not be null and must not return {@code null}
+         * @return this builder
+         * @throws NullPointerException if {@code enabled} is {@code null}
+         */
+        public Builder<ItemType> enabled(Supplier<Boolean> enabled) {
+            this.enabled = Objects.requireNonNull(enabled, "enabled");
+            return this;
+        }
+
+        /**
+         * Sets the style of the combo box itself while it is disabled. By default no disabled style is set and the
+         * style is used.
+         *
+         * @param disabledStyle the disabled style, or {@code null} to use the style
+         * @return this builder
+         */
+        public Builder<ItemType> disabledStyle(ComboBoxStyle disabledStyle) {
+            this.disabledStyle = disabledStyle;
+            return this;
+        }
+
+        /**
          * Sets the style of the drop-down list. The default style keeps the toolkit defaults.
          *
          * @param popupStyle the drop-down list style; must not be null
@@ -281,8 +379,8 @@ public class ComboBox<ItemType> implements Component {
         public ComboBox<ItemType> build() {
             int height = this.height == 0 ? emptySelectionLabel.getHeight(0, 0) : this.height;
             int width = this.width == 0 ? emptySelectionLabel.getWidth(0, 0) + height : this.width;
-            return new ComboBox<>(width, height, items.toArray(Item[]::new), emptySelectionLabel, style, popupStyle,
-                    itemStyle);
+            return new ComboBox<>(width, height, items.toArray(Item[]::new), emptySelectionLabel, style, enabled,
+                    disabledStyle, popupStyle, itemStyle);
         }
     }
 }

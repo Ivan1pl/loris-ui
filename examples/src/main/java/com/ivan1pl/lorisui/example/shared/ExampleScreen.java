@@ -21,41 +21,25 @@ public class ExampleScreen extends LorisScreen {
             .borderThickness(1f)
             .rounding(5f)
             .build();
-    private static final ImageMode IMAGE_MODE_BUTTON =
-            ImageMode.spriteResize(40, 40, 2, 5, 30, 5, 5, 5, 30, 5, 30, 5, 30, 5, 5);
-    private static final ImageMode IMAGE_MODE_BUTTON_H =
-            ImageMode.spriteResize(40, 40, 3, 5, 30, 5, 5, 5, 30, 5, 30, 5, 30, 5, 5);
-    private static final ImageMode IMAGE_MODE_BUTTON_A =
-            ImageMode.spriteResize(40, 40, 4, 5, 30, 5, 5, 5, 30, 5, 30, 5, 30, 5, 5);
-    private static final ImageMode IMAGE_MODE_BUTTON_D =
-            ImageMode.spriteResize(40, 40, 5, 5, 30, 5, 5, 5, 30, 5, 30, 5, 30, 5, 5);
-    private static final ImageMode IMAGE_MODE_TAB_LEFT =
+    static final ImageMode IMAGE_MODE_TAB_LEFT =
             ImageMode.spriteResize(40, 40, 6, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ImageMode IMAGE_MODE_TAB_LEFT_H =
+    static final ImageMode IMAGE_MODE_TAB_LEFT_H =
             ImageMode.spriteResize(40, 40, 7, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ImageMode IMAGE_MODE_TAB_LEFT_A =
+    static final ImageMode IMAGE_MODE_TAB_LEFT_A =
             ImageMode.spriteResize(40, 40, 8, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ImageMode IMAGE_MODE_TAB_LEFT_S =
+    static final ImageMode IMAGE_MODE_TAB_LEFT_S =
             ImageMode.spriteResize(40, 40, 9, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ImageMode IMAGE_MODE_TAB_MID =
-            ImageMode.spriteResize(40, 40, 10, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ImageMode IMAGE_MODE_TAB_MID_H =
-            ImageMode.spriteResize(40, 40, 11, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ImageMode IMAGE_MODE_TAB_MID_A =
-            ImageMode.spriteResize(40, 40, 12, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ImageMode IMAGE_MODE_TAB_MID_S =
-            ImageMode.spriteResize(40, 40, 13, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ImageMode IMAGE_MODE_TAB_RIGHT =
+    static final ImageMode IMAGE_MODE_TAB_RIGHT =
             ImageMode.spriteResize(40, 40, 14, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ImageMode IMAGE_MODE_TAB_RIGHT_H =
+    static final ImageMode IMAGE_MODE_TAB_RIGHT_H =
             ImageMode.spriteResize(40, 40, 15, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ImageMode IMAGE_MODE_TAB_RIGHT_A =
+    static final ImageMode IMAGE_MODE_TAB_RIGHT_A =
             ImageMode.spriteResize(40, 40, 16, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ImageMode IMAGE_MODE_TAB_RIGHT_S =
+    static final ImageMode IMAGE_MODE_TAB_RIGHT_S =
             ImageMode.spriteResize(40, 40, 17, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ImageMode IMAGE_MODE_TAB_CONTENT =
+    static final ImageMode IMAGE_MODE_TAB_CONTENT =
             ImageMode.spriteResize(40, 40, 18, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
-    private static final ComboBoxStyle COMBO_BOX_STYLE = ComboBoxStyle.builder()
+    static final ComboBoxStyle COMBO_BOX_STYLE = ComboBoxStyle.builder()
             .backgroundColor(Color.BLUE)
             .backgroundColorHovered(new Color(0.2f, 0.2f, 1f, 1f))
             .borderColor(Color.YELLOW)
@@ -65,16 +49,32 @@ public class ExampleScreen extends LorisScreen {
             .borderThickness(1f)
             .rounding(5f)
             .build();
-    private static final ComboBoxItemStyle COMBO_BOX_ITEM_STYLE = ComboBoxItemStyle.builder()
+    static final ComboBoxItemStyle COMBO_BOX_ITEM_STYLE = ComboBoxItemStyle.builder()
             .hoveredColor(new Color(0.2f, 0.2f, 1f, 1f))
             .activeColor(new Color(0.4f, 0.4f, 1f, 1f))
             .selectedColor(new Color(0.6f, 0.6f, 1f, 1f))
             .build();
-    private static final ComboBoxPopupStyle COMBO_BOX_POPUP_STYLE = ComboBoxPopupStyle.builder()
+    static final ComboBoxPopupStyle COMBO_BOX_POPUP_STYLE = ComboBoxPopupStyle.builder()
             .backgroundColor(Color.BLUE)
             .borderThickness(1f)
             .rounding(5f)
             .build();
+    private static final ImageMode IMAGE_MODE_BUTTON =
+            ImageMode.spriteResize(40, 40, 2, 5, 30, 5, 5, 5, 30, 5, 30, 5, 30, 5, 5);
+    private static final ImageMode IMAGE_MODE_BUTTON_H =
+            ImageMode.spriteResize(40, 40, 3, 5, 30, 5, 5, 5, 30, 5, 30, 5, 30, 5, 5);
+    private static final ImageMode IMAGE_MODE_BUTTON_A =
+            ImageMode.spriteResize(40, 40, 4, 5, 30, 5, 5, 5, 30, 5, 30, 5, 30, 5, 5);
+    private static final ImageMode IMAGE_MODE_BUTTON_D =
+            ImageMode.spriteResize(40, 40, 5, 5, 30, 5, 5, 5, 30, 5, 30, 5, 30, 5, 5);
+    private static final ImageMode IMAGE_MODE_TAB_MID =
+            ImageMode.spriteResize(40, 40, 10, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
+    private static final ImageMode IMAGE_MODE_TAB_MID_H =
+            ImageMode.spriteResize(40, 40, 11, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
+    private static final ImageMode IMAGE_MODE_TAB_MID_A =
+            ImageMode.spriteResize(40, 40, 12, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
+    private static final ImageMode IMAGE_MODE_TAB_MID_S =
+            ImageMode.spriteResize(40, 40, 13, 19, 2, 19, 20, 19, 2, 19, 15, 19, 2, 19, 5);
     private static final Color CANVAS_BACKGROUND_COLOR = new Color(0.2f, 0.2f, 0.2f, 1f);
     private static final Color CANVAS_PAINT_COLOR = new Color(1f, 0.5f, 0f, 1f);
     private static final int CANVAS_MIN_REGION_WIDTH = 8;
@@ -536,7 +536,7 @@ public class ExampleScreen extends LorisScreen {
         }
     }
 
-    private static ComboBox.Item<String> createComboBoxItem(String label, Font font) {
+    static ComboBox.Item<String> createComboBoxItem(String label, Font font) {
         return new ComboBox.Item<>(label, Panel.panelBuilder("comboBoxItem_" + label)
                 .size(130, 30)
                 .paddingLeft(5)

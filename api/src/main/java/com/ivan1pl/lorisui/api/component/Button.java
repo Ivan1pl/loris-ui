@@ -21,18 +21,20 @@ import java.util.function.Supplier;
  * accepts the press that begins a click.
  *
  * <p>With {@linkplain com.ivan1pl.lorisui.api.backend.Backend keyboard navigation}, an enabled button that has
- * keyboard focus is drawn with its hovered background, and the activation key clicks it.
+ * keyboard focus is drawn with its hovered background, and the activation key clicks it. A button is
+ * {@link Focusable}: an application can read whether it has the focus and request the focus for it.
  *
  * <p>Create a button with {@link #buttonBuilder(String)} or {@link #buttonBuilder(Supplier)}. Its ID follows the
  * same rules as a {@link Panel} ID.
  */
-public class Button extends Panel {
+public class Button extends Panel implements Focusable {
     private final Supplier<Background> activeBackground;
     private final Supplier<Background> hoveredBackground;
     private final Supplier<Background> disabledBackground;
     private final Supplier<Boolean> enabled;
     private final Runnable action;
     private final Runnable hoverAction;
+    private final FocusState focusState = new FocusState();
 
     private Button(Supplier<String> id, IntBinaryOperator x, IntBinaryOperator y, IntBinaryOperator width,
                    IntBinaryOperator height, Layout layout, Supplier<Background> background, Supplier<Boolean> open,
@@ -80,12 +82,39 @@ public class Button extends Panel {
     }
 
     /**
-     * Returns whether the button currently accepts clicks and runs its hover action, evaluated on each call.
+     * Returns whether the button currently accepts clicks, runs its hover action and can take the focus, evaluated
+     * on each call.
      *
      * @return {@code true} when the button is enabled
      */
+    @Override
     public boolean isEnabled() {
         return enabled.get();
+    }
+
+    @Override
+    public boolean isFocused() {
+        return focusState.isFocused();
+    }
+
+    @Override
+    public void setFocused(boolean focused) {
+        focusState.setFocused(focused);
+    }
+
+    @Override
+    public boolean requestsFocus() {
+        return focusState.requestsFocus();
+    }
+
+    @Override
+    public void setRequestsFocus(boolean requestsFocus) {
+        focusState.setRequestsFocus(requestsFocus);
+    }
+
+    @Override
+    public long getFocusRequestTime() {
+        return focusState.getFocusRequestTime();
     }
 
     /**

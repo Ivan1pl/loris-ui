@@ -1,10 +1,28 @@
 package com.ivan1pl.lorisui.imgui.impl;
 
+import com.ivan1pl.lorisui.api.component.Focusable;
+
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
+// LorisUI's keyboard focus across the renderers of one frame. Each frame works on a copy of the last completed frame's
+// state and replaces it in endFrame, so a failed frame changes nothing.
+//
+// Focus requests are granted at beginFrame, like the Tab moves, so every element registered in the frame sees the
+// final anchor, however early it is drawn, and the last occurrence in draw order is known from the committed order. A
+// request is judged against the threshold committed with that order: it is fresh when it is not older than the start
+// of the drawn frame before the one that drew its component. Only drawn frames, completed with at least one element,
+// count, so frames that draw nothing, such as those before a screen's first draw, never age a request made for it.
+// A frame that reports a mouse click grants no request, so the click wins completely.
+// An input is released when the anchor leaves it, derived once from the committed anchor after the Tab moves and the
+// requests, so a request undoing a same-frame Tab move releases nothing and a Tab or a request releases alike.
+// The focus is tracked and written back whether keyboard navigation is enabled or not; the switch only gates the keys.
 public final class KeyboardFocus {
     public static final int FOCUS_LOOK = 1;
     public static final int KEYBOARD_FOCUS_STARTED = 1 << 1;
@@ -13,7 +31,7 @@ public final class KeyboardFocus {
     public static final int CLOSE_COMBO_SCOPE = 1 << 3;
     // Delivered to an input in the frame keyboard focus lands on it; Dear ImGui activates it one frame later
     public static final int TAKE_INPUT_FOCUS = 1 << 4;
-    // Delivered to an input whose anchor a Tab move takes, active or still pending; it deactivates itself if active
+    // Delivered to an input the committed anchor leaves, active or still pending; it deactivates itself if active
     public static final int RELEASE_INPUT = 1 << 5;
 
     private static final int ROOT_SCOPE = -1;
@@ -27,6 +45,15 @@ public final class KeyboardFocus {
     private boolean committedKeyboardFocused;
     private boolean committedInputPending;
     private boolean committedCapture;
+    private Set<Integer> committedFocusedIds = new HashSet<>();
+    // The Focusables last written as focused, compared by identity: each component instance has its own focus state
+    private Set<Focusable> committedFocused = newIdentitySet();
+    // Only drawn frames, completed with at least one element, age requests; until one completes, all are accepted
+    private long lastDrawnFrameStart;
+    private boolean hasDrawnFrame;
+    // The threshold the committed order's requests are judged against: the one of the frame that drew it
+    private long committedRequestsSince;
+    private boolean committedAcceptsAllRequests;
 
     private List<Element> frameOrder = new ArrayList<>();
     private List<Scope> frameScopes = new ArrayList<>();
@@ -49,6 +76,9 @@ public final class KeyboardFocus {
     private boolean mouseClicked;
     private boolean clickReported;
     private int clickedId;
+    private long frameStart;
+    // The requests judged in this frame with the stamps read then, compared by identity
+    private final Map<Focusable, Long> settlements = new IdentityHashMap<>();
 
     private int queuedMoves;
 
@@ -56,42 +86,25 @@ public final class KeyboardFocus {
         queuedMoves += step;
     }
 
-    public void beginFrame(boolean activationPressed, boolean escapePressed, boolean upPressed, boolean downPressed,
-                           boolean mouseClicked) {
+    // The frame runs whether keyboard navigation is enabled or not; while it is disabled, the queued moves are dropped
+    // and LorisUI's keys are ignored, but clicks, scopes and the registration results work as usual
+    public void beginFrame(long frameStart, boolean navigationEnabled, boolean activationPressed,
+                           boolean escapePressed, boolean upPressed, boolean downPressed, boolean mouseClicked) {
         restoreCommittedState();
+        this.frameStart = frameStart;
         this.mouseClicked = mouseClicked;
 
         int moves = queuedMoves;
         queuedMoves = 0;
-        if (moves != 0) {
-            boolean hadAnchor = anchored;
-            int previousAnchorId = anchorId;
+        if (navigationEnabled && moves != 0) {
             applyMoves(moves);
-            if (hadAnchor && anchorId != previousAnchorId && isInput(previousAnchorId)) {
-                releasePending = true;
-                releaseId = previousAnchorId;
-            }
         }
 
-        Scope activeScope = committedActiveScope == ROOT_SCOPE ? null : committedScopes.get(committedActiveScope);
-        boolean comboScopeActive = activeScope != null && activeScope.combo();
-        int arrowMoves = (downPressed ? 1 : 0) - (upPressed ? 1 : 0);
-        if (comboScopeActive && arrowMoves != 0) {
-            applyMoves(arrowMoves);
-        }
+        applyRequests();
+        scheduleRelease();
 
-        if (escapePressed) {
-            if (comboScopeActive) {
-                closingComboOwners.add(activeScope.ownerId());
-                focusOn(activeScope.ownerId());
-            } else {
-                anchored = false;
-                keyboardFocused = false;
-                focusStartPending = false;
-            }
-        } else if (activationPressed && keyboardFocused && isMemberOfActiveScope(anchorId)) {
-            activationPending = true;
-            activationId = anchorId;
+        if (navigationEnabled) {
+            applyKeys(activationPressed, escapePressed, upPressed, downPressed);
         }
     }
 
@@ -107,12 +120,13 @@ public final class KeyboardFocus {
         openScopeStack.removeLast();
     }
 
-    public int register(int id, Kind kind, boolean enabled) {
-        return register(id, kind, enabled, false);
+    public int register(int id, Kind kind, boolean enabled, Focusable focusable) {
+        Objects.requireNonNull(focusable, "focusable");
+        return register(id, kind, enabled, false, focusable);
     }
 
     public int registerComboItem(int id, boolean selected) {
-        return register(id, Kind.COMBO_ITEM, true, selected);
+        return register(id, Kind.COMBO_ITEM, true, selected, null);
     }
 
     // Clicks are reported in draw order, so of nested elements the innermost, drawn last, wins
@@ -154,6 +168,14 @@ public final class KeyboardFocus {
             inputPending = false;
         }
 
+        Set<Integer> focusedIds = frameFocusedIds();
+        Set<Focusable> focused = newIdentitySet();
+        for (Element element : frameOrder) {
+            if (element.focusable() != null && focusedIds.contains(element.id())) {
+                focused.add(element.focusable());
+            }
+        }
+
         committedOrder = frameOrder;
         committedScopes = frameScopes;
         committedActiveScope = activeScope;
@@ -162,13 +184,26 @@ public final class KeyboardFocus {
         committedKeyboardFocused = keyboardFocused;
         committedInputPending = inputPending;
         committedCapture = capturesKeyboard();
+        committedFocusedIds = focusedIds;
+        // Read before this frame updates them, so they still describe the drawn frames before this one
+        committedRequestsSince = lastDrawnFrameStart;
+        committedAcceptsAllRequests = !hasDrawnFrame;
+        if (!frameOrder.isEmpty()) {
+            lastDrawnFrameStart = frameStart;
+            hasDrawnFrame = true;
+        }
+        writeFocus(focused);
+        settleRequests();
     }
 
-    // A failed frame leaves the last completed frame in place; the moves it consumed stay dropped
+    // A failed frame leaves the last completed frame in place and writes no focus; the moves and the requests it
+    // consumed stay dropped, so a retried frame cannot start a focus twice
     public void discardFrame() {
+        settleRequests();
         restoreCommittedState();
     }
 
+    // Called only when the renderer is disposed; turning keyboard navigation off keeps the focus
     public void reset() {
         committedOrder = new ArrayList<>();
         committedScopes = new ArrayList<>();
@@ -178,8 +213,14 @@ public final class KeyboardFocus {
         committedKeyboardFocused = false;
         committedInputPending = false;
         committedCapture = false;
+        committedFocusedIds = new HashSet<>();
+        lastDrawnFrameStart = 0;
+        hasDrawnFrame = false;
+        committedRequestsSince = 0;
+        committedAcceptsAllRequests = false;
         queuedMoves = 0;
         restoreCommittedState();
+        writeFocus(newIdentitySet());
     }
 
     public boolean wantsCapture() {
@@ -208,6 +249,105 @@ public final class KeyboardFocus {
         mouseClicked = false;
         clickReported = false;
         clickedId = 0;
+        frameStart = 0;
+        settlements.clear();
+    }
+
+    // Every pending request on the committed order is judged, so each one is settled, granted or not; of the fresh,
+    // grantable ones the last drawn wins
+    private void applyRequests() {
+        Element winner = null;
+        for (Element element : committedOrder) {
+            if (element.focusable() != null && isFreshRequest(element.focusable()) && isGrantable(element)) {
+                winner = element;
+            }
+        }
+        if (winner == null || mouseClicked) {
+            return;
+        }
+        if (committedAnchored && committedAnchorId == winner.id()
+                && (committedKeyboardFocused || committedFocusedIds.contains(winner.id()))) {
+            // An element focused already keeps its focus without a new start, also undoing a same-frame Tab move
+            anchored = true;
+            anchorId = winner.id();
+            keyboardFocused = committedKeyboardFocused;
+            inputPending = committedInputPending;
+            focusStartPending = false;
+        } else {
+            focusOn(winner.id());
+        }
+    }
+
+    // Enabled when committed and a member of the active scope; nothing while a combo is expanded, as Up/Down own it
+    private boolean isGrantable(Element element) {
+        return element.enabled() && element.scope() == committedActiveScope && activeComboScope() == null;
+    }
+
+    // A Tab wrapping onto the same input keeps it; an input focused and left within one beginFrame was never
+    // committed, so it needs no release
+    private void scheduleRelease() {
+        if (committedAnchored && isInput(committedAnchorId) && (!anchored || anchorId != committedAnchorId)) {
+            releasePending = true;
+            releaseId = committedAnchorId;
+        }
+    }
+
+    // The stamp is read once per frame, after the pending flag, and compared overflow-safe
+    private boolean isFreshRequest(Focusable focusable) {
+        Long stamp = settlements.get(focusable);
+        if (stamp == null) {
+            if (!focusable.requestsFocus()) {
+                return false;
+            }
+            stamp = focusable.getFocusRequestTime();
+            settlements.put(focusable, stamp);
+        }
+        return committedAcceptsAllRequests || stamp - committedRequestsSince >= 0;
+    }
+
+    // A request renewed since beginFrame has a new stamp and stays pending; a renewal between the two reads below is
+    // the accepted race, as Focusable has no conditional clear
+    private void settleRequests() {
+        for (Map.Entry<Focusable, Long> settlement : settlements.entrySet()) {
+            Focusable focusable = settlement.getKey();
+            if (focusable.requestsFocus() && focusable.getFocusRequestTime() == settlement.getValue()) {
+                focusable.setRequestsFocus(false);
+            }
+        }
+        // Cleared once settled, so a later discarded frame that never began does not settle these requests again
+        settlements.clear();
+    }
+
+    // Up/Down move only in a combo scope; Escape closes the active combo scope, or clears the focus outside one
+    private void applyKeys(boolean activationPressed, boolean escapePressed, boolean upPressed, boolean downPressed) {
+        Scope comboScope = activeComboScope();
+        int arrowMoves = (downPressed ? 1 : 0) - (upPressed ? 1 : 0);
+        if (comboScope != null && arrowMoves != 0) {
+            applyMoves(arrowMoves);
+        }
+
+        if (escapePressed) {
+            if (comboScope != null) {
+                closingComboOwners.add(comboScope.ownerId());
+                focusOn(comboScope.ownerId());
+            } else {
+                anchored = false;
+                keyboardFocused = false;
+                focusStartPending = false;
+            }
+        } else if (activationPressed && keyboardFocused && isMemberOfActiveScope(anchorId)) {
+            activationPending = true;
+            activationId = anchorId;
+        }
+    }
+
+    // The committed active scope when it is an expanded combo's, or null
+    private Scope activeComboScope() {
+        if (committedActiveScope == ROOT_SCOPE) {
+            return null;
+        }
+        Scope scope = committedScopes.get(committedActiveScope);
+        return scope.combo() ? scope : null;
     }
 
     private void pushScope(boolean combo, int ownerId) {
@@ -215,9 +355,12 @@ public final class KeyboardFocus {
         openScopeStack.add(frameScopes.size() - 1);
     }
 
-    private int register(int id, Kind kind, boolean enabled, boolean selected) {
+    private int register(int id, Kind kind, boolean enabled, boolean selected, Focusable focusable) {
         int scope = openScopeStack.isEmpty() ? ROOT_SCOPE : openScopeStack.getLast();
-        frameOrder.add(new Element(id, kind, enabled, selected, scope));
+        frameOrder.add(new Element(id, kind, enabled, selected, scope, focusable));
+        if (kind == Kind.COMBO && !enabled) {
+            closeDisabledComboScope(id);
+        }
         int result = 0;
         if (kind == Kind.COMBO && closingComboOwners.contains(id)) {
             result |= CLOSE_COMBO_SCOPE;
@@ -245,6 +388,21 @@ public final class KeyboardFocus {
         return result;
     }
 
+    // A combo disabled while expanded closes its list. A focus on one of its items returns to the combo without a look,
+    // so the combo starts its focus again, without expanding, when it is enabled
+    private void closeDisabledComboScope(int ownerId) {
+        for (int i = 0; i < committedScopes.size(); i++) {
+            Scope scope = committedScopes.get(i);
+            if (scope.combo() && scope.ownerId() == ownerId) {
+                closingComboOwners.add(ownerId);
+                int anchorIndex = indexOf(committedOrder, anchorId);
+                if (anchored && anchorIndex >= 0 && committedOrder.get(anchorIndex).scope() == i) {
+                    anchorId = ownerId;
+                }
+            }
+        }
+    }
+
     // An input gets neither the look nor the activation key: Dear ImGui draws its caret and handles Enter
     private int takeInputFocus() {
         if (!focusStartPending) {
@@ -267,7 +425,8 @@ public final class KeyboardFocus {
         }
     }
 
-    // End rules 1 and 2
+    // A click anchors the clicked element, or the combo of a clicked item, without the keyboard focus, so the next Tab
+    // continues from there; any other click clears the anchor
     private void applyClicks() {
         if (clickReported) {
             int index = indexOf(frameOrder, clickedId);
@@ -288,7 +447,7 @@ public final class KeyboardFocus {
         }
     }
 
-    // End rule 4: a pending input is judged only from the frame after its arrival, as Dear ImGui activates it then;
+    // A pending input is judged only from the frame after its arrival, as Dear ImGui activates it then;
     // an input that is no longer active, or not active by then, keeps only the anchor
     private void updateInputActivation() {
         if (activeInputReported && activeInputId == anchorId) {
@@ -298,7 +457,7 @@ public final class KeyboardFocus {
         }
     }
 
-    // End rule 5: a combo opened from the keyboard focuses its selected item, or its first item
+    // A combo opened from the keyboard focuses its selected item, or its first item
     private void focusOpenedComboItem() {
         int scope = ROOT_SCOPE;
         for (int i = 0; i < frameScopes.size(); i++) {
@@ -361,6 +520,47 @@ public final class KeyboardFocus {
         inputPending = false;
     }
 
+    // The elements reported as focused: a keyboard-focused enabled element, the enabled combo whose items hold the
+    // keyboard focus, and an enabled input Dear ImGui has active, also one edited after a mouse click
+    private Set<Integer> frameFocusedIds() {
+        Set<Integer> ids = new HashSet<>();
+        if (anchored && keyboardFocused) {
+            Element anchor = frameOrder.get(indexOf(frameOrder, anchorId));
+            if (anchor.kind() != Kind.COMBO_ITEM) {
+                addIfEnabled(ids, anchorId);
+            } else if (anchor.scope() != ROOT_SCOPE && frameScopes.get(anchor.scope()).combo()) {
+                addIfEnabled(ids, frameScopes.get(anchor.scope()).ownerId());
+            }
+        }
+        if (activeInputReported) {
+            addIfEnabled(ids, activeInputId);
+        }
+        return ids;
+    }
+
+    private void addIfEnabled(Set<Integer> ids, int id) {
+        int index = indexOf(frameOrder, id);
+        if (index >= 0 && frameOrder.get(index).enabled()) {
+            ids.add(id);
+        }
+    }
+
+    // Writes changes only, so a Focusable that stays focused, or stays unfocused, is not written again
+    private void writeFocus(Set<Focusable> focused) {
+        Set<Focusable> previous = committedFocused;
+        committedFocused = focused;
+        for (Focusable focusable : previous) {
+            if (!focused.contains(focusable)) {
+                focusable.setFocused(false);
+            }
+        }
+        for (Focusable focusable : focused) {
+            if (!previous.contains(focusable)) {
+                focusable.setFocused(true);
+            }
+        }
+    }
+
     private boolean capturesKeyboard() {
         for (Scope scope : frameScopes) {
             if (scope.combo() && isOpen(scope)) {
@@ -372,10 +572,10 @@ public final class KeyboardFocus {
         }
         Element focused = frameOrder.get(indexOf(frameOrder, anchorId));
         return switch (focused.kind()) {
-            case BUTTON, COMBO -> focused.enabled();
-            // A focused input is pending or active; an active one is captured too, because Dear ImGui's own capture
-            // flag reports an input only from the frame after the one in which the widget activated it
-            case INPUT, COMBO_ITEM -> true;
+            // A focused enabled input is pending or active; an active one is captured too, because Dear ImGui's own
+            // capture flag reports an input only from the frame after the one in which the widget activated it
+            case BUTTON, COMBO, INPUT -> focused.enabled();
+            case COMBO_ITEM -> true;
         };
     }
 
@@ -425,6 +625,10 @@ public final class KeyboardFocus {
         return -1;
     }
 
+    private static Set<Focusable> newIdentitySet() {
+        return Collections.newSetFromMap(new IdentityHashMap<>());
+    }
+
     private static int indexOf(List<Element> order, int id) {
         for (int i = 0; i < order.size(); i++) {
             if (order.get(i).id() == id) {
@@ -441,8 +645,8 @@ public final class KeyboardFocus {
         COMBO_ITEM
     }
 
-    // scope is an index into the frame's scope list, or ROOT_SCOPE
-    private record Element(int id, Kind kind, boolean enabled, boolean selected, int scope) {}
+    // scope is an index into the frame's scope list, or ROOT_SCOPE; focusable is null for combo items
+    private record Element(int id, Kind kind, boolean enabled, boolean selected, int scope, Focusable focusable) {}
 
     private record Scope(int depth, boolean combo, int ownerId) {}
 }

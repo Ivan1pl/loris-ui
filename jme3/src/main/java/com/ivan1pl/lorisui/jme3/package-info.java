@@ -20,12 +20,13 @@
  * <p>
  * The display supports the {@linkplain com.ivan1pl.lorisui.api.backend.Backend keyboard navigation} of the UI: Tab
  * and Shift+Tab move the keyboard focus, and the activation key and Escape act on the focused element. Choose the
- * activation key with {@link com.ivan1pl.lorisui.jme3.ImGuiJmeDisplay#setActivationKey} and turn navigation off with
- * {@link com.ivan1pl.lorisui.jme3.ImGuiJmeDisplay#setKeyboardNavigationEnabled}, in any state of the display. Tab key
- * events never reach Dear ImGui's own keyboard navigation, so Ctrl+Tab never moves or highlights panels. While
- * navigation is enabled, the display also consumes key events while an element has the keyboard focus or a combo box
- * is expanded, as described for {@link com.ivan1pl.lorisui.jme3.ImGuiJmeDisplay}, so a game key such as Escape
- * reaches the application only once the focus is cleared.
+ * activation key with {@link com.ivan1pl.lorisui.jme3.ImGuiJmeDisplay#setActivationKey} and turn the navigation keys
+ * off with {@link com.ivan1pl.lorisui.jme3.ImGuiJmeDisplay#setKeyboardNavigationEnabled}, in any state of the
+ * display; the focus reported and requested through {@link com.ivan1pl.lorisui.api.component.Focusable} keeps
+ * working either way. Tab key events never reach Dear ImGui's own keyboard navigation, so Ctrl+Tab never moves or
+ * highlights panels. While navigation is enabled, the display also consumes key events while an enabled element has
+ * the keyboard focus or a combo box is expanded, as described for {@link com.ivan1pl.lorisui.jme3.ImGuiJmeDisplay},
+ * so a game key such as Escape reaches the application only once the focus is cleared.
  * <p>
  * <b>Runtime requirements.</b> The library does not bring jMonkeyEngine with it: the application declares
  * {@code jme3-core} and {@code jme3-lwjgl3}, and any other jME modules it uses, as its own dependencies. The library

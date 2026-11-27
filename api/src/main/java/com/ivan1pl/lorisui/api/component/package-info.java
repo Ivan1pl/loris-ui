@@ -32,6 +32,15 @@
  * {@link com.ivan1pl.lorisui.api.component.Canvas.WheelAction} callbacks, with the pressed
  * {@link com.ivan1pl.lorisui.api.component.MouseButton}.
  *
+ * <p>{@link com.ivan1pl.lorisui.api.component.Button}, {@link com.ivan1pl.lorisui.api.component.TextInput},
+ * {@link com.ivan1pl.lorisui.api.component.NumberInput} and {@link com.ivan1pl.lorisui.api.component.ComboBox} can be
+ * disabled, and then ignore the user and are skipped by keyboard navigation. Disabled inputs and combo boxes are
+ * drawn dimmed; a disabled button is drawn with its disabled background when one is set. They are
+ * {@link com.ivan1pl.lorisui.api.component.Focusable}: an application reads whether one has the keyboard focus with
+ * {@link com.ivan1pl.lorisui.api.component.Focusable#isFocused()} and requests the focus for it with
+ * {@link com.ivan1pl.lorisui.api.component.Focusable#setRequestsFocus(boolean)}, from any thread. A canvas never takes
+ * the focus.
+ *
  * <p>Null handling is uniform across builders: required arguments must not be null and are checked when the setter
  * is called, or in {@code build()} for required properties that have no default; setters taking a
  * {@code Supplier} reject {@code null}; constant overloads of optional properties accept {@code null} to keep the

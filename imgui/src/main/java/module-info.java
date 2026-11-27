@@ -46,11 +46,14 @@
  *
  * <p><b>Keyboard navigation.</b> The renderers implement the keyboard navigation described for
  * {@link com.ivan1pl.lorisui.api.backend.Backend Backend} for the built-in buttons, text and number inputs and combo
- * boxes; components drawn by custom renderers cannot receive the keyboard focus. A focused button is drawn with its
- * hovered background and a focused combo box or combo box item with its hovered color, and a focused input shows its
- * text cursor from the frame after the focus reaches it. No variant passes Tab key events to Dear ImGui, whatever
- * their modifiers and whether navigation is enabled, so Dear ImGui's own keyboard navigation and its Ctrl+Tab window
- * switching never run. While navigation is enabled,
+ * boxes, which are {@link com.ivan1pl.lorisui.api.component.Focusable Focusable}; components drawn by custom
+ * renderers cannot receive the keyboard focus, even when they implement {@code Focusable}. A focused button is drawn
+ * with its hovered background and a focused combo box or combo box item with its hovered color, and a focused input
+ * shows its text cursor from the frame after the focus reaches it. Disabled inputs and combo boxes are drawn with
+ * Dear ImGui's disabled look, take no input and are skipped like disabled buttons. The renderers report the focus and
+ * grant focus requests through {@code Focusable}. No variant passes Tab
+ * key events to Dear ImGui, whatever their modifiers and whether navigation is enabled, so Dear ImGui's own keyboard
+ * navigation and its Ctrl+Tab window switching never run. While navigation is enabled,
  * {@link com.ivan1pl.lorisui.imgui.ImGuiRenderer#wantsKeyboardInput() wantsKeyboardInput} also reports keyboard input
  * while an enabled element has the keyboard focus or a combo box is expanded, so hosts keep those keys away from the
  * game.

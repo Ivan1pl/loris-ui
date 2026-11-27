@@ -6,6 +6,9 @@ Organize files and directories in a logical, navigable layout.
 ### Up-to-Date Documentation
 Keep README files current with setup steps, architecture overview, and contribution guidelines.
 
+### Standards Are Rules; the Index Points
+A standard states what new and changed code must do, with a one-line reason where useful and at most a representative example class; it does not describe how particular classes work — that belongs in the code's Javadoc and comments, and architecture belongs in `project/architecture.md`. Project docs hold no checklists (manual verification procedures live in `project/manual-testing.md`). `INDEX.md` entries are short pointers saying what a file covers and when to read it, never summaries of its content.
+
 ### Clean Version Control
 Write clear commit messages, use feature branches, and add meaningful descriptions to pull requests.
 

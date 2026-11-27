@@ -1,10 +1,12 @@
 package com.ivan1pl.lorisui.api.component;
 
+import com.ivan1pl.lorisui.api.component.style.TextInputStyle;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import org.mockito.Mockito;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -82,6 +84,76 @@ class TextInputTest {
                 () -> assertNullPointer("setter", () -> builder.value(() -> "", null)),
                 () -> assertNullPointer("maxLength", () -> builder.maxLength((Supplier<Integer>) null)),
                 () -> assertNullPointer("style", () -> builder.style(null)));
+    }
+
+    @Test
+    void shouldDefaultToEnabledAndEvaluateEnabledSupplierOnEachCall() {
+        AtomicBoolean enabled = new AtomicBoolean(true);
+        TextInput defaultInput = TextInput.builder()
+                .value(() -> "", mockSetter())
+                .build();
+        TextInput constantInput = TextInput.builder()
+                .value(() -> "", mockSetter())
+                .enabled(false)
+                .build();
+        TextInput dynamicInput = TextInput.builder()
+                .value(() -> "", mockSetter())
+                .enabled(enabled::get)
+                .build();
+
+        boolean dynamicBefore = dynamicInput.isEnabled();
+        enabled.set(false);
+
+        Assertions.assertAll(
+                () -> Assertions.assertTrue(defaultInput.isEnabled()),
+                () -> Assertions.assertFalse(constantInput.isEnabled()),
+                () -> Assertions.assertTrue(dynamicBefore),
+                () -> Assertions.assertFalse(dynamicInput.isEnabled()),
+                () -> assertNullPointer("enabled", () -> TextInput.builder().enabled((Supplier<Boolean>) null)));
+    }
+
+    @Test
+    void shouldReturnDisabledStyleOrNullWhenUnset() {
+        TextInputStyle disabledStyle = TextInputStyle.builder().build();
+        TextInput defaultInput = TextInput.builder()
+                .value(() -> "", mockSetter())
+                .build();
+        TextInput styledInput = TextInput.builder()
+                .value(() -> "", mockSetter())
+                .disabledStyle(disabledStyle)
+                .build();
+        TextInput resetInput = TextInput.builder()
+                .value(() -> "", mockSetter())
+                .disabledStyle(disabledStyle)
+                .disabledStyle(null)
+                .build();
+
+        Assertions.assertAll(
+                () -> Assertions.assertNull(defaultInput.getDisabledStyle()),
+                () -> Assertions.assertSame(disabledStyle, styledInput.getDisabledStyle()),
+                () -> Assertions.assertNull(resetInput.getDisabledStyle()));
+    }
+
+    @Test
+    void shouldDelegateFocusStateToItsHolder() {
+        Focusable input = TextInput.builder()
+                .value(() -> "", mockSetter())
+                .build();
+
+        input.setFocused(true);
+        long before = System.nanoTime();
+        input.setRequestsFocus(true);
+        long after = System.nanoTime();
+        long stamp = input.getFocusRequestTime();
+        boolean requested = input.requestsFocus();
+        input.setRequestsFocus(false);
+
+        Assertions.assertAll(
+                () -> Assertions.assertTrue(input.isFocused()),
+                () -> Assertions.assertTrue(requested),
+                () -> Assertions.assertTrue(stamp - before >= 0 && after - stamp >= 0),
+                () -> Assertions.assertFalse(input.requestsFocus()),
+                () -> Assertions.assertEquals(stamp, input.getFocusRequestTime()));
     }
 
     @SuppressWarnings("unchecked")

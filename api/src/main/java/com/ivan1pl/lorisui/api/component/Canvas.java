@@ -39,8 +39,9 @@ import java.util.function.Supplier;
  * mapped through the visible region. The first button pressed owns the gesture until it is released: other buttons
  * pressed meanwhile are ignored, and drags are reported even while the pointer is outside the canvas, with
  * coordinates outside the image. During such a gesture other components under the pointer may show their hovered
- * look and run their hover actions, but they are not clicked. The canvas never takes keyboard focus, and a mouse
- * gesture on it does not capture the keyboard, so keys pressed meanwhile still reach the application.
+ * look and run their hover actions, but they are not clicked. The canvas never takes keyboard focus and is not
+ * {@link Focusable}, and a mouse gesture on it does not capture the keyboard, so keys pressed meanwhile still reach
+ * the application.
  *
  * <p>Create a canvas with {@link #builder()}.
  */

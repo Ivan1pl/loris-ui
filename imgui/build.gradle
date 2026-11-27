@@ -16,6 +16,7 @@ dependencies {
     compileOnly "org.lwjgl:lwjgl-sdl:${rootProject.ext.lwjglVersion}"
     compileOnly "org.lwjgl:lwjgl-vulkan:${rootProject.ext.lwjglVersion}"
 
+    // Resolving the range needs Gradle's cached version listing, so --offline works after one online build
     runtimeOnly('io.github.spair:imgui-java-app') {
         version {
             require "[${rootProject.ext.imguiVersion},1.93)"

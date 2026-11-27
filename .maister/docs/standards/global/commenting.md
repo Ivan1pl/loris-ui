@@ -9,6 +9,12 @@ Add brief comments only when the logic isn't self-evident from the code.
 ### No Change Comments
 Avoid comments about recent fixes or changes; comments should be timeless explanations, not changelogs.
 
+### State a Behavior Once
+Describe each behavior in one place — the Javadoc of the type or method that owns it, or one section of a project doc — and refer to it everywhere else with `{@link}` or "as described for …" instead of restating it. A referring Javadoc keeps one short sentence of its own contract and states only what differs at its site (e.g. a display's own key capture). Restatements drift apart, and every later change needs a sweep of all copies.
+
+### No References to External Specs
+Comments never cite rule, step or requirement numbers of a spec, plan or task document ("End rule 4", "step 2", "R3"); those documents are not part of the code base. Write the explanation itself.
+
 ### Javadoc on Exported API
 Public types and public/protected members in exported packages (and every public type and member of the non-modular `jme3`) require Javadoc describing the contract, null semantics (which arguments/returns may be null) and threading expectations where relevant. Internal (`impl`) and private code needs no Javadoc, and neither do the public types of a package exported only to another LorisUI module (an internal helper module, see `architecture/modules.md`), which are not public API; use sparse `//` comments only to explain non-obvious "why".
 - **User-facing**: the audience is game developers reading IDE hovers and generated HTML. Describe observable behavior and contracts, never implementation details (thread names, executors, cache data structures, toolkit call sequences, error-recovery mechanics). `imgui` docs may name Dear ImGui/OpenGL, its documented toolkit; `api` docs stay toolkit-neutral.

@@ -10,8 +10,12 @@ import java.util.function.Supplier;
  * and border thickness.
  *
  * <p>Set it with {@link com.ivan1pl.lorisui.api.component.TextInput.Builder#style(TextInputStyle)} or
- * {@link com.ivan1pl.lorisui.api.component.NumberInput.Builder#style(TextInputStyle)}. Every property is
- * optional; an unset property keeps the toolkit default.
+ * {@link com.ivan1pl.lorisui.api.component.NumberInput.Builder#style(TextInputStyle)}, and the style used while the
+ * input field is disabled with
+ * {@link com.ivan1pl.lorisui.api.component.TextInput.Builder#disabledStyle(TextInputStyle)} or
+ * {@link com.ivan1pl.lorisui.api.component.NumberInput.Builder#disabledStyle(TextInputStyle)}. A disabled input
+ * field without a disabled style uses its style; either way it is drawn dimmed. Every property is optional; an unset
+ * property keeps the toolkit default.
  */
 public class TextInputStyle implements Style {
     private final Supplier<Color> backgroundColor;

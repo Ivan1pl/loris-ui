@@ -99,12 +99,13 @@ import org.lwjgl.vulkan.VkQueue;
  * window of the application and stay set after the display is closed.
  *
  * <h2>Keyboard navigation</h2>
- * Tab and Shift+Tab move the keyboard focus through the UI's buttons, text and number inputs and combo boxes, and the
- * activation key and Escape act on the focused element, as described for
+ * Tab and Shift+Tab move the keyboard focus through the UI's enabled buttons, text and number inputs and combo
+ * boxes, and the activation key and Escape act on the focused element, as described for
  * {@link com.ivan1pl.lorisui.api.backend.Backend}. Tab never reaches Dear ImGui's own keyboard navigation, so Ctrl+Tab
- * never moves or highlights panels. Choose the activation key with {@link #setActivationKey}, and turn keyboard
- * navigation off with {@link #setKeyboardNavigationEnabled}. {@link #processEvent(long)} lists the key events that
- * the UI consumes.
+ * never moves or highlights panels. Choose the activation key with {@link #setActivationKey}, and turn the navigation
+ * keys off with {@link #setKeyboardNavigationEnabled}; the focus reported and requested through
+ * {@link com.ivan1pl.lorisui.api.component.Focusable} keeps working either way. {@link #processEvent(long)} lists
+ * the key events that the UI consumes.
  *
  * <h2>Threading</h2>
  * The display is not thread-safe. Create it and call all of its methods on the thread that owns the window. The
@@ -187,11 +188,11 @@ public final class ImGuiLwjglSdlVulkanDisplay extends ImGuiLwjglDisplayBase<ImGu
      * over LorisUI content or a mouse drag started on it. Mouse wheel events are consumed while the UI wants mouse
      * input and the pointer is over a scrollable panel or an enabled canvas. Key and text input events are consumed
      * while a LorisUI text or number input is being edited. While keyboard navigation is enabled, they are also
-     * consumed while an enabled button or combo box has the keyboard focus, while a text or number input has received
-     * the keyboard focus and is about to be edited, and while a combo box is expanded. Other events, such as window
-     * events, are passed to the UI but never consumed. The result describes the most recently rendered frame, so keep
-     * rendering every frame while passing events; while the UI is hidden, close the display or disable keyboard
-     * navigation.
+     * consumed while an enabled button or combo box has the keyboard focus, while an enabled text or number input has
+     * received the keyboard focus and is about to be edited, and while a combo box is expanded. Other events, such as
+     * window events, are passed to the UI but never consumed. The result describes the most recently rendered frame,
+     * so keep rendering every frame while passing events; while the UI is hidden, close the display or disable
+     * keyboard navigation.
      * <p>
      * A key release is passed to the application exactly when the key's press, or a repeat while it was held, was
      * passed to it, whatever the rules above say at the moment of release, so the application never sees a key held

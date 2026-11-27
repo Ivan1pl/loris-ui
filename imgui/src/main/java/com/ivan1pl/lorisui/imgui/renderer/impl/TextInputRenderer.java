@@ -18,25 +18,27 @@ public class TextInputRenderer extends Renderer<TextInput> {
     @Override
     public void render(TextInput component, int w, int h, RendererProvider rendererProvider,
                        BundleKeyResolver bundleKeyResolver, boolean topLevel, boolean enableInput) {
-        TextInputStyle style = component.getStyle();
+        boolean enabled = component.isEnabled();
+        TextInputStyle disabledStyle = enabled ? null : component.getDisabledStyle();
+        TextInputStyle style = disabledStyle != null ? disabledStyle : component.getStyle();
         var styles = rendererProvider.getStyleApplier(style).applyStyles(style, rendererProvider);
         try {
             if (component.getFont() != null) {
-                ((ImGuiFont) component.getFont()).useFont(() -> doRender(component, enableInput));
+                ((ImGuiFont) component.getFont()).useFont(() -> doRender(component, enableInput, enabled));
             } else {
-                doRender(component, enableInput);
+                doRender(component, enableInput, enabled);
             }
         } finally {
             rendererProvider.getStyleApplier(style).popStyles(styles);
         }
     }
 
-    private void doRender(TextInput component, boolean enableInput) {
+    private void doRender(TextInput component, boolean enableInput, boolean enabled) {
         ImGui.pushItemWidth(component.getWidth());
         try {
             ImString imString = new ImString(component.getValue());
             imString.inputData.isResizable = true;
-            if (InputKeyboardFocus.inputText(component, imString, 0, enableInput)) {
+            if (InputKeyboardFocus.inputText(component, imString, 0, enableInput, enabled)) {
                 lastEditValue.put(component, imString.get());
             } else {
                 String value = lastEditValue.remove(component);

@@ -16,6 +16,7 @@ allprojects {
 
     plugins.withId('java') {
         java {
+            // Gradle itself may run on any JDK; compilation, tests, Javadoc and Checkstyle use this toolchain
             toolchain {
                 languageVersion = JavaLanguageVersion.of(25)
             }

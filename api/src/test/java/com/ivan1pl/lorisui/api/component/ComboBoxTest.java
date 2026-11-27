@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 class ComboBoxTest {
     @Test
@@ -65,6 +67,66 @@ class ComboBoxTest {
                 () -> Assertions.assertEquals(40 + 12, derived.getWidth()),
                 () -> Assertions.assertEquals(20, explicit.getHeight()),
                 () -> Assertions.assertEquals(100, explicit.getWidth()));
+    }
+
+    @Test
+    void shouldEvaluateEnabledOnEachCallAndRejectNullSupplier() {
+        AtomicBoolean enabled = new AtomicBoolean(true);
+        ComboBox<String> byDefault = ComboBox.builder(String.class).build();
+        ComboBox<String> constant = ComboBox.builder(String.class)
+                .enabled(false)
+                .build();
+        ComboBox<String> supplied = ComboBox.builder(String.class)
+                .enabled(enabled::get)
+                .build();
+        boolean suppliedBefore = supplied.isEnabled();
+        enabled.set(false);
+
+        Assertions.assertAll(
+                () -> Assertions.assertTrue(byDefault.isEnabled()),
+                () -> Assertions.assertFalse(constant.isEnabled()),
+                () -> Assertions.assertTrue(suppliedBefore),
+                () -> Assertions.assertFalse(supplied.isEnabled()),
+                () -> assertNullPointer("enabled",
+                        () -> ComboBox.builder(String.class).enabled((Supplier<Boolean>) null)));
+    }
+
+    @Test
+    void shouldKeepDisabledStyleAndAcceptNull() {
+        ComboBoxStyle disabledStyle = ComboBoxStyle.builder().build();
+        ComboBox<String> byDefault = ComboBox.builder(String.class).build();
+        ComboBox<String> styled = ComboBox.builder(String.class)
+                .disabledStyle(disabledStyle)
+                .build();
+        ComboBox<String> unset = ComboBox.builder(String.class)
+                .disabledStyle(disabledStyle)
+                .disabledStyle(null)
+                .build();
+
+        Assertions.assertAll(
+                () -> Assertions.assertNull(byDefault.getDisabledStyle()),
+                () -> Assertions.assertSame(disabledStyle, styled.getDisabledStyle()),
+                () -> Assertions.assertNull(unset.getDisabledStyle()));
+    }
+
+    @Test
+    void shouldDelegateFocusStateToItsHolder() {
+        Focusable comboBox = ComboBox.builder(String.class).build();
+
+        comboBox.setFocused(true);
+        long before = System.nanoTime();
+        comboBox.setRequestsFocus(true);
+        long after = System.nanoTime();
+        long stamp = comboBox.getFocusRequestTime();
+        boolean requested = comboBox.requestsFocus();
+        comboBox.setRequestsFocus(false);
+
+        Assertions.assertAll(
+                () -> Assertions.assertTrue(comboBox.isFocused()),
+                () -> Assertions.assertTrue(requested),
+                () -> Assertions.assertTrue(stamp - before >= 0 && after - stamp >= 0),
+                () -> Assertions.assertFalse(comboBox.requestsFocus()),
+                () -> Assertions.assertEquals(stamp, comboBox.getFocusRequestTime()));
     }
 
     private static void assertNullPointer(String expectedMessage, Executable executable) {
